@@ -90,12 +90,31 @@ export const PRIORITY_DEFINITIONS = {
   }
 };
 
+export const CORE_WORK_ITEM_TYPES = ['task', 'issue', 'bug'];
+
+export const STATUS_CATEGORIES = {
+  backlog: { id: 'backlog', label: 'Backlog' },
+  unstarted: { id: 'unstarted', label: 'Unstarted' },
+  started: { id: 'started', label: 'Started' },
+  completed: { id: 'completed', label: 'Completed' },
+  canceled: { id: 'canceled', label: 'Canceled' }
+};
+
+export const getStatusCategory = (statusId) => {
+  return STATUS_DEFINITIONS[statusId]?.category || 'backlog';
+};
+
+export const isValidWorkItemType = (type) => {
+  return CORE_WORK_ITEM_TYPES.includes(type);
+};
+
 export const ITEM_TYPE_DEFINITIONS = {
-  feature: { id: 'feature', label: 'Feature', color: '#8b5cf6', icon: 'Sparkles' },
-  bug: { id: 'bug', label: 'Bug', color: '#ef4444', icon: 'Bug' },
   task: { id: 'task', label: 'Task', color: '#3b82f6', icon: 'CheckSquare' },
-  milestone: { id: 'milestone', label: 'Milestone', color: '#10b981', icon: 'Flag' },
-  chore: { id: 'chore', label: 'Chore', color: '#64748b', icon: 'Wrench' }
+  issue: { id: 'issue', label: 'Issue', color: '#8b5cf6', icon: 'AlertCircle' },
+  bug: { id: 'bug', label: 'Bug', color: '#ef4444', icon: 'Bug' },
+  // Backward-compatibility aliases for prototype data
+  feature: { id: 'issue', label: 'Issue', color: '#8b5cf6', icon: 'AlertCircle' },
+  chore: { id: 'task', label: 'Task', color: '#3b82f6', icon: 'CheckSquare' }
 };
 
 export const SHORTCUTS = {

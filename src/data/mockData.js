@@ -205,6 +205,7 @@ export const INITIAL_WORK_ITEMS = [
   {
     id: 'item-101',
     identifier: 'ENG-1041',
+    workspaceId: 'wks-core',
     title: 'Implement Tarjan cycle detection algorithm on dependency graph updates',
     type: 'task',
     status: 'in_progress',
@@ -216,6 +217,8 @@ export const INITIAL_WORK_ITEMS = [
     cycleId: 'cycle-42',
     dueDate: '2026-09-25',
     specDocId: 'doc-1',
+    documentLinks: [{ documentId: 'doc-1', type: 'source_spec', title: 'PRD: Offline-First Synchronization & CRDT Substrate' }],
+    parentId: null,
     labels: ['algorithms', 'backend', 'core-sync'],
     description: 'When users declare `A blocks B`, we must detect transitive loops (A -> B -> C -> A) in O(V + E) time before committing the relation to the normalized state cache.',
     subtasks: [
@@ -225,12 +228,16 @@ export const INITIAL_WORK_ITEMS = [
     ],
     blockedBy: [],
     blocks: ['ENG-1044'],
+    relations: [
+      { type: 'blocks', targetKey: 'ENG-1044', targetTitle: 'Persistent IndexedDB storage engine with delta log compression' }
+    ],
     createdAt: '2026-09-14T09:30:00Z',
     commentsCount: 4
   },
   {
     id: 'item-102',
     identifier: 'ENG-1042',
+    workspaceId: 'wks-core',
     title: 'Audit SAML 2.0 assertion signature replay verification',
     type: 'bug',
     status: 'in_review',
@@ -242,6 +249,8 @@ export const INITIAL_WORK_ITEMS = [
     cycleId: 'cycle-42',
     dueDate: '2026-09-26',
     specDocId: null,
+    documentLinks: [],
+    parentId: null,
     labels: ['security', 'auth', 'soc2'],
     description: 'Strict verification of InResponseTo attributes in SAML assertions. Ensure clock-skew tolerance is capped at 120 seconds.',
     subtasks: [
@@ -250,14 +259,18 @@ export const INITIAL_WORK_ITEMS = [
     ],
     blockedBy: [],
     blocks: [],
+    relations: [
+      { type: 'relates_to', isRestricted: true }
+    ],
     createdAt: '2026-09-15T11:20:00Z',
     commentsCount: 6
   },
   {
     id: 'item-103',
     identifier: 'WEB-402',
+    workspaceId: 'wks-core',
     title: 'Build 28px compact row data grid with virtualized DOM buffer',
-    type: 'feature',
+    type: 'issue',
     status: 'in_progress',
     priority: 'high',
     estimate: 8,
@@ -267,6 +280,8 @@ export const INITIAL_WORK_ITEMS = [
     cycleId: 'cycle-42',
     dueDate: '2026-09-28',
     specDocId: 'doc-1',
+    documentLinks: [{ documentId: 'doc-1', type: 'source_spec', title: 'PRD: Offline-First Synchronization & CRDT Substrate' }],
+    parentId: null,
     labels: ['ui', 'data-grid', 'performance'],
     description: 'Ensure 10,000 work items can be scrolled at 60 FPS without memory leaks. Keep total rendered DOM nodes between 150 and 200.',
     subtasks: [
@@ -276,12 +291,14 @@ export const INITIAL_WORK_ITEMS = [
     ],
     blockedBy: [],
     blocks: [],
+    relations: [],
     createdAt: '2026-09-13T14:15:00Z',
     commentsCount: 9
   },
   {
     id: 'item-104',
     identifier: 'ENG-1044',
+    workspaceId: 'wks-core',
     title: 'Persistent IndexedDB storage engine with delta log compression',
     type: 'task',
     status: 'todo',
@@ -293,6 +310,8 @@ export const INITIAL_WORK_ITEMS = [
     cycleId: 'cycle-42',
     dueDate: '2026-10-02',
     specDocId: 'doc-1',
+    documentLinks: [{ documentId: 'doc-1', type: 'source_spec', title: 'PRD: Offline-First Synchronization & CRDT Substrate' }],
+    parentId: null,
     labels: ['offline', 'storage', 'crdt'],
     description: 'Store client state operations in an IndexedDB write-ahead log. Compress snapshot states every 1,000 transactions.',
     subtasks: [
@@ -301,14 +320,18 @@ export const INITIAL_WORK_ITEMS = [
     ],
     blockedBy: ['ENG-1041'],
     blocks: [],
+    relations: [
+      { type: 'blocked_by', targetKey: 'ENG-1041', targetTitle: 'Implement Tarjan cycle detection algorithm' }
+    ],
     createdAt: '2026-09-16T10:00:00Z',
     commentsCount: 2
   },
   {
     id: 'item-105',
     identifier: 'ENG-1045',
+    workspaceId: 'wks-core',
     title: 'SCIM 2.0 User & Group provisioning endpoint specifications',
-    type: 'feature',
+    type: 'issue',
     status: 'done',
     priority: 'medium',
     estimate: 5,
@@ -318,6 +341,8 @@ export const INITIAL_WORK_ITEMS = [
     cycleId: 'cycle-41',
     dueDate: '2026-09-10',
     specDocId: null,
+    documentLinks: [],
+    parentId: null,
     labels: ['scim', 'enterprise', 'auth'],
     description: 'Implement `/scim/v2/Users` and `/scim/v2/Groups` following RFC 7644.',
     subtasks: [
@@ -326,14 +351,16 @@ export const INITIAL_WORK_ITEMS = [
     ],
     blockedBy: [],
     blocks: [],
+    relations: [],
     createdAt: '2026-08-30T08:00:00Z',
     commentsCount: 3
   },
   {
     id: 'item-106',
     identifier: 'WEB-405',
+    workspaceId: 'wks-core',
     title: 'Global Command Palette with fuzzy multi-category search',
-    type: 'feature',
+    type: 'issue',
     status: 'done',
     priority: 'high',
     estimate: 5,
@@ -343,6 +370,8 @@ export const INITIAL_WORK_ITEMS = [
     cycleId: 'cycle-42',
     dueDate: '2026-09-18',
     specDocId: null,
+    documentLinks: [],
+    parentId: null,
     labels: ['ui', 'keyboard', 'navigation'],
     description: 'Cmd+K launcher supporting instant navigation across projects, views, documents, and execution actions.',
     subtasks: [
@@ -351,12 +380,14 @@ export const INITIAL_WORK_ITEMS = [
     ],
     blockedBy: [],
     blocks: [],
+    relations: [],
     createdAt: '2026-09-10T16:40:00Z',
     commentsCount: 5
   },
   {
     id: 'item-107',
     identifier: 'MOB-201',
+    workspaceId: 'wks-core',
     title: 'Background sync daemon for iOS background fetch tasks',
     type: 'task',
     status: 'in_progress',
@@ -368,17 +399,21 @@ export const INITIAL_WORK_ITEMS = [
     cycleId: 'cycle-42',
     dueDate: '2026-09-30',
     specDocId: null,
+    documentLinks: [],
+    parentId: null,
     labels: ['ios', 'mobile', 'sync'],
     description: 'Utilize BGAppRefreshTask to pull delta change-sets when devices are connected to unmetered Wi-Fi.',
     subtasks: [],
     blockedBy: [],
     blocks: [],
+    relations: [],
     createdAt: '2026-09-17T13:10:00Z',
     commentsCount: 1
   },
   {
     id: 'item-108',
     identifier: 'ENG-1049',
+    workspaceId: 'wks-core',
     title: 'WebSocket heartbeat fallback when edge CDN terminates idle TLS',
     type: 'bug',
     status: 'backlog',
@@ -390,19 +425,23 @@ export const INITIAL_WORK_ITEMS = [
     cycleId: null,
     dueDate: null,
     specDocId: null,
+    documentLinks: [],
+    parentId: null,
     labels: ['network', 'websockets', 'infra'],
     description: 'Inject ping/pong frames every 25 seconds to keep AWS CloudFront connections warm.',
     subtasks: [],
     blockedBy: [],
     blocks: [],
+    relations: [],
     createdAt: '2026-09-18T15:20:00Z',
     commentsCount: 0
   },
   {
     id: 'item-109',
     identifier: 'ENG-1050',
+    workspaceId: 'wks-core',
     title: 'Add granular team workflow transition guards (e.g. require PR link on In Review)',
-    type: 'feature',
+    type: 'issue',
     status: 'todo',
     priority: 'medium',
     estimate: 3,
@@ -412,19 +451,23 @@ export const INITIAL_WORK_ITEMS = [
     cycleId: 'cycle-43',
     dueDate: '2026-10-08',
     specDocId: null,
+    documentLinks: [],
+    parentId: null,
     labels: ['workflows', 'governance'],
     description: 'Allow team leads to enforce required fields before an item can be moved to specific workflow states.',
     subtasks: [],
     blockedBy: [],
     blocks: [],
+    relations: [],
     createdAt: '2026-09-19T09:45:00Z',
     commentsCount: 2
   },
   {
     id: 'item-110',
     identifier: 'WEB-410',
+    workspaceId: 'wks-core',
     title: 'Bi-directional document block embedding engine with live Work Item sync',
-    type: 'feature',
+    type: 'issue',
     status: 'in_progress',
     priority: 'urgent',
     estimate: 8,
@@ -434,6 +477,8 @@ export const INITIAL_WORK_ITEMS = [
     cycleId: 'cycle-42',
     dueDate: '2026-09-27',
     specDocId: 'doc-1',
+    documentLinks: [{ documentId: 'doc-1', type: 'source_spec', title: 'PRD: Offline-First Synchronization & CRDT Substrate' }],
+    parentId: null,
     labels: ['living-spec', 'editor', 'sync'],
     description: 'Ensure any sentence or table row in a PRD can be linked directly to a WorkItem, displaying live status pills and assignee avatars.',
     subtasks: [
@@ -443,6 +488,7 @@ export const INITIAL_WORK_ITEMS = [
     ],
     blockedBy: [],
     blocks: [],
+    relations: [],
     createdAt: '2026-09-12T11:00:00Z',
     commentsCount: 11
   }

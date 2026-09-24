@@ -2,7 +2,7 @@ import React from 'react';
 import { WorkspaceProvider, useWorkspace, UIProvider, useUI } from './app/providers';
 import { AppShell, Sidebar, ActionStrip } from './layouts';
 import { DataGrid, KanbanBoard, TimelineView, WorkloadView } from './views';
-import { InspectorDrawer, CreateItemModal } from './features/work-items';
+import { WorkItemInspector, CreateItemModal } from './features/work-items';
 import { LivingSpecEditor } from './features/living-specs';
 import { TriageInbox } from './features/triage';
 import { BulkActionBar, ShortcutsModal, CommandPalette } from './components';
@@ -243,7 +243,7 @@ function OrynqoWorkspace() {
         />
       }
       inspector={
-        <InspectorDrawer
+        <WorkItemInspector
           item={selectedItem}
           isOpen={isInspectorOpen}
           onClose={() => setIsInspectorOpen(false)}
