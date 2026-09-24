@@ -1,10 +1,10 @@
 # Orynqo Platform — Sidebar Architecture & Navigation Contract (Phase IA-02)
 
-**Status:** Proposed Architecture Contract (Phase IA-02 — Ready for Human Review)  
+**Status:** IA-02 — APPROVED / ARCHITECTURE FROZEN  
 **Governing Methodology:** `antigravity-enterprise-product-design`  
-**Preceding Phase:** `IA-01 Competitive Navigation Research (APPROVED with IA-02 Refinements)`  
-**Current Phase:** `IA-02 Sidebar Architecture & Navigation Contract`  
-**Subsequent Phase:** `IA-03 Complete Page & Surface Registry (Blocked until IA-02 Approval)`  
+**Preceding Phase:** `IA-01 Competitive Navigation Research (APPROVED)`  
+**Current Phase:** `IA-02 Sidebar Architecture & Navigation Contract (FINALIZED)`  
+**Subsequent Phase:** `IA-03 Complete Page & Surface Registry (AUTHORIZED)`  
 **Implementation Freeze:** STRICTLY ENFORCED (Documentation-only deliverable; no UI/page implementation)  
 
 ---
@@ -12,6 +12,36 @@
 ## 1. Executive Summary & Core Navigation Principle
 
 Phase `IA-02` transitions the competitive research gathered in `IA-01` into Orynqo's official, formal navigation architecture and interaction contract.
+
+### Architectural Governance: Frozen vs. Provisional Scope
+
+To establish rigorous engineering discipline, this specification explicitly separates immutable architectural laws from tunable or provisional details:
+
+#### FROZEN ARCHITECTURAL PRINCIPLES:
+1. **Core Spatial Mental Model:**
+   - `SIDEBAR = WHERE` (Scope, Organization, Team, or Container selection)
+   - `RESOURCE NAVIGATION = WHAT` (Contextual facets: Overview, Work, Cycles, Projects, Docs, Triage, Members)
+   - `PROJECTION CONTROLS = HOW` (Visual lenses: Grid, Board, Timeline, Calendar, Workload)
+   - `INSPECTOR = DETAIL WITHOUT LOSING CONTEXT` (Slide-over properties, specs, comments)
+   - `COMMAND PALETTE = LONG-TAIL DISCOVERY + ACTIONS` (`⌘K` keyboard navigation)
+2. **Resource vs. Projection Law:** Projections never live as permanent global sidebar destinations.
+3. **Approved Sidebar Conceptual Hierarchy:**
+   `Org/Workspace Switcher` → `Search/Command` → `PERSONAL (Inbox, My Work)` → `FAVORITES` → `WORKSPACE (Initiatives, Docs, Views)` → `TEAMS (Joined squads with capability-aware sub-links)` → `Bottom Utility Rail`.
+4. **Docs as Global Knowledge Label:** Houses Living Specs, RFCs, Runbooks, and Knowledge under one canonical document entity model.
+5. **Capability-Aware Teams:** Sprints/cycles are conditional upon team configuration, not universally enforced.
+6. **Project Discovery Law:** Projects are discoverable via Teams, Initiatives, Favorites, Omnisearch, and an on-demand Projects Directory—never an unbounded flat global sidebar list.
+7. **Initiatives as Strategic Planning Resource:** Unifies Roadmaps, Portfolio tables, and Health rollups; preserves architectural space for future Goals/OKRs above Initiatives.
+8. **Generic Favorites Reference Model:** Polymorphic pointer (`userId`, `workspaceId`, `resourceType`, `resourceId`, `position`).
+9. **My Work Focused on Executable Work:** Strictly issues, tasks, and review assignments. Document drafts live under `Docs > Drafts`.
+10. **Communication Queue Disambiguation:** `Inbox` (personal actionable triage) ≠ `Team Triage` (team intake queue) ≠ `Activity` (contextual audit trail) ≠ `Notification` (delivery mechanism).
+11. **Saved Views Scoping:** Explicitly partitioned into Personal, Team, and Workspace scopes.
+12. **Tenant Topology:** Organization as legal/billing/security boundary; Workspace as collaborative product boundary.
+
+#### PROVISIONAL SPECIFICATIONS (Subject to refinement during IA-03 and interaction design):
+1. **Exact Route Strings:** Route patterns are provisional route-intent targets; exact URI structure is finalized in IA-03.
+2. **Exact Keyboard Sequences:** Two-key chord bindings (`G then I`, `G then M`) and activation shortcuts (`Alt+1`) are candidate bindings; full shortcut map pending.
+3. **Dimensions & Thresholds:** Widths (`52px` rail, `230px` sidebar), visible team limits (`5`), hover delays (`150ms`), and breakpoints are **Tunable UX Parameters**.
+4. **Implementation Technologies:** Storage mechanisms (`localStorage`, IndexedDB) and transport layers (`WebSocket`, React Router) are implementation candidates, not architectural locks.
 
 ### The Frozen Core Navigation Rule: Resource vs. View Projection
 Orynqo explicitly and permanently decouples **Resources** from **View Projections**:
@@ -214,16 +244,30 @@ Inside Work: [ List | Table | Board | Timeline* | Workload* ]
 
 ## 8. Strategic Planning: Initiatives, Roadmaps, and Future Goals
 
-### The Planning Hierarchy:
+### The Planning & Execution Hierarchy:
 ```
-[FUTURE TIER] Goal / Objective (OKRs, e.g. "Expand Enterprise ARR by 40%")
-     ↓ supported by
-[CURRENT TIER] Initiative (Strategic Themes, e.g. "SOC2 Type II Certification")
+Goal / Objective [future]
+     ↓ supports
+Initiative
      ↓ coordinates
-[EXECUTION TIER] Projects (Deliverables, e.g. "Audit Log Engine", "SAML SSO")
-     ↓ contains
-Work Items (Issues, Tasks, PRDs, Milestones)
+Project
+     ├── Milestones (Planning & checkpoint entities, not Work Items)
+     ├── Documents
+     │   ├── Living Spec / PRD
+     │   ├── RFC
+     │   ├── Runbook
+     │   └── other document types
+     │
+     └── Work Items (Executable work units)
+         ├── Task
+         ├── Issue
+         ├── Bug
+         └── other executable work types
 ```
+
+**Critical Domain Model Clarifications:**
+1. **Milestones are NOT WorkItems:** A Milestone is a planning checkpoint and date boundary. It aggregates or relates to Work Items, but possesses its own distinct lifecycle and schema. It is NOT a subtype of WorkItem.
+2. **PRDs / Living Specs are NOT WorkItems:** A PRD or Living Spec is a Document within the canonical Document entity system. It hosts rich prose, diagrams, and bi-directionally linked Work Item execution tables, but the document itself is never an execution ticket.
 
 ### The Role of `Initiatives`:
 - `Initiatives` is frozen as the working strategic planning label in the global sidebar.
@@ -414,11 +458,22 @@ interface NavigationNode {
 
 ---
 
-## 16. Route Taxonomy & URI Schema
+## 16. Proposed Route Taxonomy (PROVISIONAL — NOT YET FROZEN)
 
-The route architecture must guarantee permanent bookmarkability, deep linking, and predictable URL state:
+The route patterns below illustrate the proposed URI schema. Exact URI paths remain **provisional** and will be finalized during `IA-03 Surface Registration`.
+
+### Frozen Architectural Route Requirements:
+- Deep linking support for all primary resources and entities.
+- Stable canonical identity (UUID/key resilience against renames or transfers).
+- Shareable URL-backed context where appropriate.
+- Inspector deep linking (opening detail drawer via query param preserving background context).
+- Projection state shareability where relevant (`?view=board`, `?view=timeline`).
+- Filter state shareability where relevant.
+- Multi-tenant / workspace scoping in path.
+- Graceful degradation for archived/deleted resources.
 
 ```
+# Illustrative Route Patterns (Provisional)
 /:orgSlug/:workspaceSlug/inbox
 /:orgSlug/:workspaceSlug/my-work
 /:orgSlug/:workspaceSlug/initiatives
@@ -447,7 +502,7 @@ The route architecture must guarantee permanent bookmarkability, deep linking, a
 /:orgSlug/:workspaceSlug/item/:itemIdentifier     # e.g. /orynqo/main/item/OR-1082
 ```
 
-### URL Query State Schema:
+### URL Query State Schema (Provisional):
 - **Projection Lens:** `?view=grid` | `?view=board` | `?view=timeline` | `?view=workload`
 - **Active Inspector Drawer:** `?inspect=OR-1082` (Preserves background page and scroll state)
 - **Active Filter Compound:** `?filter=status%3Din_progress%26priority%3Dhigh`
@@ -456,7 +511,7 @@ The route architecture must guarantee permanent bookmarkability, deep linking, a
 
 ## 17. Navigation State Ownership Matrix
 
-Following the state isolation principles established in `Stabilization Pass 01A`, navigation state is partitioned across 5 distinct tiers:
+Following the state isolation principles established in `Stabilization Pass 01A`, navigation state is partitioned across 5 distinct tiers. Technologies in parentheses are **implementation candidates, not architectural locks**:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -464,22 +519,32 @@ Following the state isolation principles established in `Stabilization Pass 01A`
 ├─────────────────────────┬──────────────────────────────────────────────┤
 │ State Dimension         │ State Ownership Category                     │
 ├─────────────────────────┼──────────────────────────────────────────────┤
-│ Active Route & Slugs    │ URL STATE (React Router / Browser Location)  │
+│ Active Route & Slugs    │ URL STATE                                    │
+│                         │ (Implementation candidate: browser router)   │
 │ Active Inspector Item   │ URL STATE (`?inspect=OR-101`)                │
 │ Active Projection Type  │ URL STATE (`?view=board`)                    │
 │ Active Filter Criteria  │ URL STATE (`?status=active`)                 │
 ├─────────────────────────┼──────────────────────────────────────────────┤
-│ Sidebar Width & Collapse│ PERSISTED USER PREFERENCE (localStorage)     │
-│ Section Collapse States │ PERSISTED USER PREFERENCE (localStorage)     │
-│ Favorite Nodes Ordering │ PERSISTED USER PREFERENCE (User Profile DB)  │
+│ Sidebar Width & Collapse│ PERSISTED USER PREFERENCE                    │
+│                         │ (Implementation candidate: client-storage)   │
+│ Section Collapse States │ PERSISTED USER PREFERENCE                    │
+│                         │ (Implementation candidate: client-storage)   │
+│ Favorite Nodes Ordering │ PERSISTED USER PREFERENCE                    │
+│                         │ (Implementation candidate: user profile DB)  │
 ├─────────────────────────┼──────────────────────────────────────────────┤
-│ Joined Teams Roster     │ SERVER STATE (Query Cache / Workspace DB)    │
-│ Unread Inbox Count      │ SERVER STATE (WebSocket / Query Cache)       │
-│ Team Capabilities Map   │ SERVER STATE (Team Configuration DB)         │
+│ Joined Teams Roster     │ SERVER STATE                                 │
+│                         │ (Implementation candidate: query sync cache) │
+│ Unread Inbox Count      │ SERVER STATE                                 │
+│                         │ (Implementation candidate: push transport)   │
+│ Team Capabilities Map   │ SERVER STATE                                 │
+│                         │ (Implementation candidate: team settings DB) │
 ├─────────────────────────┼──────────────────────────────────────────────┤
-│ Unsaved Living Spec Edit│ FEATURE WORKFLOW STATE (Spec Editor Store)   │
-│ Omnisearch Query String │ TRANSIENT LOCAL UI STATE (Palette useState)  │
-│ Hover / Focus Index     │ TRANSIENT LOCAL UI STATE (Component useState)│
+│ Unsaved Living Spec Edit│ FEATURE WORKFLOW STATE                       │
+│                         │ (Implementation candidate: editor buffer)    │
+│ Omnisearch Query String │ TRANSIENT LOCAL UI STATE                     │
+│                         │ (Implementation candidate: component state)  │
+│ Hover / Focus Index     │ TRANSIENT LOCAL UI STATE                     │
+│                         │ (Implementation candidate: component state)  │
 └─────────────────────────┴──────────────────────────────────────────────┘
 ```
 
@@ -529,17 +594,20 @@ OVERLAY (Modals, Palettes, Drawers)
 EDITABLE CONTROL (Inputs, Textareas, Contenteditable)
 ```
 
-### Sidebar Keyboard Interactions:
-- **Activation:** Pressing `Alt + 1` (or `Ctrl + Shift + E`) focuses the sidebar rail.
-- **Traversal:** `ArrowDown` / `ArrowUp` moves focus between visible navigation nodes.
-- **Hierarchy:** `ArrowRight` expands a collapsed section/team; `ArrowLeft` collapses an expanded section/team.
-- **Execution:** `Enter` navigates to the focused node and transfers focus to the primary canvas.
-- **Two-Key Quick Sequences (Global Scope):**
+### Sidebar Keyboard Interactions (CANDIDATE KEY BINDINGS — FINAL SHORTCUT MAP PENDING)
+
+The key bindings below are **provisional candidates**. The final global keyboard shortcut map will be frozen during subsequent interaction design passes:
+
+- **Activation:** Pressing `Alt + 1` (or `Ctrl + Shift + E`) focuses the sidebar rail. *(Candidate binding)*
+- **Traversal:** `ArrowDown` / `ArrowUp` moves focus between visible navigation nodes. *(Frozen rule)*
+- **Hierarchy:** `ArrowRight` expands a collapsed section/team; `ArrowLeft` collapses an expanded section/team. *(Frozen rule)*
+- **Execution:** `Enter` navigates to the focused node and transfers focus to the primary canvas. *(Frozen rule)*
+- **Two-Key Quick Sequences (Candidate Bindings):**
   - `G then I` → Navigate to `Inbox`.
   - `G then M` → Navigate to `My Work`.
   - `G then D` → Navigate to `Docs`.
   - `G then N` → Navigate to `Initiatives`.
-- **Scope Suppression:** When typing in any text input, spec canvas, or when an overlay modal is active, all single-key shortcuts and two-key navigation sequences are strictly suppressed.
+- **Scope Suppression (Frozen Rule):** When typing in any text input, spec canvas, or when an overlay modal is active, all single-key shortcuts and two-key navigation sequences are strictly suppressed.
 
 ---
 
