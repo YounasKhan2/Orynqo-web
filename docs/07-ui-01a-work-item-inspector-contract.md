@@ -1,8 +1,8 @@
 # Orynqo Platform — UI-01A: Work Item Contract & Inspector Specification
 
-**Status:** Completed Design Specification (Phase UI-01A — Ready for Human Review)  
+**Status:** Finalized Design Specification (Phase UI-01A — Human Review Approved & Ready for Implementation)  
 **Governing Methodology:** `antigravity-enterprise-product-design`  
-**Working Branch:** `design/ui-01a-work-item-inspector`  
+**Working Branch:** `design/ui-01a-work-item-inspector` (Target Implementation Branch: `feat/ui-01a-work-item-inspector`)  
 **Authoritative Preceding Artifacts:**  
 - `docs/04-ia-competitive-navigation-research.md` (FROZEN)  
 - `docs/05-sidebar-navigation-contract.md` (FROZEN)  
@@ -10,13 +10,13 @@
 **Target Surfaces:**  
 - `WRK-005`: Work Item Inspector Drawer (Primary Anchor)  
 - `COL-001`: Threaded Discussion Inspector Panel  
-- `COL-002`: Activity & Audit Trail Panel  
+- `COL-002`: Activity & History Panel  
 **Subsequent Phases (Not Authorized):** `UI-01B` (High-Density Data Grid), `UI-01C` (Quick Create & Pickers)  
-**Implementation Rule:** STRICT DESIGN & CONTRACT PHASE ONLY. No production application code, UI components, or routes modified.
+**Implementation Phase:** AUTHORIZED (Proceed to `feat/ui-01a-work-item-inspector` following contract freeze)
 
 ---
 
-## 1. Executive Summary & Objective
+## 1. Executive Summary & Approved Decisions
 
 Phase `UI-01A` establishes the **canonical Orynqo Work Item interaction system**, centered on the **Work Item Inspector (`WRK-005`)** and its tightly coupled collaboration surfaces: **Threaded Discussion (`COL-001`)** and **Activity History (`COL-002`)**.
 
@@ -30,7 +30,13 @@ In Orynqo, the Work Item is the atomic currency of execution. It is rendered, fi
 - Living Spec Document Embeds (`DOC-002`)
 - Omnisearch / Command Palette (`CMD-001`)
 
-**Core Objective:** Design the context-independent, reusable interaction contract for inspecting, updating, discussing, and managing a canonical WorkItem without context loss. The Inspector does not know or care which surface opened it; it receives a canonical `WorkItem` reference and orchestrates atomic updates while preserving the caller's view and scroll position.
+### Frozen Product Decisions (Human Review Approved):
+1. **Initial CORE WorkItem Types:** Exactly three canonical types: **`task`**, **`issue`**, and **`bug`**. Extensible in future phases; Milestones (`PRJ-004`) and Documents (`DOC-002`) remain strictly separate canonical resources.
+2. **Collaboration Architecture:** **`Discussion` | `Activity`** segmented presentation. Discussion is the default collaboration view; Activity is secondary history. A combined history stream is optional/deferred.
+3. **Workspace Ownership:** Every WorkItem has an explicit canonical **`workspaceId`** (REQUIRED) in addition to **`teamId`** (REQUIRED).
+4. **Sub-Item Hierarchy:** A single source of hierarchy truth: **`parentId: WorkItemId | null`**. Sub-items are resolved via queries (`where parentId = currentWorkItem.id`). UI terminology standardized to **`Sub-item`**.
+5. **Document Relationships:** Normalized into a single typed relationship model (**`WorkItemDocumentLink`**). No competing independent fields.
+6. **Activity vs. Enterprise Audit:** Work Item Activity History is operational change context for engineers, not the enterprise forensic audit log.
 
 ---
 
@@ -43,10 +49,10 @@ In Orynqo, the Work Item is the atomic currency of execution. It is rendered, fi
    $$\text{Inspector Mutation} \longrightarrow \text{Canonical Domain Store} \longrightarrow \text{Reactive Reconciliation across Grid, Board, Docs}$$
 3. **Context Independence:**
    The Inspector is completely agnostic of its opening container. The caller supplies the active context (item key, opener focus handle), and the Inspector preserves and restores that focus on close.
-4. **Separation of Milestone and Document:**
-   Milestones are checkpoint planning entities (`PRJ-004`). Documents are knowledge entities (`DOC-002`). Neither is a WorkItem subtype. WorkItems link to Milestones and Documents, but maintain distinct lifecycles.
+4. **Separation of Milestone, Document, and Initiative:**
+   Milestones are checkpoint planning entities (`PRJ-004`). Documents are knowledge entities (`DOC-002`). Initiatives are strategic coordination entities (`INT-001`). None are WorkItems. WorkItems link to them, but maintain distinct lifecycles.
 5. **Privacy & Permission Symmetry:**
-   Restricted related entities (dependencies, parent items, embedded specs) render as privacy-preserving placeholders. Zero protected metadata (title, assignee, status, comments) is leaked.
+   Restricted related entities (dependencies, parent items, embedded specs) render as privacy-preserving placeholders. Zero protected metadata (title, identifier, assignee, status, comments) is leaked.
 
 ---
 
@@ -80,7 +86,7 @@ Before designing the interface, the existing prototype codebase was audited agai
 ```
 
 ### Critical Findings from Codebase Audit:
-1. **Milestone Contamination in Types:** `src/constants/workItems.js` erroneously contained `milestone: { id: 'milestone', label: 'Milestone' }` in `ITEM_TYPE_DEFINITIONS`. This directly violated the frozen IA rule that Milestones are planning checkpoints, not WorkItem subtypes.
+1. **Milestone Contamination in Types:** `src/constants/workItems.js` erroneously contained `milestone: { id: 'milestone', label: 'Milestone' }` in `ITEM_TYPE_DEFINITIONS`. This directly violated the frozen IA rule that Milestones are planning checkpoints, not WorkItem subtypes. Removed in UI-01A.
 2. **Ad-Hoc Property Editing:** `InspectorDrawer.jsx` used cycle-on-click badge toggles (`nextIdx = (currentIndex + 1) % length`) without proper dropdown picker triggers or keyboard focus management.
 3. **Conflated Discussion & Activity:** Comments and activity events were rendered in a single hardcoded list without filtering, pagination, or threaded reply affordances.
 
@@ -98,32 +104,33 @@ The WorkItem model is defined as an extensible product entity:
 ├─────────────────────┼──────────────────┼───────────────────────────────┤
 │ `id`                │ UUID / String    │ Immutable internal entity ID  │
 │ `identifier` (Key)  │ String           │ Human-readable key (`ORY-142`)│
+│ `workspaceId`       │ UUID             │ Owning tenant workspace (Req.)│
+│ `teamId`            │ UUID             │ Owning execution squad (Req.) │
 │ `title`             │ String           │ Single-line plain summary     │
 │ `type`              │ Enum             │ `task` | `issue` | `bug`      │
 │ `status`            │ String (Key)     │ Concrete team workflow status │
 │ `statusCategory`    │ Enum (Derived)   │ `backlog` | `unstarted` |      │
 │                     │                  │ `started` | `completed` |     │
-│                     │                  │ `canceled`                    │
-│ `priority`          │ Enum / Int       │ `urgent`(4)|`high`(3)|`med`(2)│
-│                     │                  │ `low`(1) | `none`(0)          │
+│                     │                  │ `canceled` (Derived from stat)│
+│ `priority`          │ Enum (Semantic)  │ `urgent` | `high` | `medium`  │
+│                     │                  │ `low` | `none`                │
 │ `assigneeId`        │ UUID / Null      │ Primary single owner          │
 │ `creatorId`         │ UUID             │ Authoring identity            │
 │ `subscriberIds`     │ UUID[]           │ Users notified of changes     │
-│ `teamId`            │ UUID             │ Owning execution squad (Req.) │
-│ `projectId`         │ UUID / Null      │ Bounded initiative deliverable│
-│ `cycleId`           │ UUID / Null      │ Current or target sprint cadence│
-│ `milestoneId`       │ UUID / Null      │ Project checkpoint gate       │
+│ `projectId`         │ UUID / Null      │ Bounded deliverable (Opt.)    │
+│ `cycleId`           │ UUID / Null      │ Current sprint cadence (Opt.) │
+│ `milestoneId`       │ UUID / Null      │ Checkpoint gate (Opt.)        │
 │ `estimate`          │ Number / Null    │ Story points or effort units  │
 │ `startDate`         │ ISO-8601 / Null  │ Scheduled start date          │
 │ `dueDate`           │ ISO-8601 / Null  │ Hard completion deadline      │
 │ `labels`            │ String[]         │ Semantic taxonomy tags        │
 │ `description`       │ Rich / Markdown  │ Formatted specification body  │
-│ `parentId`          │ UUID / Null      │ Direct parent WorkItem        │
-│ `subtaskIds`        │ UUID[]           │ Child WorkItems in hierarchy  │
+│ `parentId`          │ UUID / Null      │ Canonical parent WorkItem ID  │
 │ `relations`         │ Object[]         │ Typed dependency edges:       │
 │                     │                  │ `blocks`, `blocked_by`,       │
 │                     │                  │ `relates_to`, `duplicate_of`  │
-│ `linkedDocIds`      │ UUID[]           │ Canonical Docs / Living Specs │
+│ `documentLinks`     │ Object[]         │ Typed doc relationships:      │
+│                     │                  │ `{ documentId, type, anchor }`│
 │ `customFields`      │ Key-Value Map    │ Extensible metadata (Post-Core│
 │ `lifecycle`         │ Enum             │ `active` | `archived` |       │
 │                     │                  │ `deleted`                     │
@@ -138,15 +145,16 @@ The WorkItem model is defined as an extensible product entity:
 
 To guarantee platform integrity across all teams and views, the following invariants are strictly enforced:
 
-1. **Mandatory Owning Scope:** Every WorkItem has **exactly one** owning Workspace and **exactly one** owning Team (`teamId` is required).
+1. **Mandatory Owning Scope:** Every WorkItem has **exactly one** owning Workspace (`workspaceId`) and **exactly one** owning Team (`teamId`). Both are non-nullable.
 2. **Optional Planning Associations:** A WorkItem may optionally belong to zero or one Project (`projectId`), zero or one Cycle (`cycleId`), and zero or one Milestone (`milestoneId`).
 3. **Single Assignee Baseline:** For CORE, a WorkItem has **zero or one active assignee**. Multiple assignees create ambiguous accountability; collaborative contributors participate via subscribers, comments, and reviewers.
-4. **Hierarchy Constraints:**
+4. **Hierarchy Constraints & Sub-Items:**
    - A WorkItem cannot be its own parent or ancestor (acyclic directed graph).
-   - Maximum recommended sub-item nesting depth is **2 levels** (`Task` $\rightarrow$ `Subtask` $\rightarrow$ `Sub-subtask`).
-5. **Dependency Integrity:**
+   - Maximum recommended sub-item nesting depth is **2 levels** (`Task` $\rightarrow$ `Sub-item` $\rightarrow$ `Sub-item`).
+   - Children are resolved via queries (`where parentId = currentWorkItem.id`). There is no independent mutable `subtaskIds` array.
+5. **Dependency Integrity Contract:**
    - A WorkItem cannot block itself.
-   - Circular blocking chains ($A \rightarrow B \rightarrow C \rightarrow A$) are rejected at the domain mutation boundary.
+   - **Enforcement Pipeline:** Client UI validation provides immediate prevention/feedback for obvious loops; the authoritative domain mutation boundary provides final integrity enforcement against circular dependency chains ($A \rightarrow B \rightarrow C \rightarrow A$).
 6. **Workflow State vs. Entity Lifecycle:**
    - `status` (`backlog`, `in_progress`, `done`) governs daily work execution.
    - `lifecycle` (`active`, `archived`, `deleted`) governs storage and retention. An item marked `Done` remains `active` until archived by retention policy.
@@ -181,13 +189,13 @@ To enable squad autonomy without breaking cross-workspace reporting, status is d
 └─────────────────────┴──────────────────┴───────────────────────────────┘
 ```
 
-**Architectural Benefit:** Cross-team views (Portfolio Roadmaps, My Work, Analytics) group items by the 5 immutable **Status Categories**, while squads see their own customized status labels.
+**Architectural Invariant:** `statusCategory` is **derived configuration**, not an independently editable field. When a team maps status `QA` to category `started`, updating `status` to `QA` automatically resolves `statusCategory` to `started`.
 
 ---
 
 ## 7. Inspector Information Architecture & Layout Structure
 
-The Inspector employs a disciplined, single-scroll or docked two-column layout optimized for information scanning:
+The Inspector employs a disciplined, context-preserving layout powered by `<WorkItemDetailContainer />`:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -205,7 +213,7 @@ The Inspector employs a disciplined, single-scroll or docked two-column layout o
 │  Milestone: [ Beta Launch ▾]      Labels:    [ security ] [ auth ] [+] │
 ├────────────────────────────────────────────────────────────────────────┤
 │ LIVING SPEC LINK (Contextual Banner):                                  │
-│  [📄 Linked to PRD: Offline Sync Protocol — Section 3.2 →]             │
+│  [📄 Source Spec: PRD Offline Sync Protocol — Section 3.2 →]           │
 ├────────────────────────────────────────────────────────────────────────┤
 │ DESCRIPTION (Markdown Canvas / Click-to-edit):                         │
 │  Strict verification of InResponseTo attributes in SAML assertions.    │
@@ -215,7 +223,7 @@ The Inspector employs a disciplined, single-scroll or docked two-column layout o
 │  [x] Patch assertion consumer service endpoint                         │
 │  [x] Add regression tests against captured malicious payloads          │
 │  [ ] Update security audit documentation                               │
-│  [+ Add subtask...]                                                    │
+│  [+ Add Sub-item...]                                                   │
 ├────────────────────────────────────────────────────────────────────────┤
 │ RELATIONSHIPS & DEPENDENCIES:                                          │
 │  Blocks:     [ENG-1044: Client clock synchronization]                  │
@@ -223,9 +231,9 @@ The Inspector employs a disciplined, single-scroll or docked two-column layout o
 │  Related:    [ENG-1020: SAML Metadata Provider]                        │
 ├────────────────────────────────────────────────────────────────────────┤
 │ LOWER COLLABORATION HUB (Segmented Tabs):                              │
-│  [ Discussion (3) ]   [ Activity (8) ]   [ All History ]               │
+│  [ Discussion (3) ]   [ Activity (8) ]                                 │
 │                                                                        │
-│  (Discussion Tab Active)                                               │
+│  (Discussion Tab Active by default)                                    │
 │  • Sarah Jenkins (2h ago): Verified unblocks milestone.                │
 │  • Alex Chen (30m ago): PR #482 passed staging fuzzer.                 │
 │                                                                        │
@@ -244,6 +252,7 @@ The Inspector employs a disciplined, single-scroll or docked two-column layout o
 - **Secondary Actions:**
   - `Subscribe / Watch` toggle button (bell icon; indicates if user receives notification events).
   - `Copy Reference Link` (copies canonical deep link).
+  - `Expand / Maximize`: Toggles between drawer and expanded reading canvas.
   - `More Actions (...)`: Convert Type, Move to Team, Archive, Delete.
   - `Close (X)`: Discards open drawer and returns focus to list opener.
 
@@ -285,23 +294,31 @@ $$\mathbf{PropertyRow} \longrightarrow \mathbf{PropertyTrigger\ (Button/Pill)} \
 
 ### 8.5. Relationships & Dependencies System
 - **Relationship Categories:**
-  - `parent`: The enclosing epic/initiative WorkItem.
-  - `subtask`: Child tickets contributing to this item.
+  - `parent`: The parent WorkItem (not an initiative or epic).
   - `blocks`: Items that cannot proceed until this item reaches a `completed` status.
   - `blocked_by`: Pre-requisite items preventing this item from finishing.
   - `relates_to`: Loose bidirectional conceptual connection.
   - `duplicate_of`: Closed in favor of an authoritative ticket.
-- **Cycle Prevention:** Adding a `blocks` relationship executes an instantaneous client-side acyclic verification to prohibit transitive circular deadlocks ($A \rightarrow B \rightarrow A$).
-- **Restricted Dependency Rule:**
+- **Restricted Dependency Privacy Rule:**
   If a related ticket belongs to a private team the viewer cannot read:
   ```text
-  [🔒 Restricted Issue (CORE-918)] — You do not have permission to view details.
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │ [🔒 Restricted work item]                                              │
+  │ You don't have permission to view this item.                           │
+  └────────────────────────────────────────────────────────────────────────┘
   ```
-  No title, assignee, or status is disclosed.
+  **Strict Zero-Leakage:** No title, identifier, type, status, assignee, priority, or labels are exposed.
 
-### 8.6. Linked Documents & Living Spec System
-- **Bidirectional Spec Sync:** WorkItems created from a Living Spec PRD (`DOC-002`) retain a canonical `specDocId` and optional `blockAnchorId`.
-- **Inspector Presentation:** Prominent context banner at the top of the description showing document title, doc type badge (`PRD`), and *"Open Spec in Context →"*.
+### 8.6. Normalized Document Relationships
+All document connections are maintained via canonical document links:
+```text
+WorkItemDocumentLink {
+  documentId: string;
+  relationshipType: 'source_spec' | 'linked' | 'reference';
+  anchorId?: string;
+}
+```
+- **Inspector Presentation:** Prominently displays the Living Spec source banner (`"Source Spec: PRD Offline Sync — Section 3.2 →"`).
 - **Click Behavior:** Opens the Document Canvas (`DOC-002`) scrolled directly to the linked requirements section.
 
 ---
@@ -312,22 +329,20 @@ $$\mathbf{PropertyRow} \longrightarrow \mathbf{PropertyTrigger\ (Button/Pill)} \
 **Selected Model: Segmented Tabs with "Discussion" as Default.**
 
 ```text
-[ Discussion (3) ]      [ Activity (12) ]      [ All History ]
+[ Discussion (3) ]             [ Activity (12) ]
 ```
 
 ### 9.2. Rationale & Trade-off Analysis
-- **Why Not Unified GitHub-style Stream:** Interspersing automated bot commits, status flips, and tag adjustments among human comments creates excessive visual noise, causing critical engineering discussions to be missed.
-- **Why Discussion Default:** High-velocity squad execution requires instant focus on human conversation (questions, blockers, code reviews).
-- **Activity Tab Role (`COL-002`):** Houses immutable chronological audit history (property changes, before/after values, assignment changes) for enterprise compliance and debugging.
-- **All History Tab:** Provides complete chronological interleaving for forensic audits when needed.
+- **Why Discussion Default:** High-velocity squad execution requires immediate focus on human conversation (technical questions, PR links, blockers).
+- **Work Item Activity History (`COL-002`):** Records operational change events (status transitions, priority shifts, assignments) for engineering context and debugging. It is **not** the enterprise compliance audit log.
 
 ### 9.3. Discussion Contract (`COL-001`)
 - **Composer:** Rich text input at bottom with keyboard submission (`Cmd+Enter`). Supports `@mentions`, markdown, code formatting, and attachments.
 - **Threaded Replies:** Top-level comments support nested 1-level reply threads to prevent conversational fragmentation.
-- **Reactions:** Standard emoji reaction bar (`👍`, `👀`, `🎉`, `🚀`, `❤️`) with participant roster tooltips.
+- **Reactions:** Standard emoji reaction bar (`👍`, `👀`, `🎉`, `🚀`, `❤️`) with participant tooltips.
 - **Edit / Delete:** Comment author can edit or delete within a configurable time window; edited timestamp displayed.
 
-### 9.4. Activity Contract (`COL-002`)
+### 9.4. Activity History Contract (`COL-002`)
 - **Event Grouping:** Consecutive property adjustments by the same actor within 5 minutes are aggregated into a single entry (e.g., *"Marcus Vance updated Status to In Review and assigned to Elena Rostova — 10m ago"*).
 - **Before $\rightarrow$ After Diffing:** Visual diff badges for status transitions, priority shifts, and estimate changes.
 
@@ -351,15 +366,24 @@ The Inspector maintains a clean contract with the calling view:
 
 ## 11. Full-Page Work Item vs. Inspector Architectural Decision
 
-### 11.1. Decision: Inspector-First with Responsive Full-Screen Translation
-Orynqo adopts a **Dual-Mode Single-Component Architecture**:
+### 11.1. Single-Component Multi-Presentation Architecture
+Orynqo adopts the **`<WorkItemDetailContainer />`** presentation pattern:
+
+```text
+                     WorkItemDetailContainer
+                                │
+        ┌───────────────────────┼───────────────────────┐
+        ▼                       ▼                       ▼
+Inspector Drawer        Expanded Canvas         Full-Screen Mobile
+ (`WRK-005` Desktop)   (Maximized Desktop)     (Responsive Narrow)
+```
 
 1. **Desktop Standard Mode:** Docked/floating context-preserving Inspector Drawer (`WRK-005`).
-2. **Desktop Expanded Mode:** A *"Full-Screen Expansion"* toggle (`Expand` icon in header) expands the Inspector into a maximized reading canvas for complex PRDs or tickets with 50+ comments.
+2. **Desktop Expanded Mode:** A *"Full-Screen Expansion"* toggle (`Expand` icon in header) expands the container into a maximized reading canvas for complex PRDs or tickets with 50+ comments.
 3. **Mobile / Narrow Tablet:** Automatically translates into a full-screen mobile surface with sticky header and mobile-optimized touch pickers.
-4. **Canonical Route Support:** Dedicated direct route `/work/items/ORY-142` mounts the **exact same WorkItem content container** in a standalone page shell for external browser links and email notifications.
+4. **Canonical Route Support:** Dedicated direct route `/work/items/ORY-142` mounts the **exact same `<WorkItemDetailContainer />`** in a standalone page shell for external browser links and email notifications.
 
-**Crucial Invariant:** There is **zero code duplication** between the Inspector drawer and full-page mode; both compose the same `<WorkItemDetailContainer />`.
+**Crucial Invariant:** There is **zero code duplication** across presentation modes; all render the same unified container.
 
 ---
 
@@ -424,7 +448,7 @@ Every component within UI-01A defines explicit behavior across all functional st
 │ **Description**     │ 3 Shimmer    │ Rendered     │ Muted add    │ "Failed to   │ Plain markdown view; │
 │                     │ text blocks  │ Markdown     │ spec prompt  │ load spec"   │ edit triggers hidden │
 ├─────────────────────┼──────────────┼──────────────┼──────────────┼──────────────┼──────────────────────┤
-│ **Sub-items**       │ Checkbox     │ Interactive  │ "No subtasks"│ Mutation     │ Checkboxes disabled, │
+│ **Sub-items**       │ Checkbox     │ Interactive  │ "No sub-items│ Mutation     │ Checkboxes disabled, │
 │                     │ placeholders │ Task List    │ + Add button │ failure alert│ "+ Add" hidden       │
 ├─────────────────────┼──────────────┼──────────────┼──────────────┼──────────────┼──────────────────────┤
 │ **Relationships**   │ Pill shimmer │ Blocks / Dep │ "No blockers"│ Cycle warning│ Restricted cards     │
@@ -434,7 +458,7 @@ Every component within UI-01A defines explicit behavior across all functional st
 │                     │ comment cards│ Discussion   │ prompt card  │ + retry btn  │ ("Read-only archive")│
 ├─────────────────────┼──────────────┼──────────────┼──────────────┼──────────────┼──────────────────────┤
 │ **Activity**        │ Shimmer log  │ Grouped diff │ "No activity │ Stream error │ Fully visible for    │
-│                     │ rows         │ history rows │ recorded"    │ notice       │ compliance auditing  │
+│                     │ rows         │ history rows │ recorded"    │ notice       │ change history       │
 └─────────────────────┴──────────────┴──────────────┴──────────────┴──────────────┴──────────────────────┤
 ```
 
@@ -442,7 +466,7 @@ Every component within UI-01A defines explicit behavior across all functional st
 
 ## 14. Optimistic UX & Concurrency Contract
 
-1. **Immediate Optimistic Reflection:** When a property is altered (e.g. status $\rightarrow$ `In Review`), the UI updates immediately in $<16\text{ms}$.
+1. **Immediate Optimistic Reflection:** Optimistic mutations should feel immediate and should not block the user's interaction while persistence is pending.
 2. **Pending Indication:** A microscopic pulse indicator on the property signalizes background persistence.
 3. **Rollback on Network Failure:** If the mutation fails, the value rolls back smoothly to its authoritative value, and an actionable toast alerts the user (`"Unable to update status: Network offline — [Retry]"`).
 4. **Non-Blocking Remote Conflict Resolution:**
@@ -481,16 +505,17 @@ src/
 │
 └── features/work-items/            # Work Item Domain Feature Module
     ├── components/
-    │   ├── WorkItemInspector.jsx           # Master Inspector orchestrator
+    │   ├── WorkItemInspector.jsx           # Master Inspector orchestrator (composes Drawer)
+    │   ├── WorkItemDetailContainer.jsx     # Reusable content engine (Drawer & Full-Page)
     │   ├── WorkItemHeader.jsx              # Key, type, breadcrumbs, close
     │   ├── WorkItemTitle.jsx               # Inline editable title
     │   ├── WorkItemDescription.jsx         # Markdown canvas with edit trigger
     │   ├── WorkItemProperties.jsx          # High-density property matrix
-    │   ├── WorkItemSubtasks.jsx            # Checklist with completion counter
+    │   ├── WorkItemSubItems.jsx            # Sub-item hierarchy with completion counter
     │   ├── WorkItemRelationships.jsx       # Dependency edges (blocks, etc.)
     │   ├── WorkItemLinkedDocs.jsx          # Living Spec PRD reference banner
     │   ├── WorkItemDiscussion.jsx          # COL-001 Threaded discussion hub
-    │   └── WorkItemActivity.jsx            # COL-002 Audit log stream
+    │   └── WorkItemActivity.jsx            # COL-002 Activity change history
     ├── hooks/
     │   ├── useWorkItem.js                  # Loads & mutates canonical item
     │   └── useWorkItemKeyboard.js          # Inspector keyboard shortcuts
@@ -510,27 +535,28 @@ The design contract is validated against 8 concrete scenarios using realistic di
 │ Scenario     │ Concrete Context & Validation Criteria                 │
 ├──────────────┼────────────────────────────────────────────────────────┤
 │ **A: Fast**  │ `ENG-1041`: Developer opens from Data Grid, presses    │
-│ **Status**   │ `s`, arrows down to `Done`, presses `Enter`, presses   │
-│ **Change**   │ `Esc`. Focus returns to exact grid row; item reflects  │
-│              │ `Done` instantaneously. Total interaction time < 2s.   │
+│ **Status**   │ `s`, selects `Done`, presses `Enter`, presses `Esc`.   │
+│ **Change**   │ Focus returns to exact grid row; item reflects `Done`. │
+│              │ The flow requires minimal interaction and is keyboard- │
+│              │ efficient.                                             │
 ├──────────────┼────────────────────────────────────────────────────────┤
 │ **B: Complex**│ `PLAT-87` (Prevent duplicate webhook deliveries):      │
 │ **Issue**    │ Has 1 Living Spec link, 3 blocks relations, 8 labels,  │
-│              │ 6 subtasks, 18 discussion comments, 42 activity events.│
+│              │ 6 sub-items, 18 discussion comments, 42 history events.│
 │              │ Inspector remains clean, scrolling is performant, tabs │
 │              │ prevent activity noise from overwhelming discussion.   │
 ├──────────────┼────────────────────────────────────────────────────────┤
 │ **C: Minimal**│ `WEB-12` (Update favicon):                             │
-│ **Issue**    │ Title + status only. No project, no cycle, no subtasks.│
+│ **Issue**    │ Title + status only. No project, no cycle, no sub-items│
 │              │ Empty states are calm and purposeful; no card soup.    │
 ├──────────────┼────────────────────────────────────────────────────────┤
 │ **D: Read-** │ External auditor viewing `SEC-104` (SOC2 Audit Trail): │
 │ **Only**     │ Cannot edit title, pickers are disabled, comment input │
 │              │ is replaced with *"Read-only access"*. No UI breaks.   │
 ├──────────────┼────────────────────────────────────────────────────────┤
-│ **E: Restr-**│ `CORE-501` blocks `CORE-918` (Private Security Vault): │
-│ **icted Rel**│ Viewer lacks permissions for `CORE-918`. Shows lock    │
-│              │ card without disclosing title, assignee, or status.    │
+│ **E: Restr-**│ `CORE-501` blocks a private security ticket:           │
+│ **icted Rel**│ Viewer lacks permissions. Shows generic lock card      │
+│              │ without disclosing title, identifier, or status.       │
 ├──────────────┼────────────────────────────────────────────────────────┤
 │ **F: Mutat-**│ Network disconnects while editing estimate. Property   │
 │ **ion Fail** │ reverts to previous points with an ambient error toast.│
@@ -549,24 +575,25 @@ The design contract is validated against 8 concrete scenarios using realistic di
 
 ## 17. Explicit UI-01A Implementation Scope
 
-When authorization is granted to begin code implementation, the scope is strictly bounded to:
+When implementation commences on `feat/ui-01a-work-item-inspector`:
 
 ### Included in UI-01A Implementation:
 1. **Clean Domain Model Boundary:**
-   - Correct `src/constants/workItems.js` (remove `milestone` from item types; add status category mappings).
-   - Normalize WorkItem mock objects in `src/data/mockData.js` to adhere to the canonical schema.
+   - Correct `src/constants/workItems.js` (remove `milestone` from item types; verify semantic priorities).
+   - Normalize WorkItem mock objects in `src/data/mockData.js` to include `workspaceId` and normalized `documentLinks`.
 2. **Work Item Inspector Component Suite:**
    - Implement `WorkItemInspector.jsx` composing `Drawer.jsx`.
+   - Implement `WorkItemDetailContainer.jsx` (shared core).
    - Implement `WorkItemHeader.jsx`, `WorkItemTitle.jsx`, `WorkItemProperties.jsx`.
    - Implement `WorkItemDescription.jsx` with markdown preview and click-to-edit.
-   - Implement `WorkItemSubtasks.jsx` with interactive completion toggles.
-   - Implement `WorkItemRelationships.jsx` with dependency badges and restricted placeholders.
+   - Implement `WorkItemSubItems.jsx` with interactive completion toggles (`parentId` resolution).
+   - Implement `WorkItemRelationships.jsx` with dependency badges and zero-leakage restricted placeholders.
    - Implement `WorkItemLinkedDocs.jsx` with Living Spec reference banner.
 3. **Collaboration Surfaces:**
    - Implement `WorkItemDiscussion.jsx` (`COL-001`) with comments and composer.
    - Implement `WorkItemActivity.jsx` (`COL-002`) with grouped mutation diffs.
 4. **Keyboard & Focus Handling:**
-   - `Escape` dismiss with focus restoration.
+   - `Escape` dismiss with focus restoration to caller.
    - Shortcut hooks for title, description, and property focus.
 5. **State Handling:**
    - Loading skeletons for opening drawer.
@@ -587,22 +614,7 @@ When authorization is granted to begin code implementation, the scope is strictl
 
 ---
 
-## 18. Open Decisions for Human Review
-
-Before initiating code implementation, the following architectural choices are submitted for human alignment:
-
-1. **Initial WorkItem Type Set:**
-   The design specifies three initial canonical types: **Task**, **Issue**, and **Bug** (excluding Milestone, which is a planning entity). Does Human Review endorse this tight 3-type set, or should **Chore** / **Feature** be retained in CORE? *(Recommendation: Task, Issue, Bug is cleanest and lowest noise).*
-2. **Discussion Tab vs. Unified Stream Default:**
-   The design establishes the **Discussion Tab** as default, with Activity placed in a secondary tab to prevent automated audit events from obscuring human discussion. Does Human Review approve this separation over a unified GitHub-style feed? *(Recommendation: Approve segmented tabs for reduced cognitive noise).*
-3. **Authorization to Implement UI-01A:**
-   Confirm authorization to begin code implementation of `UI-01A` on the `design/ui-01a-work-item-inspector` branch in accordance with the explicit scope above.
-
----
-
 > [!IMPORTANT]
-> **STOPPED AT HUMAN REVIEW — UI-01A DESIGN**  
-> Complete design and interaction contract is finalized in [`docs/07-ui-01a-work-item-inspector-contract.md`](file:///d:/Full_Stack_Apps/Orynqo-web/docs/07-ui-01a-work-item-inspector-contract.md).  
-> Work has halted here.  
-> - No application code, UI components, routes, or mockups were modified.  
-> - Awaiting Human Review endorsement to commence code implementation of `UI-01A`.
+> **CONTRACT FINALIZED & FROZEN**  
+> UI-01A Human Review is complete and the design contract is frozen in [`docs/07-ui-01a-work-item-inspector-contract.md`](file:///d:/Full_Stack_Apps/Orynqo-web/docs/07-ui-01a-work-item-inspector-contract.md).  
+> Proceed to branch `feat/ui-01a-work-item-inspector` for implementation.
