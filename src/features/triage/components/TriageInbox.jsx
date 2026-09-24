@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { INBOX_NOTIFICATIONS } from '../../../data/mockData';
 import { UserAvatar } from '../../../components/avatars/UserAvatar';
 import { Kbd } from '../../../design-system';
+import { isEditableElement } from '../../../hooks/keyboardScopes';
 import {
   Inbox,
   Check,
@@ -14,7 +15,8 @@ import {
  * High-velocity zero-mouse notification and issue triage feed
  */
 export function TriageInbox({
-  onOpenItemById
+  onOpenItemById,
+  isKeyboardActive = true
 }) {
   const [notifications, setNotifications] = useState(INBOX_NOTIFICATIONS);
   const [filterUnread, setFilterUnread] = useState(false);
@@ -36,8 +38,10 @@ export function TriageInbox({
 
   // Keyboard navigation for inbox (j/k, e to archive, enter to open)
   useEffect(() => {
+    if (!isKeyboardActive) return;
+
     const handleKeyDown = (e) => {
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+      if (isEditableElement(e.target)) return;
 
       if (e.key === 'j' || e.key === 'ArrowDown') {
         e.preventDefault();
@@ -60,7 +64,7 @@ export function TriageInbox({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [displayedList, selectedIndex, onOpenItemById]);
+  }, [displayedList, selectedIndex, onOpenItemById, isKeyboardActive]);
 
   return (
     <div

@@ -1,6 +1,44 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { INITIAL_WORK_ITEMS, TEAMS, PROJECTS } from '../../data/mockData';
 
+/**
+ * ============================================================================
+ * ARCHITECTURAL BOUNDARY NOTICE: PROTOTYPE IN-MEMORY DATA ADAPTER
+ * ============================================================================
+ *
+ * Current Role:
+ * WorkspaceContext serves strictly as a temporary, in-memory prototype adapter
+ * for Work Items domain mutations and local selection state.
+ *
+ * CRITICAL ARCHITECTURAL BOUNDARY:
+ * Do NOT expand WorkspaceContext into a universal monolithic application store!
+ * In the production architecture, these responsibilities MUST be partitioned:
+ *
+ * 1. SERVER STATE (Data Synchronization Layer):
+ *    - Managed by a query/cache manager (e.g. TanStack Query or dedicated sync engine)
+ *    - Handles background polling, delta sync, offline queues, optimistic reconciliation.
+ *
+ * 2. DOMAIN ENTITIES (Domain Repositories):
+ *    - Segregated into independent bounded context repositories:
+ *      * Projects & Initiatives
+ *      * Cycles & Milestones
+ *      * Living Specs & Documents
+ *      * Members, Roles & Permissions
+ *      * Notifications & Triage Feed
+ *      * Activity Log & Audit Trail
+ *    - MUST NOT be consolidated into one giant WorkspaceContext.
+ *
+ * 3. CLIENT WORKFLOW STATE:
+ *    - Filter algebra, sorting criteria, draft edits, active view projections.
+ *
+ * 4. SELECTION STATE:
+ *    - URL/route-driven primary selection (?item=OR-101) or dedicated transient selection managers.
+ *
+ * 5. LOCAL UI STATE:
+ *    - Modals, drawers, density toggles, sidebars (isolated in UIContext).
+ * ============================================================================
+ */
+
 const WorkspaceContext = createContext(null);
 
 export function WorkspaceProvider({ children }) {

@@ -1,10 +1,15 @@
 import { useEffect } from 'react';
+import { isEditableElement } from './keyboardScopes';
+
+export { isEditableElement, KEYBOARD_SCOPES } from './keyboardScopes';
 
 /**
  * useKeyboardShortcuts Hook
- * Centralized keyboard listener that ignores editable form controls
+ * Shell-level keyboard shortcut manager respecting explicit keyboard scopes:
+ * GLOBAL -> PAGE/VIEW -> OVERLAY -> EDITABLE CONTROL
  */
 export function useKeyboardShortcuts({
+  isOverlayActive = false,
   onToggleCommandPalette,
   onToggleSidebar,
   onOpenCreateModal,
@@ -15,21 +20,35 @@ export function useKeyboardShortcuts({
 }) {
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Ignore if user is currently typing in an input, textarea, or select
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
+      // 1. EDITABLE CONTROL SCOPE (Highest Isolation)
+      // Ignore product shortcuts if typing in input, textarea, select, or contenteditable
+      if (isEditableElement(e.target)) {
         if (e.key === 'Escape') {
-          e.target.blur();
+          e.target.blur?.();
           onEscape?.();
         }
         return;
       }
 
-      // Command + K: Toggle Command Palette
+      // 2. Escape: Closes active overlay or deselects
+      if (e.key === 'Escape') {
+        onEscape?.();
+        return;
+      }
+
+      // 3. Command + K / Ctrl + K: Toggle Command Palette (always allowed)
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         onToggleCommandPalette?.();
         return;
       }
+
+      // 4. OVERLAY SCOPE: If an overlay is active, suppress all remaining global/view shortcuts
+      if (isOverlayActive) {
+        return;
+      }
+
+      // 5. GLOBAL SCOPE SHORTCUTS (Only when no overlay and not typing in editable control)
 
       // Command + [: Toggle Sidebar Collapse
       if ((e.metaKey || e.ctrlKey) && e.key === '[') {
@@ -65,16 +84,12 @@ export function useKeyboardShortcuts({
       if (e.key === '3') { onSelectView?.('timeline'); return; }
       if (e.key === '4') { onSelectView?.('living-spec'); return; }
       if (e.key === '5') { onSelectView?.('workload'); return; }
-
-      // Escape: Close topmost transient layer
-      if (e.key === 'Escape') {
-        onEscape?.();
-      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
+    isOverlayActive,
     onToggleCommandPalette,
     onToggleSidebar,
     onOpenCreateModal,

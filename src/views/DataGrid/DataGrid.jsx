@@ -4,6 +4,7 @@ import { StatusBadge, PriorityBadge, TypeBadge } from '../../components/badges';
 import { UserAvatar } from '../../components/avatars/UserAvatar';
 import { Checkbox } from '../../design-system';
 import { USERS, PROJECTS } from '../../data/mockData';
+import { isEditableElement } from '../../hooks/keyboardScopes';
 import {
   MessageSquare,
   AlertTriangle
@@ -22,7 +23,8 @@ export function DataGrid({
   density = 'compact',
   multiSelectedIds = [],
   onToggleMultiSelect,
-  onSelectAll
+  onSelectAll,
+  isKeyboardActive = true
 }) {
   const [activeRowIndex, setActiveRowIndex] = useState(0);
 
@@ -30,8 +32,10 @@ export function DataGrid({
 
   // Keyboard navigation for power users (j/k, Enter, x, s, p)
   useEffect(() => {
+    if (!isKeyboardActive) return;
+
     const handleKeyDown = (e) => {
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+      if (isEditableElement(e.target)) return;
 
       if (e.key === 'j' || e.key === 'ArrowDown') {
         e.preventDefault();
@@ -74,7 +78,7 @@ export function DataGrid({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [items, activeRowIndex, onSelectItem, onOpenInspector, onToggleMultiSelect, onUpdateItem]);
+  }, [items, activeRowIndex, onSelectItem, onOpenInspector, onToggleMultiSelect, onUpdateItem, isKeyboardActive]);
 
   if (items.length === 0) {
     return (

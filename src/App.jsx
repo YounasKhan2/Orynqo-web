@@ -22,7 +22,7 @@ function MainView({ filteredItems }) {
     toggleMultiSelect,
     selectAll
   } = useWorkspace();
-  const { activeView, density, setIsInspectorOpen, setIsCreateModalOpen } = useUI();
+  const { activeView, density, setIsInspectorOpen, setIsCreateModalOpen, isOverlayActive } = useUI();
 
   switch (activeView) {
     case 'data-grid':
@@ -44,6 +44,7 @@ function MainView({ filteredItems }) {
           multiSelectedIds={multiSelectedIds}
           onToggleMultiSelect={toggleMultiSelect}
           onSelectAll={selectAll}
+          isKeyboardActive={!isOverlayActive}
         />
       );
 
@@ -112,6 +113,7 @@ function MainView({ filteredItems }) {
     case 'inbox':
       return (
         <TriageInbox
+          isKeyboardActive={!isOverlayActive}
           onOpenItemById={(itemId) => {
             selectItem(itemId);
             setIsInspectorOpen(true);
@@ -135,6 +137,7 @@ function OrynqoWorkspace() {
     setActiveTeamId,
     activeTeam,
     selectedItem,
+    selectItem,
     multiSelectedIds,
     clearSelection,
     updateItem,
@@ -155,6 +158,7 @@ function OrynqoWorkspace() {
     setActiveView,
     density,
     toggleDensity,
+    isOverlayActive,
     isCommandPaletteOpen,
     setIsCommandPaletteOpen,
     isCreateModalOpen,
@@ -179,6 +183,7 @@ function OrynqoWorkspace() {
 
   // Centralized keyboard shortcuts
   useKeyboardShortcuts({
+    isOverlayActive,
     onToggleCommandPalette: () => setIsCommandPaletteOpen((prev) => !prev),
     onToggleSidebar: toggleSidebar,
     onOpenCreateModal: () => setIsCreateModalOpen(true),
@@ -261,7 +266,7 @@ function OrynqoWorkspace() {
             onClose={() => setIsCommandPaletteOpen(false)}
             items={items}
             onSelectItem={(item) => {
-              updateItem(item.id, {});
+              selectItem(item.id);
               setIsInspectorOpen(true);
             }}
             onOpenCreateModal={() => setIsCreateModalOpen(true)}

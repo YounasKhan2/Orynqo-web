@@ -53,6 +53,9 @@ export function UIProvider({ children }) {
     setSearchQuery('');
   };
 
+  // Derived overlay active state for keyboard scoping
+  const isOverlayActive = isCommandPaletteOpen || isCreateModalOpen || isShortcutsModalOpen;
+
   const value = {
     theme,
     toggleTheme,
@@ -66,6 +69,7 @@ export function UIProvider({ children }) {
     setActiveView,
     density,
     toggleDensity,
+    isOverlayActive,
     isCommandPaletteOpen,
     setIsCommandPaletteOpen,
     isCreateModalOpen,

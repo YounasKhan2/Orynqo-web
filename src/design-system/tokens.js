@@ -40,6 +40,3 @@ export const DURATIONS = {
   normal: '180ms',
   slow: '240ms'
 };
-
-// Re-export domain constants for backward compatibility
-export * from '../constants/workItems';
