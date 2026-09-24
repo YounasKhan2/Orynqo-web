@@ -90,8 +90,11 @@ export function TimelineView({
         {items.map((item, idx) => {
           const isSelected = selectedItemId === item.id;
           const assignee = USERS.find((u) => u.id === item.assigneeId);
-          const hasBlocker = (item.relations || []).some((r) => r.type === 'blocked_by');
-          const blocksOthers = (item.relations || []).some((r) => r.type === 'blocks');
+          const blockedByRelations = (item.relations || []).filter((r) => r.type === 'blocked_by');
+          const hasBlocker = blockedByRelations.length > 0;
+          const blocksRelations = (item.relations || []).filter((r) => r.type === 'blocks');
+          const blocksOthers = blocksRelations.length > 0;
+          const blockingKeys = blocksRelations.map((r) => r.targetKey).filter(Boolean).join(', ');
 
           const startCol = (idx % 7) + 2;
           const spanCols = Math.min((item.estimate || 3), 4);
@@ -182,7 +185,7 @@ export function TimelineView({
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
                   {blocksOthers && (
-                    <span title={`Blocks ${item.blocks.join(', ')}`}>
+                    <span title={blockingKeys ? `Blocks ${blockingKeys}` : 'Blocks other work items'}>
                       <Link2 size={11} color="var(--primary-text)" />
                     </span>
                   )}
