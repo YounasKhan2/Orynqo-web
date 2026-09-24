@@ -2,9 +2,11 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 
 /**
  * useGridSelection Hook
+ * Supports both Controlled and Uncontrolled selection ownership.
+ *
  * Enforces UI-01B Selection Laws:
  * 1. Bulk selection belongs strictly to the current projection/query context.
- * 2. Filter/query change -> CLEAR bulk selection.
+ * 2. Filter/query change -> CLEAR bulk selection (notifies consumer in controlled mode).
  * 3. Context/saved-view/team change -> CLEAR bulk selection.
  * 4. Sort change -> PRESERVE selection.
  * 5. Group collapse/expand -> PRESERVE selection.
@@ -13,41 +15,53 @@ import { useState, useCallback, useEffect, useRef } from 'react';
  * 8. Header checkbox selects visible/loaded rows only (NO global isAllSelected).
  */
 export function useGridSelection({
+  controlledSelectedIds,
   initialSelectedIds = [],
+  onToggleSelect,
+  onClearSelection,
+  onSelectAllVisible,
   onSelectionChange,
   queryDependencyKey
 } = {}) {
-  const [multiSelectedIds, setMultiSelectedIds] = useState(initialSelectedIds);
+  const isControlled = controlledSelectedIds !== undefined;
+  const [internalSelectedIds, setInternalSelectedIds] = useState(initialSelectedIds);
   const [selectionAnchor, setSelectionAnchor] = useState(null);
 
-  // Sync to parent callback
-  const prevIdsRef = useRef(multiSelectedIds);
-  useEffect(() => {
-    if (prevIdsRef.current !== multiSelectedIds) {
-      prevIdsRef.current = multiSelectedIds;
-      onSelectionChange?.(multiSelectedIds);
-    }
-  }, [multiSelectedIds, onSelectionChange]);
+  const multiSelectedIds = isControlled ? controlledSelectedIds : internalSelectedIds;
 
   // Clear selection when material query context changes (filter, search, view, team)
   const prevQueryDepRef = useRef(queryDependencyKey);
   useEffect(() => {
     if (prevQueryDepRef.current !== undefined && prevQueryDepRef.current !== queryDependencyKey) {
-      setMultiSelectedIds([]);
+      if (isControlled) {
+        onClearSelection?.();
+      } else {
+        setInternalSelectedIds([]);
+        onSelectionChange?.([]);
+      }
       setSelectionAnchor(null);
     }
     prevQueryDepRef.current = queryDependencyKey;
-  }, [queryDependencyKey]);
+  }, [queryDependencyKey, isControlled, onClearSelection, onSelectionChange]);
 
   // Toggle single item selection
   const toggleSelect = useCallback((id) => {
-    setMultiSelectedIds((prev) => {
-      const isSelected = prev.includes(id);
-      const next = isSelected ? prev.filter((item) => item !== id) : [...prev, id];
-      return next;
-    });
+    if (isControlled && onToggleSelect) {
+      onToggleSelect(id);
+    } else {
+      const isSelected = multiSelectedIds.includes(id);
+      const next = isSelected
+        ? multiSelectedIds.filter((item) => item !== id)
+        : [...multiSelectedIds, id];
+      if (isControlled) {
+        onSelectionChange?.(next);
+      } else {
+        setInternalSelectedIds(next);
+        onSelectionChange?.(next);
+      }
+    }
     setSelectionAnchor(id);
-  }, []);
+  }, [isControlled, onToggleSelect, multiSelectedIds, onSelectionChange]);
 
   // Select range with Shift-click / Shift-navigation
   const selectRange = useCallback((targetId, allVisibleIds = []) => {
@@ -67,57 +81,97 @@ export function useGridSelection({
     const start = Math.min(anchorIndex, targetIndex);
     const end = Math.max(anchorIndex, targetIndex);
     const rangeIds = allVisibleIds.slice(start, end + 1);
+    const merged = Array.from(new Set([...multiSelectedIds, ...rangeIds]));
 
-    setMultiSelectedIds((prev) => {
-      const merged = new Set([...prev, ...rangeIds]);
-      return Array.from(merged);
-    });
-  }, [selectionAnchor, toggleSelect]);
+    if (isControlled) {
+      if (onSelectAllVisible) {
+        onSelectAllVisible(merged);
+      } else if (onSelectionChange) {
+        onSelectionChange(merged);
+      }
+    } else {
+      setInternalSelectedIds(merged);
+      onSelectionChange?.(merged);
+    }
+  }, [selectionAnchor, toggleSelect, isControlled, multiSelectedIds, onSelectAllVisible, onSelectionChange]);
 
   // Header checkbox: selects/deselects visible items only
   const selectAllVisible = useCallback((visibleIds = []) => {
     if (visibleIds.length === 0) {
-      setMultiSelectedIds([]);
+      if (isControlled) {
+        onClearSelection?.();
+      } else {
+        setInternalSelectedIds([]);
+        onSelectionChange?.([]);
+      }
       return;
     }
 
     const allVisibleSelected = visibleIds.every((id) => multiSelectedIds.includes(id));
     if (allVisibleSelected) {
-      // Deselect all visible
-      setMultiSelectedIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
+      if (isControlled) {
+        if (onSelectAllVisible) {
+          onSelectAllVisible([]);
+        } else if (onClearSelection) {
+          onClearSelection();
+        } else {
+          onSelectionChange?.([]);
+        }
+      } else {
+        setInternalSelectedIds([]);
+        onSelectionChange?.([]);
+      }
     } else {
-      // Select all visible
-      setMultiSelectedIds((prev) => {
-        const merged = new Set([...prev, ...visibleIds]);
-        return Array.from(merged);
-      });
+      if (isControlled) {
+        if (onSelectAllVisible) {
+          onSelectAllVisible(visibleIds);
+        } else if (onSelectionChange) {
+          const merged = Array.from(new Set([...multiSelectedIds, ...visibleIds]));
+          onSelectionChange(merged);
+        }
+      } else {
+        const merged = Array.from(new Set([...multiSelectedIds, ...visibleIds]));
+        setInternalSelectedIds(merged);
+        onSelectionChange?.(merged);
+      }
     }
-  }, [multiSelectedIds]);
+  }, [isControlled, multiSelectedIds, onSelectAllVisible, onClearSelection, onSelectionChange]);
 
   // Explicitly clear selection
   const clearSelection = useCallback(() => {
-    setMultiSelectedIds([]);
+    if (isControlled) {
+      onClearSelection?.();
+    } else {
+      setInternalSelectedIds([]);
+      onSelectionChange?.([]);
+    }
     setSelectionAnchor(null);
-  }, []);
+  }, [isControlled, onClearSelection, onSelectionChange]);
 
   // Prune deleted items from selection
   const pruneDeleted = useCallback((existingIds = []) => {
     const existingSet = new Set(existingIds);
-    setMultiSelectedIds((prev) => {
-      const pruned = prev.filter((id) => existingSet.has(id));
-      return pruned.length === prev.length ? prev : pruned;
-    });
-  }, []);
+    const pruned = multiSelectedIds.filter((id) => existingSet.has(id));
+    if (pruned.length !== multiSelectedIds.length) {
+      if (isControlled) {
+        onSelectionChange?.(pruned);
+      } else {
+        setInternalSelectedIds(pruned);
+        onSelectionChange?.(pruned);
+      }
+    }
+  }, [multiSelectedIds, isControlled, onSelectionChange]);
 
   return {
     multiSelectedIds,
-    setMultiSelectedIds,
+    setMultiSelectedIds: isControlled ? (onSelectionChange || onSelectAllVisible) : setInternalSelectedIds,
     selectionAnchor,
     setSelectionAnchor,
     toggleSelect,
     selectRange,
     selectAllVisible,
     clearSelection,
-    pruneDeleted
+    pruneDeleted,
+    isControlled
   };
 }

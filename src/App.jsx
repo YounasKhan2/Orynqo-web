@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { WorkspaceProvider, useWorkspace, UIProvider, useUI } from './app/providers';
 import { AppShell, Sidebar, ActionStrip } from './layouts';
 import { DataGrid, KanbanBoard, TimelineView, WorkloadView } from './views';
@@ -20,7 +20,8 @@ function MainView({ filteredItems }) {
     updateItem,
     multiSelectedIds,
     toggleMultiSelect,
-    selectAll
+    selectAll,
+    clearSelection
   } = useWorkspace();
   const { activeView, density, isInspectorOpen, setIsInspectorOpen, setIsCreateModalOpen, isOverlayActive } = useUI();
 
@@ -45,6 +46,7 @@ function MainView({ filteredItems }) {
           multiSelectedIds={multiSelectedIds}
           onToggleMultiSelect={toggleMultiSelect}
           onSelectAll={selectAll}
+          onClearSelection={clearSelection}
           isKeyboardActive={!isOverlayActive}
         />
       );
@@ -147,6 +149,26 @@ function OrynqoWorkspace() {
     bulkAssign,
     deleteSelected
   } = useWorkspace();
+
+  const [bulkOutcome, setBulkOutcome] = useState(null);
+
+  const handleBulkUpdateStatus = useCallback(
+    (status) => {
+      const outcome = bulkUpdateStatus(status);
+      setBulkOutcome(outcome);
+      setTimeout(() => setBulkOutcome(null), 4000);
+    },
+    [bulkUpdateStatus]
+  );
+
+  const handleBulkAssign = useCallback(
+    (assigneeId) => {
+      const outcome = bulkAssign(assigneeId);
+      setBulkOutcome(outcome);
+      setTimeout(() => setBulkOutcome(null), 4000);
+    },
+    [bulkAssign]
+  );
 
   const {
     theme,
@@ -276,11 +298,12 @@ function OrynqoWorkspace() {
       bulkActionBar={
         <BulkActionBar
           selectedCount={multiSelectedIds.length}
-          onMarkDone={() => bulkUpdateStatus('done')}
-          onBulkUpdateStatus={bulkUpdateStatus}
-          onBulkAssign={bulkAssign}
+          onMarkDone={() => handleBulkUpdateStatus('done')}
+          onBulkUpdateStatus={handleBulkUpdateStatus}
+          onBulkAssign={handleBulkAssign}
           onDelete={deleteSelected}
           onClearSelection={clearSelection}
+          outcome={bulkOutcome}
         />
       }
       overlays={

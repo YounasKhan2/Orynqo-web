@@ -123,17 +123,32 @@ export function DataGrid({
     });
   }, [propFilterGroup, searchQuery, filters]);
 
+  // 3b. Optimistic Overrides with Automatic Rollback
+  const [optimisticOverrides, setOptimisticOverrides] = useState({});
+
+  useEffect(() => {
+    setOptimisticOverrides({});
+  }, [items]);
+
+  const effectiveItems = useMemo(() => {
+    if (Object.keys(optimisticOverrides).length === 0) return items;
+    return items.map((it) => {
+      const override = optimisticOverrides[it.id];
+      return override ? { ...it, ...override } : it;
+    });
+  }, [items, optimisticOverrides]);
+
   // Track item that was edited while focused but no longer matches filter
   const [filterMismatchItemId, setFilterMismatchItemId] = useState(null);
 
   // Evaluate items matching the filter
   const filteredItems = useMemo(() => {
-    return items.filter((item) => {
+    return effectiveItems.filter((item) => {
       // Retain item temporarily if currently marked as filter mismatch
       if (item.id === filterMismatchItemId) return true;
       return evaluateFilterGroup(item, activeFilterGroup);
     });
-  }, [items, activeFilterGroup, filterMismatchItemId]);
+  }, [effectiveItems, activeFilterGroup, filterMismatchItemId]);
 
   // 4. Deterministic Sorting
   const sortedItems = useMemo(() => {
@@ -181,29 +196,25 @@ export function DataGrid({
   }, [searchQuery, filters, propFilterGroup]);
 
   const internalSelection = useGridSelection({
+    controlledSelectedIds: propMultiSelectedIds,
+    onToggleSelect: propToggleMultiSelect,
+    onClearSelection: propClearSelection,
+    onSelectAllVisible: propSelectAll,
     queryDependencyKey
   });
 
-  const multiSelectedIds = propMultiSelectedIds !== undefined ? propMultiSelectedIds : internalSelection.multiSelectedIds;
-  const onToggleMultiSelect = propToggleMultiSelect || internalSelection.toggleSelect;
+  const multiSelectedIds = internalSelection.multiSelectedIds;
+  const onToggleMultiSelect = internalSelection.toggleSelect;
   const onSelectRange = internalSelection.selectRange;
-  const onClearSelection = propClearSelection || internalSelection.clearSelection;
+  const onClearSelection = internalSelection.clearSelection;
 
   const visibleIds = useMemo(() => sortedItems.map((i) => i.id), [sortedItems]);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => multiSelectedIds.includes(id));
   const isIndeterminate = multiSelectedIds.length > 0 && !allVisibleSelected;
 
   const handleSelectAllVisible = useCallback(() => {
-    if (propSelectAll) {
-      if (allVisibleSelected) {
-        propSelectAll([]);
-      } else {
-        propSelectAll(visibleIds);
-      }
-    } else {
-      internalSelection.selectAllVisible(visibleIds);
-    }
-  }, [propSelectAll, allVisibleSelected, visibleIds, internalSelection]);
+    internalSelection.selectAllVisible(visibleIds);
+  }, [internalSelection, visibleIds]);
 
   // 6. Keyboard & Focus Management
   const [focusedRowIndex, setFocusedRowIndex] = useState(0);
@@ -264,11 +275,14 @@ export function DataGrid({
 
   // 8. Optimistic Inline Update with Filter Mismatch Detection
   const handleUpdateItem = useCallback(
-    (itemId, patch) => {
-      const originalItem = items.find((i) => i.id === itemId);
+    async (itemId, patch) => {
+      const originalItem = effectiveItems.find((i) => i.id === itemId);
       if (!originalItem || originalItem.isReadOnly) return;
 
       const updatedItem = { ...originalItem, ...patch };
+
+      // Optimistically apply override locally
+      setOptimisticOverrides((prev) => ({ ...prev, [itemId]: updatedItem }));
 
       // Check if updated item violates current active filter
       const stillMatches = evaluateFilterGroup(updatedItem, activeFilterGroup);
@@ -276,16 +290,29 @@ export function DataGrid({
         setFilterMismatchItemId(itemId);
       }
 
-      onUpdateItem?.(itemId, patch);
+      try {
+        const result = onUpdateItem?.(itemId, patch);
+        if (result && typeof result.then === 'function') {
+          await result;
+        }
+      } catch (err) {
+        // Rollback optimistic mutation on failure
+        setOptimisticOverrides((prev) => {
+          const next = { ...prev };
+          delete next[itemId];
+          return next;
+        });
+        onUpdateItem?.(itemId, originalItem);
+      }
     },
-    [items, activeFilterGroup, onUpdateItem]
+    [effectiveItems, activeFilterGroup, onUpdateItem]
   );
 
   const handleCommitTitle = useCallback(
-    (itemId, newTitle) => {
+    async (itemId, newTitle) => {
       setIsEditingTitle(false);
       if (newTitle.trim()) {
-        handleUpdateItem(itemId, { title: newTitle.trim() });
+        await handleUpdateItem(itemId, { title: newTitle.trim() });
       }
       focusRowElement(focusedRowIndex);
     },

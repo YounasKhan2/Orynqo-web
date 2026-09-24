@@ -35,14 +35,28 @@ export function useGridKeyboard({
     }
   }, [items.length, focusedRowIndex, setFocusedRowIndex]);
 
-  // Focus current row element in DOM when index changes
+  // Focus current row element in DOM and restore scroll anchor when index changes
   const focusRowElement = useCallback((index) => {
     if (!tableContainerRef?.current) return;
     const rowEl = tableContainerRef.current.querySelector(`[data-row-index="${index}"]`);
-    if (rowEl && document.activeElement !== rowEl && !rowEl.contains(document.activeElement)) {
-      rowEl.focus({ preventScroll: true });
+    if (rowEl) {
+      if (document.activeElement !== rowEl && !rowEl.contains(document.activeElement)) {
+        rowEl.focus({ preventScroll: false });
+        if (typeof rowEl.scrollIntoView === 'function') {
+          rowEl.scrollIntoView({ block: 'nearest' });
+        }
+      }
     }
   }, [tableContainerRef]);
+
+  // Restore row anchor focus and scroll position whenever Inspector drawer closes
+  const prevInspectorOpen = useRef(isInspectorOpen);
+  useEffect(() => {
+    if (prevInspectorOpen.current && !isInspectorOpen) {
+      focusRowElement(focusedRowIndex);
+    }
+    prevInspectorOpen.current = isInspectorOpen;
+  }, [isInspectorOpen, focusedRowIndex, focusRowElement]);
 
   const handleKeyDown = useCallback((e) => {
     // Suppress hotkeys if user is typing in an input/textarea

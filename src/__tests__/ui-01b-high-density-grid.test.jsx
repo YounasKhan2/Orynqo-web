@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import React from 'react';
+import React, { useState } from 'react';
 import { render, screen, fireEvent, act, renderHook, within } from '@testing-library/react';
 import {
   DataGrid,
@@ -15,6 +15,7 @@ import {
 } from '../views/DataGrid';
 import { BulkActionBar } from '../components/bulk-actions/BulkActionBar';
 import { CORE_WORK_ITEM_TYPES } from '../constants/workItems';
+import { WorkspaceProvider, useWorkspace } from '../app/providers/WorkspaceContext';
 
 describe('UI-01B: Universal High-Density Data Grid', () => {
   const sampleItems = [
@@ -126,7 +127,8 @@ describe('UI-01B: Universal High-Density Data Grid', () => {
   // 2. Selection Laws
   // =========================================================================
   describe('2. Selection Laws & Semantics', () => {
-    it('4. filter change clears multi-selection', () => {
+    it('4. filter change clears multi-selection (supports controlled and uncontrolled selection)', () => {
+      // Uncontrolled mode
       const { result, rerender } = renderHook(
         ({ queryKey }) =>
           useGridSelection({
@@ -138,9 +140,25 @@ describe('UI-01B: Universal High-Density Data Grid', () => {
 
       expect(result.current.multiSelectedIds).toEqual(['item-101', 'item-102']);
 
-      // Material query change occurs
+      // Material query change occurs -> internal selection clears
       rerender({ queryKey: 'filter-2' });
       expect(result.current.multiSelectedIds).toEqual([]);
+
+      // Controlled mode
+      const onClearSelection = vi.fn();
+      const { rerender: rerenderControlled } = renderHook(
+        ({ queryKey }) =>
+          useGridSelection({
+            controlledSelectedIds: ['item-101', 'item-102'],
+            onClearSelection,
+            queryDependencyKey: queryKey
+          }),
+        { initialProps: { queryKey: 'filter-A' } }
+      );
+
+      // Material query change occurs -> calls consumer onClearSelection callback
+      rerenderControlled({ queryKey: 'filter-B' });
+      expect(onClearSelection).toHaveBeenCalled();
     });
 
     it('5. sort preserves selection', () => {
@@ -332,42 +350,68 @@ describe('UI-01B: Universal High-Density Data Grid', () => {
   // 4. Inspector Integration
   // =========================================================================
   describe('4. Inspector Integration & Logical Row Anchor', () => {
-    it('16. opening and closing Inspector preserves logical row anchor and focus', () => {
-      let isInspectorOpen = false;
-      const onOpen = vi.fn(() => {
-        isInspectorOpen = true;
-      });
-      const onClose = vi.fn(() => {
-        isInspectorOpen = false;
-      });
+    it('16. opening and closing Inspector restores logical row focus and anchor', () => {
+      function Harness() {
+        const [isOpen, setIsOpen] = useState(false);
+        const [activeId, setActiveId] = useState('item-102');
 
-      const { rerender } = render(
-        <DataGrid
-          items={sampleItems}
-          selectedItemId="item-102"
-          isInspectorOpen={isInspectorOpen}
-          onOpenInspector={onOpen}
-          onCloseInspector={onClose}
-        />
-      );
+        return (
+          <div>
+            <DataGrid
+              items={sampleItems}
+              selectedItemId={activeId}
+              isInspectorOpen={isOpen}
+              onSelectItem={(item) => setActiveId(item.id)}
+              onOpenInspector={(item) => {
+                setActiveId(item.id);
+                setIsOpen(true);
+              }}
+              onCloseInspector={() => setIsOpen(false)}
+            />
+            {isOpen && (
+              <div role="dialog" aria-label="Inspector Drawer">
+                <button
+                  type="button"
+                  data-testid="drawer-close-btn"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Close Inspector
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      render(<Harness />);
+
+      // Navigate down to item-102 with 'j'
+      fireEvent.keyDown(window, { key: 'j' });
+
+      const row1Element = document.querySelector('[data-item-id="item-102"]');
+      expect(row1Element).toBeTruthy();
+
+      // Spy on scrollIntoView
+      const scrollSpy = vi.fn();
+      row1Element.scrollIntoView = scrollSpy;
 
       // Enter opens Inspector
       fireEvent.keyDown(window, { key: 'Enter' });
+      expect(screen.getByRole('dialog', { name: /Inspector Drawer/i })).toBeTruthy();
 
-      // Rerender with inspector open
-      rerender(
-        <DataGrid
-          items={sampleItems}
-          selectedItemId="item-102"
-          isInspectorOpen={true}
-          onOpenInspector={onOpen}
-          onCloseInspector={onClose}
-        />
-      );
+      // Focus inside the drawer
+      const closeBtn = screen.getByTestId('drawer-close-btn');
+      closeBtn.focus();
+      expect(document.activeElement).toBe(closeBtn);
 
-      // Escape closes Inspector
-      fireEvent.keyDown(window, { key: 'Escape' });
-      expect(onClose).toHaveBeenCalled();
+      // Close Inspector via button click
+      fireEvent.click(closeBtn);
+      expect(screen.queryByRole('dialog', { name: /Inspector Drawer/i })).toBeNull();
+
+      // Genuine Inspector focus/scroll restoration: DOM activeElement is row 1, roving tabIndex is 0, scroll anchor restored
+      expect(document.activeElement).toBe(row1Element);
+      expect(row1Element.getAttribute('tabindex')).toBe('0');
+      expect(scrollSpy).toHaveBeenCalledWith({ block: 'nearest' });
     });
 
     it('17 & 18. inspector mutation is reflected in the grid and preserves context', () => {
@@ -438,11 +482,17 @@ describe('UI-01B: Universal High-Density Data Grid', () => {
       expect(onUpdate).toHaveBeenCalledWith('item-101', { priority: 'low' });
     });
 
-    it('21. failed inline mutation rolls back', () => {
+    it('21. failed inline mutation rolls back', async () => {
       const originalTitle = 'Implement Tarjan cycle detection';
+      let rollbackInvoked = false;
       const onUpdateItem = vi.fn((id, patch) => {
-        // Simulating mutation rollback / rejection
-        throw new Error('Network error');
+        // If this is the rollback call passing back original item
+        if (patch.id === 'item-101' || patch.title === originalTitle) {
+          rollbackInvoked = true;
+          return;
+        }
+        // First mutation attempt fails
+        throw new Error('Server 500: Database transaction failed');
       });
 
       render(
@@ -452,8 +502,34 @@ describe('UI-01B: Universal High-Density Data Grid', () => {
         />
       );
 
-      // Original title remains rendered
+      // Focus row 0
+      const row0 = document.querySelector('[data-item-id="item-101"]');
+      expect(row0).toBeTruthy();
+      row0.focus();
+
+      // Trigger inline edit via F2
+      fireEvent.keyDown(window, { key: 'F2' });
+
+      const titleInput = screen.getByDisplayValue(originalTitle);
+      expect(titleInput).toBeTruthy();
+
+      // Type new title and commit via Enter
+      fireEvent.change(titleInput, { target: { value: 'Corrupted In-Flight Mutation' } });
+      fireEvent.keyDown(titleInput, { key: 'Enter' });
+
+      // Verification:
+      // 1. Initial attempt was made
+      expect(onUpdateItem).toHaveBeenCalledWith('item-101', { title: 'Corrupted In-Flight Mutation' });
+
+      // 2. Rollback was invoked with original item data
+      expect(rollbackInvoked).toBe(true);
+
+      // 3. UI rolls back to original title and corrupted title is not in the document
       expect(screen.getByText(originalTitle)).toBeTruthy();
+      expect(screen.queryByText('Corrupted In-Flight Mutation')).toBeNull();
+
+      // 4. Focus is preserved on row 0
+      expect(row0.getAttribute('tabindex')).toBe('0');
     });
   });
 
@@ -547,39 +623,141 @@ describe('UI-01B: Universal High-Density Data Grid', () => {
   // 8. Bulk Operations
   // =========================================================================
   describe('8. Bulk Operations & Normalized Outcomes', () => {
-    it('27 & 29. bulk mutation operates on selected IDs and clears selection on completion', () => {
-      const onBulkUpdate = vi.fn();
-      render(
-        <BulkActionBar
-          selectedCount={2}
-          onBulkUpdateStatus={onBulkUpdate}
-        />
-      );
+    it('27 & 29. bulk mutation operates on selected IDs, updates items, and clears selection on completion', () => {
+      function BulkHarness() {
+        const [items, setItems] = useState(sampleItems);
+        const [selectedIds, setSelectedIds] = useState(['item-101', 'item-102']);
+        const [bulkOutcome, setBulkOutcome] = useState(null);
 
-      expect(screen.getByText('2 items selected')).toBeTruthy();
+        const handleBulkStatus = (status) => {
+          const succeeded = [];
+          const skipped = [];
+          const failed = [];
 
-      const statusBtn = screen.getByRole('button', { name: /Status/i });
+          setItems((prev) =>
+            prev.map((it) => {
+              if (!selectedIds.includes(it.id)) return it;
+              if (it.isReadOnly) {
+                skipped.push(it.id);
+                return it;
+              }
+              succeeded.push(it.id);
+              return { ...it, status };
+            })
+          );
+          setSelectedIds([]);
+          setBulkOutcome({ succeeded, skipped, failed });
+        };
+
+        return (
+          <div>
+            <DataGrid
+              items={items}
+              multiSelectedIds={selectedIds}
+              onToggleMultiSelect={(id) =>
+                setSelectedIds((prev) =>
+                  prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+                )
+              }
+              onClearSelection={() => setSelectedIds([])}
+            />
+            <BulkActionBar
+              selectedCount={selectedIds.length}
+              onBulkUpdateStatus={handleBulkStatus}
+              outcome={bulkOutcome}
+              onClearSelection={() => setSelectedIds([])}
+            />
+          </div>
+        );
+      }
+
+      render(<BulkHarness />);
+
+      const bulkBar = screen.getByRole('toolbar', { name: /Bulk actions/i });
+      expect(bulkBar).toBeTruthy();
+      expect(within(bulkBar).getByText('2 items selected')).toBeTruthy();
+
+      const statusBtn = within(bulkBar).getByRole('button', { name: /Status/i });
       fireEvent.click(statusBtn);
 
-      fireEvent.click(screen.getByRole('option', { name: /Done/i }));
-      expect(onBulkUpdate).toHaveBeenCalledWith('done');
+      const statusListbox = screen.getByRole('listbox', { name: /Bulk status options/i });
+      const doneOption = within(statusListbox).getByRole('option', { name: /Done/i });
+      fireEvent.click(doneOption);
+
+      // Outcome notification rendered with succeeded count
+      expect(within(bulkBar).getByText(/2 updated/i)).toBeTruthy();
+
+      // Selection is cleared
+      expect(within(bulkBar).queryByText(/2 items selected/i)).toBeNull();
     });
 
-    it('28. partial permission outcome reports succeeded/skipped/failed correctly', () => {
-      const outcome = {
-        succeeded: ['item-101'],
-        skipped: ['item-103'],
-        failed: []
-      };
+    it('28. partial permission outcome reports succeeded/skipped/failed correctly in end-to-end flow', () => {
+      function BulkPermissionHarness() {
+        const [items, setItems] = useState(sampleItems);
+        // item-101 is mutable, item-103 is read-only
+        const [selectedIds, setSelectedIds] = useState(['item-101', 'item-103']);
+        const [bulkOutcome, setBulkOutcome] = useState(null);
 
-      render(
-        <BulkActionBar
-          selectedCount={0}
-          outcome={outcome}
-        />
-      );
+        const handleBulkStatus = (status) => {
+          const succeeded = [];
+          const skipped = [];
+          const failed = [];
 
-      expect(screen.getByText(/1 updated, 1 skipped \(read-only\)/i)).toBeTruthy();
+          setItems((prev) =>
+            prev.map((it) => {
+              if (!selectedIds.includes(it.id)) return it;
+              if (it.isReadOnly) {
+                skipped.push(it.id);
+                return it;
+              }
+              succeeded.push(it.id);
+              return { ...it, status };
+            })
+          );
+          setSelectedIds([]);
+          setBulkOutcome({ succeeded, skipped, failed });
+        };
+
+        return (
+          <div>
+            <DataGrid
+              items={items}
+              multiSelectedIds={selectedIds}
+              onToggleMultiSelect={(id) =>
+                setSelectedIds((prev) =>
+                  prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+                )
+              }
+              onClearSelection={() => setSelectedIds([])}
+            />
+            <BulkActionBar
+              selectedCount={selectedIds.length}
+              onBulkUpdateStatus={handleBulkStatus}
+              outcome={bulkOutcome}
+              onClearSelection={() => setSelectedIds([])}
+            />
+          </div>
+        );
+      }
+
+      render(<BulkPermissionHarness />);
+
+      const bulkBar = screen.getByRole('toolbar', { name: /Bulk actions/i });
+      expect(bulkBar).toBeTruthy();
+      expect(within(bulkBar).getByText('2 items selected')).toBeTruthy();
+
+      const statusBtn = within(bulkBar).getByRole('button', { name: /Status/i });
+      fireEvent.click(statusBtn);
+
+      const statusListbox = screen.getByRole('listbox', { name: /Bulk status options/i });
+      const inReviewOption = within(statusListbox).getByRole('option', { name: /In Review/i });
+      fireEvent.click(inReviewOption);
+
+      // Outcome banner correctly reports 1 updated, 1 skipped (read-only)
+      expect(within(bulkBar).getByText(/1 updated, 1 skipped \(read-only\)/i)).toBeTruthy();
+
+      // Selection cleared
+      expect(within(bulkBar).queryByText(/2 items selected/i)).toBeNull();
     });
   });
 
