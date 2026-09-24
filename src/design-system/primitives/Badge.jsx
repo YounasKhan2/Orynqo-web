@@ -1,146 +1,128 @@
 import React from 'react';
-import {
-  STATUS_DEFINITIONS,
-  PRIORITY_DEFINITIONS,
-  ITEM_TYPE_DEFINITIONS
-} from '../tokens';
-import {
-  CircleDashed,
-  Circle,
-  Clock,
-  GitPullRequest,
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
-  SignalHigh,
-  SignalMedium,
-  SignalLow,
-  Minus,
-  Sparkles,
-  Bug,
-  CheckSquare,
-  Flag,
-  Wrench
-} from 'lucide-react';
-
-const ICON_MAP = {
-  CircleDashed,
-  Circle,
-  Clock,
-  GitPullRequest,
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
-  SignalHigh,
-  SignalMedium,
-  SignalLow,
-  Minus,
-  Sparkles,
-  Bug,
-  CheckSquare,
-  Flag,
-  Wrench
-};
 
 /**
- * StatusBadge Component
+ * Badge Primitive (Domain-Neutral)
+ * Represents a status, count, tag, or indicator badge.
+ * Variants: default | primary | success | warning | danger | outline | subtle
  */
-export function StatusBadge({ statusId, onClick, interactive = false }) {
-  const status = STATUS_DEFINITIONS[statusId] || STATUS_DEFINITIONS.todo;
-  const IconComponent = ICON_MAP[status.icon] || Circle;
+export function Badge({
+  children,
+  variant = 'default',
+  color,
+  bg,
+  icon: Icon,
+  iconSize = 11,
+  interactive = false,
+  onClick,
+  title,
+  className = '',
+  style = {}
+}) {
+  const getVariantStyles = () => {
+    if (color || bg) {
+      return {
+        color: color || 'var(--text-primary)',
+        backgroundColor: bg || 'transparent',
+        border: bg ? `1px solid ${color}33` : '1px solid transparent'
+      };
+    }
+
+    switch (variant) {
+      case 'primary':
+        return {
+          color: 'var(--primary-text)',
+          backgroundColor: 'var(--primary-subtle)',
+          border: '1px solid var(--primary-base)'
+        };
+      case 'success':
+        return {
+          color: 'var(--status-done)',
+          backgroundColor: 'var(--status-done-bg)',
+          border: '1px solid rgba(34, 197, 94, 0.25)'
+        };
+      case 'warning':
+        return {
+          color: 'var(--status-in-progress)',
+          backgroundColor: 'var(--status-in-progress-bg)',
+          border: '1px solid rgba(234, 179, 8, 0.25)'
+        };
+      case 'danger':
+        return {
+          color: 'var(--priority-urgent)',
+          backgroundColor: 'var(--priority-urgent-bg)',
+          border: '1px solid rgba(239, 68, 68, 0.25)'
+        };
+      case 'outline':
+        return {
+          color: 'var(--text-secondary)',
+          backgroundColor: 'transparent',
+          border: '1px solid var(--border-default)'
+        };
+      case 'subtle':
+        return {
+          color: 'var(--text-secondary)',
+          backgroundColor: 'var(--bg-surface-raised)',
+          border: '1px solid var(--border-subtle)'
+        };
+      case 'default':
+      default:
+        return {
+          color: 'var(--text-secondary)',
+          backgroundColor: 'var(--bg-surface-raised)',
+          border: '1px solid transparent'
+        };
+    }
+  };
 
   return (
     <span
-      onClick={onClick}
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : undefined}
+      title={title}
+      onClick={interactive ? onClick : undefined}
+      onKeyDown={(e) => {
+        if (interactive && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onClick?.(e);
+        }
+      }}
+      className={`badge-primitive ${className}`}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '5px',
+        gap: '4px',
         padding: '2px 6px',
         fontSize: 'var(--text-xs)',
         fontWeight: 'var(--font-medium)',
-        color: status.color,
-        backgroundColor: status.bg || 'transparent',
-        border: status.bg ? `1px solid ${status.color}33` : '1px solid transparent',
         borderRadius: 'var(--radius-xs)',
         cursor: interactive ? 'pointer' : 'default',
         userSelect: 'none',
-        lineHeight: 1
+        lineHeight: 1,
+        transition: 'all var(--duration-fast) var(--ease-out)',
+        ...getVariantStyles(),
+        ...style
       }}
     >
-      <IconComponent size={12} style={{ color: status.color, flexShrink: 0 }} />
-      <span>{status.label}</span>
+      {Icon && <Icon size={iconSize} style={{ flexShrink: 0 }} />}
+      {children && <span>{children}</span>}
     </span>
   );
 }
 
 /**
- * PriorityBadge Component
+ * Tag Primitive (Domain-Neutral)
  */
-export function PriorityBadge({ priorityId, onClick, interactive = false }) {
-  const priority = PRIORITY_DEFINITIONS[priorityId] || PRIORITY_DEFINITIONS.none;
-  const IconComponent = ICON_MAP[priority.icon] || Minus;
-
+export function Tag({
+  label,
+  onRemove,
+  onClick,
+  className = '',
+  style = {}
+}) {
   return (
     <span
       onClick={onClick}
-      role={interactive ? 'button' : undefined}
-      tabIndex={interactive ? 0 : undefined}
-      title={`Priority: ${priority.label}`}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '4px',
-        padding: '2px 5px',
-        fontSize: 'var(--text-xs)',
-        fontWeight: 'var(--font-medium)',
-        color: priority.color,
-        backgroundColor: priority.bg || 'transparent',
-        borderRadius: 'var(--radius-xs)',
-        cursor: interactive ? 'pointer' : 'default',
-        userSelect: 'none',
-        lineHeight: 1
-      }}
-    >
-      <IconComponent size={12} style={{ color: priority.color, flexShrink: 0 }} />
-      <span>{priority.label}</span>
-    </span>
-  );
-}
-
-/**
- * TypeBadge Component
- */
-export function TypeBadge({ typeId }) {
-  const type = ITEM_TYPE_DEFINITIONS[typeId] || ITEM_TYPE_DEFINITIONS.task;
-  const IconComponent = ICON_MAP[type.icon] || CheckSquare;
-
-  return (
-    <span
-      title={`Type: ${type.label}`}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '4px',
-        fontSize: 'var(--text-xs)',
-        color: 'var(--text-secondary)',
-        lineHeight: 1
-      }}
-    >
-      <IconComponent size={12} style={{ color: type.color, flexShrink: 0 }} />
-      <span>{type.label}</span>
-    </span>
-  );
-}
-
-/**
- * TagBadge Component
- */
-export function TagBadge({ label, onRemove }) {
-  return (
-    <span
+      className={`tag-primitive ${className}`}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -152,13 +134,21 @@ export function TagBadge({ label, onRemove }) {
         backgroundColor: 'var(--bg-surface-raised)',
         border: '1px solid var(--border-subtle)',
         borderRadius: 'var(--radius-xs)',
-        lineHeight: '1.2'
+        lineHeight: '1.2',
+        cursor: onClick ? 'pointer' : 'default',
+        userSelect: 'none',
+        ...style
       }}
     >
       #{label}
       {onRemove && (
         <span
-          onClick={onRemove}
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
           style={{ cursor: 'pointer', marginLeft: '2px', color: 'var(--text-muted)' }}
         >
           ×
