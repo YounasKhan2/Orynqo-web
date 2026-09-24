@@ -1,14 +1,14 @@
 import React from 'react';
-import { LIVING_DOCUMENTS, USERS, PROJECTS } from '../data/mockData';
-import { StatusBadge, PriorityBadge } from '../design-system/primitives/Badge';
-import { Avatar } from '../design-system/primitives/Avatar';
-import { STATUS_DEFINITIONS, PRIORITY_DEFINITIONS } from '../design-system/tokens';
-import { FileText, Sparkles, CheckCircle2, Plus, Clock, ExternalLink } from 'lucide-react';
+import { LIVING_DOCUMENTS, USERS, PROJECTS } from '../../../data/mockData';
+import { STATUS_DEFINITIONS, PRIORITY_DEFINITIONS } from '../../../constants/workItems';
+import { StatusBadge, PriorityBadge } from '../../../components/badges';
+import { UserAvatar } from '../../../components/avatars/UserAvatar';
+import { Sparkles, ExternalLink } from 'lucide-react';
 
 /**
- * LivingSpecEditor Feature
+ * LivingSpecEditor Feature Component
  * The Zero-Drift Specification-to-Execution Engine
- * Documents and Work Items live in the exact same database.
+ * Directly binds PRD document tables to canonical WorkItems
  */
 export function LivingSpecEditor({
   items = [],
@@ -19,8 +19,9 @@ export function LivingSpecEditor({
   const author = USERS.find((u) => u.id === doc.authorId);
   const project = PROJECTS.find((p) => p.id === doc.projectId);
 
-  // Filter the live work items linked to this PRD
-  const linkedItems = items.filter((it) => doc.content.sections[2].linkedItemIds.includes(it.id));
+  const linkedItems = items.filter((it) =>
+    doc.content.sections[2].linkedItemIds.includes(it.id)
+  );
 
   return (
     <div
@@ -65,7 +66,7 @@ export function LivingSpecEditor({
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Avatar user={author} size="xs" />
+              <UserAvatar user={author} size="xs" />
               <span>Authored by <strong style={{ color: 'var(--text-secondary)' }}>{author.name}</strong></span>
             </div>
             <span>•</span>
@@ -95,7 +96,7 @@ export function LivingSpecEditor({
           </p>
         </div>
 
-        {/* Section 3: LIVE EMBEDDED DELIVERABLES TABLE (Zero-Drift Engine) */}
+        {/* Section 3: Live Synchronized Deliverables */}
         <div
           style={{
             display: 'flex',
@@ -184,7 +185,7 @@ export function LivingSpecEditor({
                       onClick={() => {
                         const statusKeys = Object.keys(STATUS_DEFINITIONS);
                         const nextIdx = (statusKeys.indexOf(item.status) + 1) % statusKeys.length;
-                        onUpdateItem(item.id, { status: statusKeys[nextIdx] });
+                        onUpdateItem?.(item.id, { status: statusKeys[nextIdx] });
                       }}
                     />
                   </div>
@@ -195,14 +196,14 @@ export function LivingSpecEditor({
                       onClick={() => {
                         const priorityKeys = ['none', 'low', 'medium', 'high', 'urgent'];
                         const nextIdx = (priorityKeys.indexOf(item.priority) + 1) % priorityKeys.length;
-                        onUpdateItem(item.id, { priority: priorityKeys[nextIdx] });
+                        onUpdateItem?.(item.id, { priority: priorityKeys[nextIdx] });
                       }}
                     />
                   </div>
-                  <Avatar user={itemAssignee} size="xs" showName />
+                  <UserAvatar user={itemAssignee} size="xs" showName />
                   <button
                     type="button"
-                    onClick={() => onOpenInspector(item)}
+                    onClick={() => onOpenInspector?.(item)}
                     title="Open in Inspector Drawer"
                     style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
                   >

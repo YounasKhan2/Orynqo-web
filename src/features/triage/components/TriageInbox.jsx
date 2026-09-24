@@ -1,21 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { INBOX_NOTIFICATIONS, USERS } from '../data/mockData';
-import { Avatar } from '../design-system/primitives/Avatar';
-import { Button } from '../design-system/primitives/Button';
+import { INBOX_NOTIFICATIONS } from '../../../data/mockData';
+import { UserAvatar } from '../../../components/avatars/UserAvatar';
+import { Kbd } from '../../../design-system';
 import {
   Inbox,
   Check,
   Archive,
-  MessageSquare,
-  GitPullRequest,
-  CheckSquare,
-  AlertCircle,
-  Eye,
   Filter
 } from 'lucide-react';
 
 /**
- * TriageInbox Feature
+ * TriageInbox Feature Component
  * High-velocity zero-mouse notification and issue triage feed
  */
 export function TriageInbox({
@@ -42,7 +37,7 @@ export function TriageInbox({
   // Keyboard navigation for inbox (j/k, e to archive, enter to open)
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
 
       if (e.key === 'j' || e.key === 'ArrowDown') {
         e.preventDefault();
@@ -58,7 +53,7 @@ export function TriageInbox({
       } else if (e.key === 'Enter') {
         e.preventDefault();
         if (displayedList[selectedIndex] && displayedList[selectedIndex].itemId) {
-          onOpenItemById(displayedList[selectedIndex].itemId);
+          onOpenItemById?.(displayedList[selectedIndex].itemId);
         }
       }
     };
@@ -95,8 +90,12 @@ export function TriageInbox({
           <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
             Notification Triage Feed
           </span>
-          <span className="kbd-shortcut">E to archive</span>
-          <span className="kbd-shortcut">↵ to inspect</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+            <Kbd>E</Kbd> <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>archive</span>
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+            <Kbd>↵</Kbd> <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>inspect</span>
+          </span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -138,7 +137,7 @@ export function TriageInbox({
                 key={notif.id}
                 onClick={() => {
                   setSelectedIndex(idx);
-                  if (notif.itemId) onOpenItemById(notif.itemId);
+                  if (notif.itemId) onOpenItemById?.(notif.itemId);
                 }}
                 style={{
                   display: 'flex',
@@ -153,7 +152,7 @@ export function TriageInbox({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                  {/* Unread indicator dot */}
+                  {/* Unread indicator */}
                   <div style={{ paddingTop: '5px' }}>
                     <span
                       style={{
@@ -166,7 +165,7 @@ export function TriageInbox({
                     />
                   </div>
 
-                  <Avatar user={notif.author} size="sm" />
+                  <UserAvatar user={notif.author} size="sm" />
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

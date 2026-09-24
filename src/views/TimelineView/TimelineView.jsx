@@ -1,11 +1,10 @@
 import React from 'react';
-import { PriorityBadge, StatusBadge } from '../primitives/Badge';
-import { Avatar } from '../primitives/Avatar';
-import { USERS, PROJECTS } from '../../data/mockData';
+import { UserAvatar } from '../../components/avatars/UserAvatar';
+import { USERS } from '../../data/mockData';
 import { AlertCircle, Calendar, Link2 } from 'lucide-react';
 
 /**
- * TimelineView Component
+ * TimelineView Projection
  * High-density Gantt/Timeline projection with dependency connectors
  */
 export function TimelineView({
@@ -14,7 +13,6 @@ export function TimelineView({
   onSelectItem,
   onOpenInspector
 }) {
-  // 14-day window for active cycle
   const days = [
     { label: 'Sep 14', date: '2026-09-14', isToday: false },
     { label: 'Sep 16', date: '2026-09-16', isToday: false },
@@ -95,15 +93,14 @@ export function TimelineView({
           const hasBlocker = item.blockedBy && item.blockedBy.length > 0;
           const blocksOthers = item.blocks && item.blocks.length > 0;
 
-          // Compute bar position based on item index for realistic simulation
           const startCol = (idx % 7) + 2;
           const spanCols = Math.min((item.estimate || 3), 4);
 
           return (
             <div
               key={item.id}
-              onClick={() => onSelectItem(item)}
-              onDoubleClick={() => onOpenInspector(item)}
+              onClick={() => onSelectItem?.(item)}
+              onDoubleClick={() => onOpenInspector?.(item)}
               style={{
                 display: 'grid',
                 gridTemplateColumns: '260px repeat(11, 1fr)',
@@ -189,7 +186,7 @@ export function TimelineView({
                       <Link2 size={11} color="var(--primary-text)" />
                     </span>
                   )}
-                  <Avatar user={assignee} size="xs" />
+                  <UserAvatar user={assignee} size="xs" />
                 </div>
               </div>
             </div>

@@ -1,13 +1,13 @@
 import React from 'react';
-import { STATUS_DEFINITIONS } from '../tokens';
-import { PriorityBadge, TypeBadge } from '../primitives/Badge';
-import { Avatar } from '../primitives/Avatar';
+import { STATUS_DEFINITIONS } from '../../constants/workItems';
+import { PriorityBadge, TypeBadge } from '../../components/badges';
+import { UserAvatar } from '../../components/avatars/UserAvatar';
 import { USERS } from '../../data/mockData';
 import { Plus, MessageSquare, AlertTriangle } from 'lucide-react';
 
 /**
- * KanbanBoard Component
- * Direct projection over canonical WorkItems grouped by status
+ * KanbanBoard View Projection
+ * Renders status columns over the shared canonical WorkItems
  */
 export function KanbanBoard({
   items = [],
@@ -98,22 +98,24 @@ export function KanbanBoard({
                 </span>
               </div>
 
-              <button
-                type="button"
-                onClick={() => onQuickCreate(col.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  padding: '2px'
-                }}
-                title="Add card"
-              >
-                <Plus size={14} />
-              </button>
+              {onQuickCreate && (
+                <button
+                  type="button"
+                  onClick={() => onQuickCreate(col.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: '2px'
+                  }}
+                  title="Add card"
+                >
+                  <Plus size={14} />
+                </button>
+              )}
             </div>
 
             {/* Column Card Container */}
@@ -135,8 +137,8 @@ export function KanbanBoard({
                 return (
                   <div
                     key={item.id}
-                    onClick={() => onSelectItem(item)}
-                    onDoubleClick={() => onOpenInspector(item)}
+                    onClick={() => onSelectItem?.(item)}
+                    onDoubleClick={() => onOpenInspector?.(item)}
                     style={{
                       display: 'flex',
                       flexDirection: 'column',
@@ -156,7 +158,7 @@ export function KanbanBoard({
                         <span className="font-mono" style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
                           {item.identifier}
                         </span>
-                        <TypeBadge typeId={item.type} />
+                        <TypeBadge typeId={item.type} showLabel={false} />
                       </div>
                       <PriorityBadge priorityId={item.priority} />
                     </div>
@@ -219,7 +221,7 @@ export function KanbanBoard({
                         )}
                       </div>
 
-                      <Avatar user={assignee} size="xs" />
+                      <UserAvatar user={assignee} size="xs" />
                     </div>
                   </div>
                 );

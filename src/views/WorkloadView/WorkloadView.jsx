@@ -1,11 +1,9 @@
 import React from 'react';
 import { USERS } from '../../data/mockData';
-import { Avatar } from '../primitives/Avatar';
-import { StatusBadge, PriorityBadge } from '../primitives/Badge';
-import { AlertTriangle, CheckCircle, TrendingUp } from 'lucide-react';
+import { UserAvatar } from '../../components/avatars/UserAvatar';
 
 /**
- * WorkloadView Component
+ * WorkloadView Projection
  * Team capacity balancing and real-time point allocation per cycle
  */
 export function WorkloadView({
@@ -14,7 +12,7 @@ export function WorkloadView({
   onSelectItem,
   onOpenInspector
 }) {
-  const VELOCITY_LIMIT = 12; // points per cycle threshold
+  const VELOCITY_LIMIT = 12;
 
   return (
     <div
@@ -63,15 +61,7 @@ export function WorkloadView({
               {/* Header */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Avatar user={usr} size="md" />
-                  <div>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-                      {usr.name}
-                    </div>
-                    <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
-                      {usr.role}
-                    </div>
-                  </div>
+                  <UserAvatar user={usr} size="md" showRole />
                 </div>
 
                 <div style={{ textAlign: 'right' }}>
@@ -84,7 +74,7 @@ export function WorkloadView({
                 </div>
               </div>
 
-              {/* Meter Bar */}
+              {/* Capacity Bar */}
               <div
                 style={{
                   width: '100%',
@@ -114,8 +104,8 @@ export function WorkloadView({
                   userItems.map((item) => (
                     <div
                       key={item.id}
-                      onClick={() => onSelectItem(item)}
-                      onDoubleClick={() => onOpenInspector(item)}
+                      onClick={() => onSelectItem?.(item)}
+                      onDoubleClick={() => onOpenInspector?.(item)}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
