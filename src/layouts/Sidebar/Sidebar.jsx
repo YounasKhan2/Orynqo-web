@@ -3,27 +3,21 @@ import {
   Search,
   Inbox,
   CheckCircle2,
-  Clock,
   Layers,
   Smartphone,
   Globe,
-  Compass,
-  ShieldCheck,
-  ChevronDown,
-  ChevronRight,
-  Plus,
   PanelLeftClose,
-  PanelLeftOpen,
   Sun,
   Moon,
   Keyboard,
   FileText
 } from 'lucide-react';
 import { CURRENT_USER } from '../../data/mockData';
-import { Avatar } from '../primitives/Avatar';
+import { UserAvatar } from '../../components/avatars/UserAvatar';
+import { Kbd } from '../../design-system';
 
 /**
- * Sidebar Component
+ * Sidebar Layout Component
  * Collapsible left rail preserving orientation and high density
  */
 export function Sidebar({
@@ -41,6 +35,8 @@ export function Sidebar({
 }) {
   return (
     <aside
+      role="navigation"
+      aria-label="Workspace navigation"
       style={{
         width: isCollapsed ? '52px' : '230px',
         minWidth: isCollapsed ? '52px' : '230px',
@@ -118,6 +114,7 @@ export function Sidebar({
             type="button"
             onClick={onToggleCollapse}
             title={isCollapsed ? 'Expand sidebar (⌘[)' : 'Collapse sidebar (⌘[)'}
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             style={{
               background: 'none',
               border: 'none',
@@ -155,13 +152,13 @@ export function Sidebar({
               <Search size={13} color="var(--text-muted)" />
               {!isCollapsed && <span>Search & Commands</span>}
             </div>
-            {!isCollapsed && <span className="kbd-shortcut">⌘K</span>}
+            {!isCollapsed && <Kbd>⌘K</Kbd>}
           </button>
 
           {/* Inbox Link */}
           <button
             type="button"
-            onClick={() => onSelectView('inbox')}
+            onClick={() => onSelectView?.('inbox')}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -199,7 +196,7 @@ export function Sidebar({
           {/* My Issues */}
           <button
             type="button"
-            onClick={() => onSelectView('my-issues')}
+            onClick={() => onSelectView?.('my-issues')}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -240,7 +237,7 @@ export function Sidebar({
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
               <div
-                onClick={() => { onSelectTeam('team-core'); onSelectView('data-grid'); }}
+                onClick={() => { onSelectTeam?.('team-core'); onSelectView?.('data-grid'); }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -259,7 +256,7 @@ export function Sidebar({
               </div>
 
               <div
-                onClick={() => { onSelectTeam('team-mobile'); onSelectView('data-grid'); }}
+                onClick={() => { onSelectTeam?.('team-mobile'); onSelectView?.('data-grid'); }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -278,7 +275,7 @@ export function Sidebar({
               </div>
 
               <div
-                onClick={() => { onSelectTeam('team-web'); onSelectView('data-grid'); }}
+                onClick={() => { onSelectTeam?.('team-web'); onSelectView?.('data-grid'); }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -317,7 +314,7 @@ export function Sidebar({
             </div>
 
             <div
-              onClick={() => onSelectView('living-spec')}
+              onClick={() => onSelectView?.('living-spec')}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -350,7 +347,7 @@ export function Sidebar({
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Avatar user={CURRENT_USER} size="sm" />
+            <UserAvatar user={CURRENT_USER} size="sm" />
             {!isCollapsed && (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <span className="truncate" style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-medium)', color: 'var(--text-primary)' }}>
@@ -369,6 +366,7 @@ export function Sidebar({
                 type="button"
                 onClick={onToggleTheme}
                 title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} theme`}
+                aria-label="Toggle theme"
                 style={{
                   background: 'none',
                   border: 'none',
@@ -384,6 +382,7 @@ export function Sidebar({
                 type="button"
                 onClick={onOpenShortcutsModal}
                 title="Keyboard shortcuts (?)"
+                aria-label="Keyboard shortcuts"
                 style={{
                   background: 'none',
                   border: 'none',

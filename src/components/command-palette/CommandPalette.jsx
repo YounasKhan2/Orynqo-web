@@ -8,11 +8,10 @@ import {
   Moon,
   Sun,
   Layers,
-  ArrowRight,
-  Command,
-  X
+  ArrowRight
 } from 'lucide-react';
-import { PriorityBadge, StatusBadge } from '../primitives/Badge';
+import { Kbd } from '../../design-system';
+import { PriorityBadge, StatusBadge } from '../badges';
 
 /**
  * CommandPalette Component (Cmd+K)
@@ -32,7 +31,6 @@ export function CommandPalette({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef(null);
 
-  // Focus input when opened
   useEffect(() => {
     if (isOpen) {
       setQuery('');
@@ -41,7 +39,6 @@ export function CommandPalette({
     }
   }, [isOpen]);
 
-  // Static Quick Actions
   const staticActions = [
     {
       id: 'act-create',
@@ -50,7 +47,7 @@ export function CommandPalette({
       category: 'Actions',
       shortcut: 'C',
       icon: Plus,
-      run: () => { onClose(); onOpenCreateModal(); }
+      run: () => { onClose?.(); onOpenCreateModal?.(); }
     },
     {
       id: 'act-view-table',
@@ -58,7 +55,7 @@ export function CommandPalette({
       title: 'Switch to Table View',
       category: 'Navigation',
       icon: Layers,
-      run: () => { onClose(); onSelectView('data-grid'); }
+      run: () => { onClose?.(); onSelectView?.('data-grid'); }
     },
     {
       id: 'act-view-board',
@@ -66,7 +63,7 @@ export function CommandPalette({
       title: 'Switch to Kanban Board',
       category: 'Navigation',
       icon: CheckCircle2,
-      run: () => { onClose(); onSelectView('kanban'); }
+      run: () => { onClose?.(); onSelectView?.('kanban'); }
     },
     {
       id: 'act-view-timeline',
@@ -74,7 +71,7 @@ export function CommandPalette({
       title: 'Switch to Timeline / Gantt',
       category: 'Navigation',
       icon: Calendar,
-      run: () => { onClose(); onSelectView('timeline'); }
+      run: () => { onClose?.(); onSelectView?.('timeline'); }
     },
     {
       id: 'act-view-spec',
@@ -82,7 +79,7 @@ export function CommandPalette({
       title: 'Open Living PRD: Offline Sync Spec',
       category: 'Documents',
       icon: FileText,
-      run: () => { onClose(); onSelectView('living-spec'); }
+      run: () => { onClose?.(); onSelectView?.('living-spec'); }
     },
     {
       id: 'act-toggle-theme',
@@ -90,11 +87,10 @@ export function CommandPalette({
       title: `Toggle Theme (Current: ${theme})`,
       category: 'Settings',
       icon: theme === 'dark' ? Sun : Moon,
-      run: () => { onClose(); onToggleTheme(); }
+      run: () => { onClose?.(); onToggleTheme?.(); }
     }
   ];
 
-  // Dynamic filter
   const filteredWorkItems = items.filter(
     (item) =>
       item.identifier.toLowerCase().includes(query.toLowerCase()) ||
@@ -107,7 +103,7 @@ export function CommandPalette({
     category: 'Work Items',
     priority: item.priority,
     status: item.status,
-    run: () => { onClose(); onSelectItem(item); }
+    run: () => { onClose?.(); onSelectItem?.(item); }
   }));
 
   const filteredActions = staticActions.filter((act) =>
@@ -116,7 +112,6 @@ export function CommandPalette({
 
   const allResults = [...filteredActions, ...filteredWorkItems].slice(0, 10);
 
-  // Keyboard navigation inside palette
   useEffect(() => {
     if (!isOpen) return;
 
@@ -134,7 +129,7 @@ export function CommandPalette({
         }
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        onClose();
+        onClose?.();
       }
     };
 
@@ -146,6 +141,9 @@ export function CommandPalette({
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Command palette"
       style={{
         position: 'fixed',
         top: 0,
@@ -206,7 +204,7 @@ export function CommandPalette({
               fontFamily: 'var(--font-sans)'
             }}
           />
-          <span className="kbd-shortcut">ESC</span>
+          <Kbd>ESC</Kbd>
         </div>
 
         {/* Results List */}
@@ -251,7 +249,7 @@ export function CommandPalette({
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     {res.priority && <PriorityBadge priorityId={res.priority} />}
                     {res.status && <StatusBadge statusId={res.status} />}
-                    {res.shortcut && <span className="kbd-shortcut">{res.shortcut}</span>}
+                    {res.shortcut && <Kbd>{res.shortcut}</Kbd>}
                     {isSelected && <ArrowRight size={12} color="var(--primary-base)" />}
                   </div>
                 </div>
@@ -274,8 +272,8 @@ export function CommandPalette({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span><span className="kbd-shortcut">↑↓</span> Navigate</span>
-            <span><span className="kbd-shortcut">↵</span> Select</span>
+            <span><Kbd>↑↓</Kbd> Navigate</span>
+            <span><Kbd>↵</Kbd> Select</span>
           </div>
           <span>Orynqo Omnisearch Subsystem</span>
         </div>

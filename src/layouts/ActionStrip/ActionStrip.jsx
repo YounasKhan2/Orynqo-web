@@ -6,20 +6,18 @@ import {
   FileText,
   Activity,
   Plus,
-  SlidersHorizontal,
   ChevronRight,
   Search
 } from 'lucide-react';
-import { SegmentedControl } from '../composites/SegmentedControl';
-import { Button } from '../primitives/Button';
-import { FilterBuilder } from '../composites/FilterBuilder';
+import { Button, SegmentedControl } from '../../design-system';
+import { FilterBuilder } from '../../components/filters/FilterBuilder';
 
 /**
- * ActionStrip Component
+ * ActionStrip Layout Component
  * Context breadcrumbs, projection tabs, search, filters, density switch, and "+ New Item" action
  */
 export function ActionStrip({
-  breadcrumbs = ['Core Platform', 'Sprint 42'],
+  breadcrumbs = ['Core Platform', 'Cycle 42'],
   activeView,
   onSelectView,
   density,

@@ -1,488 +1,306 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  INITIAL_WORK_ITEMS,
-  TEAMS,
-  PROJECTS,
-  CURRENT_USER
-} from './data/mockData';
-import { Sidebar } from './design-system/shell/Sidebar';
-import { ActionStrip } from './design-system/shell/ActionStrip';
-import { InspectorDrawer } from './design-system/shell/InspectorDrawer';
-import { CommandPalette } from './design-system/shell/CommandPalette';
-import { DataGrid } from './design-system/data/DataGrid';
-import { KanbanBoard } from './design-system/data/KanbanBoard';
-import { TimelineView } from './design-system/data/TimelineView';
-import { WorkloadView } from './design-system/data/WorkloadView';
-import { LivingSpecEditor } from './features/LivingSpecEditor';
-import { TriageInbox } from './features/TriageInbox';
-import { CreateItemModal } from './features/CreateItemModal';
-import { ShortcutsModal } from './features/ShortcutsModal';
-import { Check, Trash2, X } from 'lucide-react';
+import React from 'react';
+import { WorkspaceProvider, useWorkspace, UIProvider, useUI } from './app/providers';
+import { AppShell, Sidebar, ActionStrip } from './layouts';
+import { DataGrid, KanbanBoard, TimelineView, WorkloadView } from './views';
+import { InspectorDrawer, CreateItemModal } from './features/work-items';
+import { LivingSpecEditor } from './features/living-specs';
+import { TriageInbox } from './features/triage';
+import { BulkActionBar, ShortcutsModal, CommandPalette } from './components';
+import { useWorkItemsFilter } from './hooks/useWorkItemsFilter';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
-export function App() {
-  // Theme state
-  const [theme, setTheme] = useState('dark');
+/**
+ * Main Content View Router
+ * Renders the active projection over the canonical domain state
+ */
+function MainView({ filteredItems }) {
+  const {
+    selectedItemId,
+    selectItem,
+    updateItem,
+    multiSelectedIds,
+    toggleMultiSelect,
+    selectAll
+  } = useWorkspace();
+  const { activeView, density, setIsInspectorOpen, setIsCreateModalOpen } = useUI();
 
-  // Application Shell state
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isInspectorOpen, setIsInspectorOpen] = useState(true);
-  const [activeView, setActiveView] = useState('data-grid');
-  const [activeTeamId, setActiveTeamId] = useState('team-core');
-  const [density, setDensity] = useState('compact');
+  switch (activeView) {
+    case 'data-grid':
+    case 'my-issues':
+      return (
+        <DataGrid
+          items={filteredItems}
+          selectedItemId={selectedItemId}
+          onSelectItem={(item) => {
+            selectItem(item.id);
+            setIsInspectorOpen(true);
+          }}
+          onOpenInspector={(item) => {
+            selectItem(item.id);
+            setIsInspectorOpen(true);
+          }}
+          onUpdateItem={updateItem}
+          density={density}
+          multiSelectedIds={multiSelectedIds}
+          onToggleMultiSelect={toggleMultiSelect}
+          onSelectAll={selectAll}
+        />
+      );
 
-  // Modals state
-  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
+    case 'kanban':
+      return (
+        <KanbanBoard
+          items={filteredItems}
+          selectedItemId={selectedItemId}
+          onSelectItem={(item) => {
+            selectItem(item.id);
+            setIsInspectorOpen(true);
+          }}
+          onOpenInspector={(item) => {
+            selectItem(item.id);
+            setIsInspectorOpen(true);
+          }}
+          onUpdateItem={updateItem}
+          onQuickCreate={() => setIsCreateModalOpen(true)}
+        />
+      );
 
-  // Canonical Work Items store
-  const [items, setItems] = useState(INITIAL_WORK_ITEMS);
-  const [selectedItemId, setSelectedItemId] = useState(INITIAL_WORK_ITEMS[0]?.id || null);
-  const [multiSelectedIds, setMultiSelectedIds] = useState([]);
+    case 'timeline':
+      return (
+        <TimelineView
+          items={filteredItems}
+          selectedItemId={selectedItemId}
+          onSelectItem={(item) => {
+            selectItem(item.id);
+            setIsInspectorOpen(true);
+          }}
+          onOpenInspector={(item) => {
+            selectItem(item.id);
+            setIsInspectorOpen(true);
+          }}
+        />
+      );
 
-  // Search and Filter state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState({
-    status: 'all',
-    priority: 'all',
-    assignee: 'all',
-    project: 'all'
+    case 'workload':
+      return (
+        <WorkloadView
+          items={filteredItems}
+          selectedItemId={selectedItemId}
+          onSelectItem={(item) => {
+            selectItem(item.id);
+            setIsInspectorOpen(true);
+          }}
+          onOpenInspector={(item) => {
+            selectItem(item.id);
+            setIsInspectorOpen(true);
+          }}
+        />
+      );
+
+    case 'living-spec':
+      return (
+        <LivingSpecEditor
+          items={filteredItems}
+          onUpdateItem={updateItem}
+          onOpenInspector={(item) => {
+            selectItem(item.id);
+            setIsInspectorOpen(true);
+          }}
+        />
+      );
+
+    case 'inbox':
+      return (
+        <TriageInbox
+          onOpenItemById={(itemId) => {
+            selectItem(itemId);
+            setIsInspectorOpen(true);
+          }}
+        />
+      );
+
+    default:
+      return null;
+  }
+}
+
+/**
+ * Shell Orchestrator
+ * Connects domain context and UI context to the layout and overlays
+ */
+function OrynqoWorkspace() {
+  const {
+    items,
+    activeTeamId,
+    setActiveTeamId,
+    activeTeam,
+    selectedItem,
+    multiSelectedIds,
+    clearSelection,
+    updateItem,
+    createItem,
+    bulkUpdateStatus,
+    deleteSelected
+  } = useWorkspace();
+
+  const {
+    theme,
+    toggleTheme,
+    isSidebarCollapsed,
+    toggleSidebar,
+    isInspectorOpen,
+    toggleInspector,
+    setIsInspectorOpen,
+    activeView,
+    setActiveView,
+    density,
+    toggleDensity,
+    isCommandPaletteOpen,
+    setIsCommandPaletteOpen,
+    isCreateModalOpen,
+    setIsCreateModalOpen,
+    isShortcutsModalOpen,
+    setIsShortcutsModalOpen,
+    searchQuery,
+    setSearchQuery,
+    filters,
+    updateFilter,
+    resetFilters
+  } = useUI();
+
+  // Compute filtered items
+  const filteredItems = useWorkItemsFilter({
+    items,
+    activeTeamId,
+    activeView,
+    searchQuery,
+    filters
   });
 
-  // Apply theme to html root
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
-
-  // Global Keyboard Shortcuts Listener
-  useEffect(() => {
-    const handleGlobalKeyDown = (e) => {
-      // Don't trigger shortcuts if user is typing in form controls
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
-        if (e.key === 'Escape') {
-          e.target.blur();
-        }
-        return;
-      }
-
-      // Command + K: Toggle Command Palette
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setIsCommandPaletteOpen((prev) => !prev);
-      }
-
-      // Command + [: Toggle Sidebar Collapse
-      if ((e.metaKey || e.ctrlKey) && e.key === '[') {
-        e.preventDefault();
-        setIsSidebarCollapsed((prev) => !prev);
-      }
-
-      // 'c': Quick Create Item
-      if (e.key.toLowerCase() === 'c' && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        setIsCreateModalOpen(true);
-      }
-
-      // '?': Keyboard Shortcuts Modal
-      if (e.key === '?') {
-        e.preventDefault();
-        setIsShortcutsModalOpen(true);
-      }
-
-      // 'i': Toggle Inspector Drawer
-      if (e.key.toLowerCase() === 'i' && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        setIsInspectorOpen((prev) => !prev);
-      }
-
-      // Number keys 1-5: Fast View Switching
-      if (e.key === '1') setActiveView('data-grid');
-      if (e.key === '2') setActiveView('kanban');
-      if (e.key === '3') setActiveView('timeline');
-      if (e.key === '4') setActiveView('living-spec');
-      if (e.key === '5') setActiveView('workload');
-
-      // Escape: Close modals / drawers
-      if (e.key === 'Escape') {
-        if (isCommandPaletteOpen) setIsCommandPaletteOpen(false);
-        else if (isCreateModalOpen) setIsCreateModalOpen(false);
-        else if (isShortcutsModalOpen) setIsShortcutsModalOpen(false);
-        else if (multiSelectedIds.length > 0) setMultiSelectedIds([]);
-        else if (isInspectorOpen) setIsInspectorOpen(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [
-    isCommandPaletteOpen,
-    isCreateModalOpen,
-    isShortcutsModalOpen,
-    isInspectorOpen,
-    multiSelectedIds
-  ]);
-
-  // Reactive Item Update
-  const handleUpdateItem = (id, updates) => {
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...updates } : item))
-    );
-  };
-
-  // Create Item
-  const handleCreateItem = (newItem) => {
-    setItems((prev) => [newItem, ...prev]);
-    setSelectedItemId(newItem.id);
-    setIsInspectorOpen(true);
-  };
-
-  // Multi-select helpers
-  const handleToggleMultiSelect = (id) => {
-    setMultiSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
-  };
-
-  const handleSelectAll = () => {
-    if (multiSelectedIds.length === filteredItems.length) {
-      setMultiSelectedIds([]);
-    } else {
-      setMultiSelectedIds(filteredItems.map((it) => it.id));
+  // Centralized keyboard shortcuts
+  useKeyboardShortcuts({
+    onToggleCommandPalette: () => setIsCommandPaletteOpen((prev) => !prev),
+    onToggleSidebar,
+    onOpenCreateModal: () => setIsCreateModalOpen(true),
+    onOpenShortcutsModal: () => setIsShortcutsModalOpen(true),
+    onToggleInspector,
+    onSelectView: setActiveView,
+    onEscape: () => {
+      if (isCommandPaletteOpen) setIsCommandPaletteOpen(false);
+      else if (isCreateModalOpen) setIsCreateModalOpen(false);
+      else if (isShortcutsModalOpen) setIsShortcutsModalOpen(false);
+      else if (multiSelectedIds.length > 0) clearSelection();
+      else if (isInspectorOpen) setIsInspectorOpen(false);
     }
-  };
+  });
 
-  // Bulk actions
-  const handleBulkStatusChange = (status) => {
-    setItems((prev) =>
-      prev.map((it) =>
-        multiSelectedIds.includes(it.id) ? { ...it, status } : it
-      )
-    );
-    setMultiSelectedIds([]);
-  };
-
-  const handleBulkDelete = () => {
-    setItems((prev) => prev.filter((it) => !multiSelectedIds.includes(it.id)));
-    setMultiSelectedIds([]);
-  };
-
-  // Filter and Search logic
-  const filteredItems = useMemo(() => {
-    return items.filter((item) => {
-      // Team filter (unless special views like my-issues or inbox)
-      if (activeView !== 'my-issues' && item.teamId !== activeTeamId) {
-        return false;
-      }
-
-      // My Issues view filter
-      if (activeView === 'my-issues' && item.assigneeId !== CURRENT_USER.id) {
-        return false;
-      }
-
-      // Search Query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchesQuery =
-          item.identifier.toLowerCase().includes(q) ||
-          item.title.toLowerCase().includes(q) ||
-          (item.description && item.description.toLowerCase().includes(q));
-        if (!matchesQuery) return false;
-      }
-
-      // Status Filter
-      if (filters.status !== 'all' && item.status !== filters.status) {
-        return false;
-      }
-
-      // Priority Filter
-      if (filters.priority !== 'all' && item.priority !== filters.priority) {
-        return false;
-      }
-
-      // Assignee Filter
-      if (filters.assignee !== 'all' && item.assigneeId !== filters.assignee) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [items, activeTeamId, activeView, searchQuery, filters]);
-
-  const selectedItem = items.find((it) => it.id === selectedItemId) || items[0];
-  const activeTeam = TEAMS.find((t) => t.id === activeTeamId) || TEAMS[0];
+  const breadcrumbs = [
+    activeTeam.name,
+    activeView === 'living-spec'
+      ? 'Living PRD Spec'
+      : activeView === 'inbox'
+      ? 'Inbox Feed'
+      : activeView === 'my-issues'
+      ? 'My Issues'
+      : 'Cycle 42'
+  ];
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        width: '100vw',
-        height: '100vh',
-        overflow: 'hidden',
-        backgroundColor: 'var(--bg-canvas)'
-      }}
-    >
-      {/* 1. Left Collapsible Sidebar */}
-      <Sidebar
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        activeView={activeView}
-        onSelectView={(v) => {
-          setActiveView(v);
-          setMultiSelectedIds([]);
-        }}
-        activeTeamId={activeTeamId}
-        onSelectTeam={(t) => {
-          setActiveTeamId(t);
-          setMultiSelectedIds([]);
-        }}
-        theme={theme}
-        onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
-        onOpenShortcutsModal={() => setIsShortcutsModalOpen(true)}
-      />
-
-      {/* 2. Main Center Canvas & Header */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          flex: 1,
-          height: '100%',
-          overflow: 'hidden',
-          minWidth: 0,
-          position: 'relative'
-        }}
-      >
-        {/* Top Context & Action Strip */}
+    <AppShell
+      sidebar={
+        <Sidebar
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={toggleSidebar}
+          activeView={activeView}
+          onSelectView={setActiveView}
+          activeTeamId={activeTeamId}
+          onSelectTeam={setActiveTeamId}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+          onOpenShortcutsModal={() => setIsShortcutsModalOpen(true)}
+        />
+      }
+      actionStrip={
         <ActionStrip
-          breadcrumbs={[
-            activeTeam.name,
-            activeView === 'living-spec'
-              ? 'Living PRD Spec'
-              : activeView === 'inbox'
-              ? 'Inbox Feed'
-              : activeView === 'my-issues'
-              ? 'My Issues'
-              : 'Cycle 42'
-          ]}
+          breadcrumbs={breadcrumbs}
           activeView={activeView}
           onSelectView={setActiveView}
           density={density}
-          onToggleDensity={() => setDensity(density === 'compact' ? 'default' : 'compact')}
+          onToggleDensity={toggleDensity}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           filters={filters}
-          onFilterChange={(key, val) => setFilters((prev) => ({ ...prev, [key]: val }))}
-          onResetFilters={() => setFilters({ status: 'all', priority: 'all', assignee: 'all', project: 'all' })}
+          onFilterChange={updateFilter}
+          onResetFilters={resetFilters}
           onOpenCreateModal={() => setIsCreateModalOpen(true)}
           totalItemsCount={filteredItems.length}
         />
-
-        {/* Dynamic Workspace Canvas */}
-        <main style={{ flex: 1, height: '100%', overflow: 'hidden', display: 'flex' }}>
-          {activeView === 'data-grid' || activeView === 'my-issues' ? (
-            <DataGrid
-              items={filteredItems}
-              selectedItemId={selectedItemId}
-              onSelectItem={(item) => {
-                setSelectedItemId(item.id);
-                setIsInspectorOpen(true);
-              }}
-              onOpenInspector={(item) => {
-                setSelectedItemId(item.id);
-                setIsInspectorOpen(true);
-              }}
-              onUpdateItem={handleUpdateItem}
-              density={density}
-              multiSelectedIds={multiSelectedIds}
-              onToggleMultiSelect={handleToggleMultiSelect}
-              onSelectAll={handleSelectAll}
-            />
-          ) : activeView === 'kanban' ? (
-            <KanbanBoard
-              items={filteredItems}
-              selectedItemId={selectedItemId}
-              onSelectItem={(item) => {
-                setSelectedItemId(item.id);
-                setIsInspectorOpen(true);
-              }}
-              onOpenInspector={(item) => {
-                setSelectedItemId(item.id);
-                setIsInspectorOpen(true);
-              }}
-              onUpdateItem={handleUpdateItem}
-              onQuickCreate={() => setIsCreateModalOpen(true)}
-            />
-          ) : activeView === 'timeline' ? (
-            <TimelineView
-              items={filteredItems}
-              selectedItemId={selectedItemId}
-              onSelectItem={(item) => {
-                setSelectedItemId(item.id);
-                setIsInspectorOpen(true);
-              }}
-              onOpenInspector={(item) => {
-                setSelectedItemId(item.id);
-                setIsInspectorOpen(true);
-              }}
-            />
-          ) : activeView === 'workload' ? (
-            <WorkloadView
-              items={filteredItems}
-              selectedItemId={selectedItemId}
-              onSelectItem={(item) => {
-                setSelectedItemId(item.id);
-                setIsInspectorOpen(true);
-              }}
-              onOpenInspector={(item) => {
-                setSelectedItemId(item.id);
-                setIsInspectorOpen(true);
-              }}
-            />
-          ) : activeView === 'living-spec' ? (
-            <LivingSpecEditor
-              items={items}
-              onUpdateItem={handleUpdateItem}
-              onOpenInspector={(item) => {
-                setSelectedItemId(item.id);
-                setIsInspectorOpen(true);
-              }}
-            />
-          ) : activeView === 'inbox' ? (
-            <TriageInbox
-              onOpenItemById={(itemId) => {
-                setSelectedItemId(itemId);
-                setIsInspectorOpen(true);
-              }}
-            />
-          ) : null}
-        </main>
-
-        {/* Multi-Select Floating Bulk Action Bar */}
-        {multiSelectedIds.length > 0 && (
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '16px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              zIndex: 50,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              backgroundColor: 'var(--bg-modal)',
-              border: '1px solid var(--border-default)',
-              boxShadow: 'var(--shadow-lg)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '6px 14px',
-              fontSize: 'var(--text-xs)'
+      }
+      inspector={
+        <InspectorDrawer
+          item={selectedItem}
+          isOpen={isInspectorOpen}
+          onClose={() => setIsInspectorOpen(false)}
+          onUpdateItem={updateItem}
+          onOpenSpec={() => setActiveView('living-spec')}
+        />
+      }
+      bulkActionBar={
+        <BulkActionBar
+          selectedCount={multiSelectedIds.length}
+          onMarkDone={() => bulkUpdateStatus('done')}
+          onDelete={deleteSelected}
+          onClearSelection={clearSelection}
+        />
+      }
+      overlays={
+        <>
+          <CommandPalette
+            isOpen={isCommandPaletteOpen}
+            onClose={() => setIsCommandPaletteOpen(false)}
+            items={items}
+            onSelectItem={(item) => {
+              updateItem(item.id, {});
+              setIsInspectorOpen(true);
             }}
-          >
-            <span style={{ fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-              {multiSelectedIds.length} items selected
-            </span>
+            onOpenCreateModal={() => setIsCreateModalOpen(true)}
+            onSelectView={setActiveView}
+            onToggleTheme={toggleTheme}
+            theme={theme}
+          />
 
-            <div style={{ width: '1px', height: '16px', backgroundColor: 'var(--border-default)' }} />
+          <CreateItemModal
+            isOpen={isCreateModalOpen}
+            onClose={() => setIsCreateModalOpen(false)}
+            onCreate={createItem}
+            activeTeamId={activeTeamId}
+          />
 
-            <button
-              type="button"
-              onClick={() => handleBulkStatusChange('done')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                height: '24px',
-                padding: '0 8px',
-                backgroundColor: 'var(--status-done-bg)',
-                border: '1px solid var(--status-done)',
-                color: 'var(--status-done)',
-                borderRadius: 'var(--radius-xs)',
-                cursor: 'pointer',
-                fontSize: '11px',
-                fontWeight: 'var(--font-medium)'
-              }}
-            >
-              <Check size={11} />
-              <span>Mark Done</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleBulkDelete}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                height: '24px',
-                padding: '0 8px',
-                backgroundColor: 'var(--priority-urgent-bg)',
-                border: '1px solid var(--priority-urgent)',
-                color: 'var(--priority-urgent)',
-                borderRadius: 'var(--radius-xs)',
-                cursor: 'pointer',
-                fontSize: '11px',
-                fontWeight: 'var(--font-medium)'
-              }}
-            >
-              <Trash2 size={11} />
-              <span>Delete</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setMultiSelectedIds([])}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-muted)',
-                cursor: 'pointer',
-                padding: '2px'
-              }}
-            >
-              <X size={13} />
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* 3. Right Contextual Inspector Drawer */}
-      <InspectorDrawer
-        item={selectedItem}
-        isOpen={isInspectorOpen}
-        onClose={() => setIsInspectorOpen(false)}
-        onUpdateItem={handleUpdateItem}
-        onOpenSpec={() => setActiveView('living-spec')}
-      />
-
-      {/* 4. Global Modals & Overlays */}
-      <CommandPalette
-        isOpen={isCommandPaletteOpen}
-        onClose={() => setIsCommandPaletteOpen(false)}
-        items={items}
-        onSelectItem={(item) => {
-          setSelectedItemId(item.id);
-          setIsInspectorOpen(true);
-        }}
-        onOpenCreateModal={() => setIsCreateModalOpen(true)}
-        onSelectView={setActiveView}
-        onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-        theme={theme}
-      />
-
-      <CreateItemModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onCreate={handleCreateItem}
-        activeTeamId={activeTeamId}
-      />
-
-      <ShortcutsModal
-        isOpen={isShortcutsModalOpen}
-        onClose={() => setIsShortcutsModalOpen(false)}
-      />
-    </div>
+          <ShortcutsModal
+            isOpen={isShortcutsModalOpen}
+            onClose={() => setIsShortcutsModalOpen(false)}
+          />
+        </>
+      }
+    >
+      <MainView filteredItems={filteredItems} />
+    </AppShell>
   );
 }
+
+/**
+ * Root Application Bootstrap
+ * Provides context boundaries without logic bloat
+ */
+export function App() {
+  return (
+    <UIProvider>
+      <WorkspaceProvider>
+        <OrynqoWorkspace />
+      </WorkspaceProvider>
+    </UIProvider>
+  );
+}
+
 export default App;

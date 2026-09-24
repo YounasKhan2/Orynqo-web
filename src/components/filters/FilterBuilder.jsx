@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Filter, X, ChevronDown, Check } from 'lucide-react';
-import { STATUS_DEFINITIONS, PRIORITY_DEFINITIONS } from '../tokens';
+import { X, ChevronDown, Check } from 'lucide-react';
+import { STATUS_DEFINITIONS, PRIORITY_DEFINITIONS } from '../../constants/workItems';
+import { Popover } from '../../design-system';
 import { USERS, PROJECTS } from '../../data/mockData';
 
 /**
- * FilterBuilder Component
+ * FilterBuilder Product Component
  * High-density compound filter bar with active query pills
  */
 export function FilterBuilder({
@@ -22,7 +23,7 @@ export function FilterBuilder({
     filters.status !== 'all' ||
     filters.priority !== 'all' ||
     filters.assignee !== 'all' ||
-    filters.project !== 'all';
+    (filters.project && filters.project !== 'all');
 
   return (
     <div
@@ -34,7 +35,7 @@ export function FilterBuilder({
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-        {/* Status Filter Trigger */}
+        {/* Status Filter */}
         <div style={{ position: 'relative' }}>
           <button
             type="button"
@@ -57,63 +58,48 @@ export function FilterBuilder({
             <ChevronDown size={11} />
           </button>
 
-          {openDropdown === 'status' && (
+          <Popover isOpen={openDropdown === 'status'} onClose={() => setOpenDropdown(null)} width="150px">
             <div
+              onClick={() => { onFilterChange('status', 'all'); setOpenDropdown(null); }}
               style={{
-                position: 'absolute',
-                top: '28px',
-                left: 0,
-                zIndex: 100,
-                minWidth: '150px',
-                backgroundColor: 'var(--bg-modal)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-sm)',
-                boxShadow: 'var(--shadow-popover)',
-                padding: '4px'
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '5px 8px',
+                fontSize: 'var(--text-xs)',
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+                borderRadius: 'var(--radius-xs)',
+                backgroundColor: filters.status === 'all' ? 'var(--bg-surface-hover)' : 'transparent'
               }}
             >
+              <span>All Statuses</span>
+              {filters.status === 'all' && <Check size={12} color="var(--primary-base)" />}
+            </div>
+            {Object.values(STATUS_DEFINITIONS).map((st) => (
               <div
-                onClick={() => { onFilterChange('status', 'all'); setOpenDropdown(null); }}
+                key={st.id}
+                onClick={() => { onFilterChange('status', st.id); setOpenDropdown(null); }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '5px 8px',
                   fontSize: 'var(--text-xs)',
-                  color: 'var(--text-primary)',
+                  color: st.color,
                   cursor: 'pointer',
                   borderRadius: 'var(--radius-xs)',
-                  backgroundColor: filters.status === 'all' ? 'var(--bg-surface-hover)' : 'transparent'
+                  backgroundColor: filters.status === st.id ? 'var(--bg-surface-hover)' : 'transparent'
                 }}
               >
-                <span>All Statuses</span>
-                {filters.status === 'all' && <Check size={12} color="var(--primary-base)" />}
+                <span>{st.label}</span>
+                {filters.status === st.id && <Check size={12} color="var(--primary-base)" />}
               </div>
-              {Object.values(STATUS_DEFINITIONS).map((st) => (
-                <div
-                  key={st.id}
-                  onClick={() => { onFilterChange('status', st.id); setOpenDropdown(null); }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '5px 8px',
-                    fontSize: 'var(--text-xs)',
-                    color: st.color,
-                    cursor: 'pointer',
-                    borderRadius: 'var(--radius-xs)',
-                    backgroundColor: filters.status === st.id ? 'var(--bg-surface-hover)' : 'transparent'
-                  }}
-                >
-                  <span>{st.label}</span>
-                  {filters.status === st.id && <Check size={12} color="var(--primary-base)" />}
-                </div>
-              ))}
-            </div>
-          )}
+            ))}
+          </Popover>
         </div>
 
-        {/* Priority Filter Trigger */}
+        {/* Priority Filter */}
         <div style={{ position: 'relative' }}>
           <button
             type="button"
@@ -136,63 +122,48 @@ export function FilterBuilder({
             <ChevronDown size={11} />
           </button>
 
-          {openDropdown === 'priority' && (
+          <Popover isOpen={openDropdown === 'priority'} onClose={() => setOpenDropdown(null)} width="150px">
             <div
+              onClick={() => { onFilterChange('priority', 'all'); setOpenDropdown(null); }}
               style={{
-                position: 'absolute',
-                top: '28px',
-                left: 0,
-                zIndex: 100,
-                minWidth: '150px',
-                backgroundColor: 'var(--bg-modal)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-sm)',
-                boxShadow: 'var(--shadow-popover)',
-                padding: '4px'
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '5px 8px',
+                fontSize: 'var(--text-xs)',
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+                borderRadius: 'var(--radius-xs)',
+                backgroundColor: filters.priority === 'all' ? 'var(--bg-surface-hover)' : 'transparent'
               }}
             >
+              <span>All Priorities</span>
+              {filters.priority === 'all' && <Check size={12} color="var(--primary-base)" />}
+            </div>
+            {Object.values(PRIORITY_DEFINITIONS).map((pr) => (
               <div
-                onClick={() => { onFilterChange('priority', 'all'); setOpenDropdown(null); }}
+                key={pr.id}
+                onClick={() => { onFilterChange('priority', pr.id); setOpenDropdown(null); }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '5px 8px',
                   fontSize: 'var(--text-xs)',
-                  color: 'var(--text-primary)',
+                  color: pr.color,
                   cursor: 'pointer',
                   borderRadius: 'var(--radius-xs)',
-                  backgroundColor: filters.priority === 'all' ? 'var(--bg-surface-hover)' : 'transparent'
+                  backgroundColor: filters.priority === pr.id ? 'var(--bg-surface-hover)' : 'transparent'
                 }}
               >
-                <span>All Priorities</span>
-                {filters.priority === 'all' && <Check size={12} color="var(--primary-base)" />}
+                <span>{pr.label}</span>
+                {filters.priority === pr.id && <Check size={12} color="var(--primary-base)" />}
               </div>
-              {Object.values(PRIORITY_DEFINITIONS).map((pr) => (
-                <div
-                  key={pr.id}
-                  onClick={() => { onFilterChange('priority', pr.id); setOpenDropdown(null); }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '5px 8px',
-                    fontSize: 'var(--text-xs)',
-                    color: pr.color,
-                    cursor: 'pointer',
-                    borderRadius: 'var(--radius-xs)',
-                    backgroundColor: filters.priority === pr.id ? 'var(--bg-surface-hover)' : 'transparent'
-                  }}
-                >
-                  <span>{pr.label}</span>
-                  {filters.priority === pr.id && <Check size={12} color="var(--primary-base)" />}
-                </div>
-              ))}
-            </div>
-          )}
+            ))}
+          </Popover>
         </div>
 
-        {/* Assignee Filter Trigger */}
+        {/* Assignee Filter */}
         <div style={{ position: 'relative' }}>
           <button
             type="button"
@@ -215,23 +186,27 @@ export function FilterBuilder({
             <ChevronDown size={11} />
           </button>
 
-          {openDropdown === 'assignee' && (
+          <Popover isOpen={openDropdown === 'assignee'} onClose={() => setOpenDropdown(null)} width="170px">
             <div
+              onClick={() => { onFilterChange('assignee', 'all'); setOpenDropdown(null); }}
               style={{
-                position: 'absolute',
-                top: '28px',
-                left: 0,
-                zIndex: 100,
-                minWidth: '170px',
-                backgroundColor: 'var(--bg-modal)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-sm)',
-                boxShadow: 'var(--shadow-popover)',
-                padding: '4px'
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '5px 8px',
+                fontSize: 'var(--text-xs)',
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+                borderRadius: 'var(--radius-xs)'
               }}
             >
+              <span>Everyone</span>
+              {filters.assignee === 'all' && <Check size={12} color="var(--primary-base)" />}
+            </div>
+            {USERS.map((usr) => (
               <div
-                onClick={() => { onFilterChange('assignee', 'all'); setOpenDropdown(null); }}
+                key={usr.id}
+                onClick={() => { onFilterChange('assignee', usr.id); setOpenDropdown(null); }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -243,30 +218,11 @@ export function FilterBuilder({
                   borderRadius: 'var(--radius-xs)'
                 }}
               >
-                <span>Everyone</span>
-                {filters.assignee === 'all' && <Check size={12} color="var(--primary-base)" />}
+                <span className="truncate">{usr.name}</span>
+                {filters.assignee === usr.id && <Check size={12} color="var(--primary-base)" />}
               </div>
-              {USERS.map((usr) => (
-                <div
-                  key={usr.id}
-                  onClick={() => { onFilterChange('assignee', usr.id); setOpenDropdown(null); }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '5px 8px',
-                    fontSize: 'var(--text-xs)',
-                    color: 'var(--text-primary)',
-                    cursor: 'pointer',
-                    borderRadius: 'var(--radius-xs)'
-                  }}
-                >
-                  <span className="truncate">{usr.name}</span>
-                  {filters.assignee === usr.id && <Check size={12} color="var(--primary-base)" />}
-                </div>
-              ))}
-            </div>
-          )}
+            ))}
+          </Popover>
         </div>
 
         {/* Clear Filters Button */}
