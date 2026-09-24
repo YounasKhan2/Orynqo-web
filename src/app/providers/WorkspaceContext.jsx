@@ -68,15 +68,36 @@ export function WorkspaceProvider({ children }) {
     setSelectedItemId((prev) => (prev === id ? null : prev));
   }, []);
 
-  // Bulk status change
-  const bulkUpdateStatus = useCallback((status) => {
+  // Normalized Bulk Update
+  const bulkUpdate = useCallback((patch) => {
+    const succeeded = [];
+    const skipped = [];
+    const failed = [];
+
     setItems((prev) =>
-      prev.map((it) =>
-        multiSelectedIds.includes(it.id) ? { ...it, status } : it
-      )
+      prev.map((it) => {
+        if (!multiSelectedIds.includes(it.id)) return it;
+        if (it.isReadOnly) {
+          skipped.push(it.id);
+          return it;
+        }
+        succeeded.push(it.id);
+        return { ...it, ...patch };
+      })
     );
     setMultiSelectedIds([]);
+    return { succeeded, skipped, failed };
   }, [multiSelectedIds]);
+
+  // Bulk status change
+  const bulkUpdateStatus = useCallback((status) => {
+    return bulkUpdate({ status });
+  }, [bulkUpdate]);
+
+  // Bulk assign change
+  const bulkAssign = useCallback((assigneeId) => {
+    return bulkUpdate({ assigneeId });
+  }, [bulkUpdate]);
 
   // Bulk delete
   const deleteSelected = useCallback(() => {
@@ -123,7 +144,9 @@ export function WorkspaceProvider({ children }) {
     updateItem,
     createItem,
     deleteItem,
+    bulkUpdate,
     bulkUpdateStatus,
+    bulkAssign,
     deleteSelected
   };
 

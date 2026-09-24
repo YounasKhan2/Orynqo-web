@@ -1,18 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import { STATUS_DEFINITIONS, PRIORITY_DEFINITIONS } from '../../constants/workItems';
-import { StatusBadge, PriorityBadge, TypeBadge } from '../../components/badges';
-import { UserAvatar } from '../../components/avatars/UserAvatar';
-import { Checkbox } from '../../design-system';
-import { USERS, PROJECTS } from '../../data/mockData';
-import { isEditableElement } from '../../hooks/keyboardScopes';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import {
-  MessageSquare,
-  AlertTriangle
-} from 'lucide-react';
+  COLUMN_DEFINITIONS,
+  getDefaultColumnWidths,
+  getDefaultColumnVisibility
+} from './columnRegistry';
+import { DataGridToolbar } from './DataGridToolbar';
+import { DataGridHeader } from './DataGridHeader';
+import { DataGridBody } from './DataGridBody';
+import { DataGridMobileList } from './DataGridMobileList';
+import { DataGridColumnManager } from './DataGridColumnManager';
+import { useGridSelection } from './useGridSelection';
+import { useGridKeyboard } from './useGridKeyboard';
+import { evaluateFilterGroup, buildFilterGroupFromParams } from './filterEvaluator';
+import { PRIORITY_DEFINITIONS } from '../../constants/workItems';
 
 /**
- * High-Density Data Grid View Projection
- * 28px/34px rows, inline edits, keyboard navigation (j/k, x, s, p, Enter)
+ * Universal High-Density Data Grid View Projection
+ * Governed by: UI-01B specification (docs/08-ui-01b-high-density-data-grid-contract.md)
+ *
+ * Invariants:
+ * - One canonical WorkItem query/projection pipeline -> reusable across surfaces
+ * - Clean 3-tier state separation: Data, Presentation, Selection
+ * - Distinct row states: Focused, Inspector-Active, Multi-Selected
+ * - Roving tabindex keyboard navigation with explicit property triggers (NO cycle-on-click)
+ * - Mobile responsive projection with canonical WorkItem detail container
  */
 export function DataGrid({
   items = [],
@@ -20,350 +31,423 @@ export function DataGrid({
   onSelectItem,
   onUpdateItem,
   onOpenInspector,
-  density = 'compact',
-  multiSelectedIds = [],
-  onToggleMultiSelect,
-  onSelectAll,
-  isKeyboardActive = true
+  onCloseInspector,
+  isInspectorOpen = false,
+  density: propDensity = 'compact',
+  onDensityChange,
+  groupBy: propGroupBy = 'none',
+  onGroupByChange: propOnGroupByChange,
+  multiSelectedIds: propMultiSelectedIds,
+  onToggleMultiSelect: propToggleMultiSelect,
+  onSelectAll: propSelectAll,
+  onClearSelection: propClearSelection,
+  isKeyboardActive = true,
+  searchQuery: externalSearchQuery,
+  onSearchChange: externalOnSearchChange,
+  filters: externalFilters,
+  onFilterChange: externalOnFilterChange,
+  onResetFilters: externalOnResetFilters,
+  filterGroup: propFilterGroup
 }) {
-  const [activeRowIndex, setActiveRowIndex] = useState(0);
+  const containerRef = useRef(null);
+  const tableRef = useRef(null);
+
+  // 1. Presentation State
+  const [density, setDensity] = useState(propDensity);
+  const [columnWidths, setColumnWidths] = useState(getDefaultColumnWidths);
+  const [columnVisibility, setColumnVisibility] = useState(getDefaultColumnVisibility);
+  const [isColumnManagerOpen, setIsColumnManagerOpen] = useState(false);
+  const [groupBy, setGroupBy] = useState(propGroupBy);
+  const [sortConfig, setSortConfig] = useState({ field: 'identifier', direction: 'asc' });
+
+  // Sync propGroupBy when changed externally
+  useEffect(() => {
+    if (propGroupBy) setGroupBy(propGroupBy);
+  }, [propGroupBy]);
+
+  const handleGroupByChange = (val) => {
+    setGroupBy(val);
+    propOnGroupByChange?.(val);
+  };
+
+  // Internal search and filters if not provided externally
+  const [internalSearchQuery, setInternalSearchQuery] = useState('');
+  const [internalFilters, setInternalFilters] = useState({
+    status: 'all',
+    priority: 'all',
+    assignee: 'all',
+    project: 'all'
+  });
+
+  const searchQuery = externalSearchQuery !== undefined ? externalSearchQuery : internalSearchQuery;
+  const onSearchChange = externalOnSearchChange || setInternalSearchQuery;
+  const filters = externalFilters !== undefined ? externalFilters : internalFilters;
+  const onFilterChange =
+    externalOnFilterChange ||
+    ((key, val) => setInternalFilters((prev) => ({ ...prev, [key]: val })));
+  const onResetFilters =
+    externalOnResetFilters ||
+    (() => setInternalFilters({ status: 'all', priority: 'all', assignee: 'all', project: 'all' }));
+
+  // Keep density in sync if prop changes
+  useEffect(() => {
+    if (propDensity) setDensity(propDensity);
+  }, [propDensity]);
+
+  const toggleDensity = () => {
+    const next = density === 'compact' ? 'comfortable' : 'compact';
+    setDensity(next);
+    onDensityChange?.(next);
+  };
+
+  // 2. Responsive detection (< 768px for mobile projection)
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // 3. Filter Expression Construction & Evaluation
+  const activeFilterGroup = useMemo(() => {
+    if (propFilterGroup) return propFilterGroup;
+    return buildFilterGroupFromParams({
+      searchQuery,
+      status: filters.status,
+      priority: filters.priority,
+      assignee: filters.assignee,
+      project: filters.project
+    });
+  }, [propFilterGroup, searchQuery, filters]);
+
+  // Track item that was edited while focused but no longer matches filter
+  const [filterMismatchItemId, setFilterMismatchItemId] = useState(null);
+
+  // Evaluate items matching the filter
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      // Retain item temporarily if currently marked as filter mismatch
+      if (item.id === filterMismatchItemId) return true;
+      return evaluateFilterGroup(item, activeFilterGroup);
+    });
+  }, [items, activeFilterGroup, filterMismatchItemId]);
+
+  // 4. Deterministic Sorting
+  const sortedItems = useMemo(() => {
+    const list = [...filteredItems];
+    const { field, direction } = sortConfig;
+    const factor = direction === 'asc' ? 1 : -1;
+
+    list.sort((a, b) => {
+      let valA = a[field];
+      let valB = b[field];
+
+      if (field === 'priority') {
+        valA = PRIORITY_DEFINITIONS[a.priority]?.value ?? 0;
+        valB = PRIORITY_DEFINITIONS[b.priority]?.value ?? 0;
+      } else if (field === 'estimate') {
+        valA = a.estimate ?? -1;
+        valB = b.estimate ?? -1;
+      } else if (field === 'dueDate' || field === 'createdAt' || field === 'updatedAt') {
+        valA = a[field] || '';
+        valB = b[field] || '';
+      }
+
+      if (valA === valB) {
+        // Deterministic tie-breaker by identifier
+        return (a.identifier || '').localeCompare(b.identifier || '');
+      }
+
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return factor * valA.localeCompare(valB);
+      }
+      return factor * (valA > valB ? 1 : -1);
+    });
+
+    return list;
+  }, [filteredItems, sortConfig]);
+
+  // 5. Selection State & Selection Laws
+  // Material query dependency key: changes when filter or search changes, causing selection to clear
+  const queryDependencyKey = useMemo(() => {
+    return JSON.stringify({
+      search: searchQuery,
+      filters,
+      propFilter: propFilterGroup
+    });
+  }, [searchQuery, filters, propFilterGroup]);
+
+  const internalSelection = useGridSelection({
+    queryDependencyKey
+  });
+
+  const multiSelectedIds = propMultiSelectedIds !== undefined ? propMultiSelectedIds : internalSelection.multiSelectedIds;
+  const onToggleMultiSelect = propToggleMultiSelect || internalSelection.toggleSelect;
+  const onSelectRange = internalSelection.selectRange;
+  const onClearSelection = propClearSelection || internalSelection.clearSelection;
+
+  const visibleIds = useMemo(() => sortedItems.map((i) => i.id), [sortedItems]);
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => multiSelectedIds.includes(id));
+  const isIndeterminate = multiSelectedIds.length > 0 && !allVisibleSelected;
+
+  const handleSelectAllVisible = useCallback(() => {
+    if (propSelectAll) {
+      if (allVisibleSelected) {
+        propSelectAll([]);
+      } else {
+        propSelectAll(visibleIds);
+      }
+    } else {
+      internalSelection.selectAllVisible(visibleIds);
+    }
+  }, [propSelectAll, allVisibleSelected, visibleIds, internalSelection]);
+
+  // 6. Keyboard & Focus Management
+  const [focusedRowIndex, setFocusedRowIndex] = useState(0);
+
+  // Clear filter mismatch when focus moves to another item
+  useEffect(() => {
+    if (filterMismatchItemId && sortedItems[focusedRowIndex]?.id !== filterMismatchItemId) {
+      setFilterMismatchItemId(null);
+    }
+  }, [focusedRowIndex, filterMismatchItemId, sortedItems]);
+
+  const {
+    isEditingTitle,
+    setIsEditingTitle,
+    activeDropdown,
+    setActiveDropdown,
+    focusRowElement
+  } = useGridKeyboard({
+    items: sortedItems,
+    focusedRowIndex,
+    setFocusedRowIndex,
+    onSelectItem,
+    onOpenInspector,
+    onToggleMultiSelect,
+    onSelectRange,
+    onSelectAllVisible: handleSelectAllVisible,
+    onClearSelection,
+    onCloseInspector,
+    isInspectorOpen,
+    multiSelectedIds,
+    isKeyboardActive,
+    tableContainerRef: tableRef
+  });
+
+  // 7. Column Configuration Actions
+  const visibleColumns = useMemo(() => {
+    return COLUMN_DEFINITIONS.filter((col) => columnVisibility[col.id] !== false);
+  }, [columnVisibility]);
+
+  const handleResizeColumn = useCallback((columnId, newWidth) => {
+    setColumnWidths((prev) => ({
+      ...prev,
+      [columnId]: newWidth
+    }));
+  }, []);
+
+  const handleToggleColumnVisibility = useCallback((columnId) => {
+    setColumnVisibility((prev) => ({
+      ...prev,
+      [columnId]: !prev[columnId]
+    }));
+  }, []);
+
+  const handleResetColumns = useCallback(() => {
+    setColumnWidths(getDefaultColumnWidths());
+    setColumnVisibility(getDefaultColumnVisibility());
+  }, []);
+
+  // 8. Optimistic Inline Update with Filter Mismatch Detection
+  const handleUpdateItem = useCallback(
+    (itemId, patch) => {
+      const originalItem = items.find((i) => i.id === itemId);
+      if (!originalItem || originalItem.isReadOnly) return;
+
+      const updatedItem = { ...originalItem, ...patch };
+
+      // Check if updated item violates current active filter
+      const stillMatches = evaluateFilterGroup(updatedItem, activeFilterGroup);
+      if (!stillMatches) {
+        setFilterMismatchItemId(itemId);
+      }
+
+      onUpdateItem?.(itemId, patch);
+    },
+    [items, activeFilterGroup, onUpdateItem]
+  );
+
+  const handleCommitTitle = useCallback(
+    (itemId, newTitle) => {
+      setIsEditingTitle(false);
+      if (newTitle.trim()) {
+        handleUpdateItem(itemId, { title: newTitle.trim() });
+      }
+      focusRowElement(focusedRowIndex);
+    },
+    [handleUpdateItem, setIsEditingTitle, focusRowElement, focusedRowIndex]
+  );
+
+  const handleCancelTitle = useCallback(() => {
+    setIsEditingTitle(false);
+    focusRowElement(focusedRowIndex);
+  }, [setIsEditingTitle, focusRowElement, focusedRowIndex]);
 
   const rowHeight = density === 'compact' ? 28 : 34;
+  const headerHeight = density === 'compact' ? 28 : 32;
 
-  // Keyboard navigation for power users (j/k, Enter, x, s, p)
-  useEffect(() => {
-    if (!isKeyboardActive) return;
-
-    const handleKeyDown = (e) => {
-      if (isEditableElement(e.target)) return;
-
-      if (e.key === 'j' || e.key === 'ArrowDown') {
-        e.preventDefault();
-        setActiveRowIndex((prev) => {
-          const next = Math.min(prev + 1, items.length - 1);
-          if (items[next]) onSelectItem?.(items[next]);
-          return next;
-        });
-      } else if (e.key === 'k' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        setActiveRowIndex((prev) => {
-          const next = Math.max(prev - 1, 0);
-          if (items[next]) onSelectItem?.(items[next]);
-          return next;
-        });
-      } else if (e.key === 'Enter') {
-        if (items[activeRowIndex]) {
-          onOpenInspector?.(items[activeRowIndex]);
-        }
-      } else if (e.key === 'x') {
-        if (items[activeRowIndex]) {
-          onToggleMultiSelect?.(items[activeRowIndex].id);
-        }
-      } else if (e.key === 's') {
-        if (items[activeRowIndex]) {
-          const current = items[activeRowIndex].status;
-          const statusKeys = Object.keys(STATUS_DEFINITIONS);
-          const nextIdx = (statusKeys.indexOf(current) + 1) % statusKeys.length;
-          onUpdateItem?.(items[activeRowIndex].id, { status: statusKeys[nextIdx] });
-        }
-      } else if (e.key === 'p') {
-        if (items[activeRowIndex]) {
-          const current = items[activeRowIndex].priority;
-          const priorityKeys = ['none', 'low', 'medium', 'high', 'urgent'];
-          const nextIdx = (priorityKeys.indexOf(current) + 1) % priorityKeys.length;
-          onUpdateItem?.(items[activeRowIndex].id, { priority: priorityKeys[nextIdx] });
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [items, activeRowIndex, onSelectItem, onOpenInspector, onToggleMultiSelect, onUpdateItem, isKeyboardActive]);
-
-  if (items.length === 0) {
+  // Responsive mobile rendering (< 768px)
+  if (isMobile) {
     return (
       <div
+        ref={containerRef}
         style={{
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '240px',
-          color: 'var(--text-muted)',
-          fontSize: 'var(--text-sm)',
-          gap: '8px',
-          width: '100%'
+          width: '100%',
+          height: '100%',
+          overflow: 'auto',
+          backgroundColor: 'var(--bg-canvas)'
         }}
       >
-        <span style={{ fontSize: 'var(--text-base)', color: 'var(--text-secondary)' }}>No work items match current filter</span>
-        <span>Try adjusting status, priority, or search parameters.</span>
+        <DataGridToolbar
+          searchQuery={searchQuery}
+          onSearchChange={onSearchChange}
+          sortConfig={sortConfig}
+          onSortChange={setSortConfig}
+          groupBy={groupBy}
+          onGroupByChange={setGroupBy}
+          density={density}
+          onToggleDensity={toggleDensity}
+          totalCount={sortedItems.length}
+          selectedCount={multiSelectedIds.length}
+          isColumnManagerOpen={isColumnManagerOpen}
+          onToggleColumnManager={() => setIsColumnManagerOpen((prev) => !prev)}
+          filters={filters}
+          onFilterChange={onFilterChange}
+          onResetFilters={onResetFilters}
+        />
+        <DataGridMobileList
+          items={sortedItems}
+          selectedItemId={selectedItemId}
+          onSelectItem={onSelectItem}
+          onOpenDetail={onOpenInspector}
+        />
       </div>
     );
   }
 
-  const allSelected = items.length > 0 && multiSelectedIds.length === items.length;
-  const isIndeterminate = multiSelectedIds.length > 0 && multiSelectedIds.length < items.length;
-
   return (
     <div
+      ref={containerRef}
+      role="grid"
+      aria-rowcount={sortedItems.length}
+      aria-colcount={visibleColumns.length}
       style={{
+        position: 'relative',
         display: 'flex',
         flexDirection: 'column',
         width: '100%',
         height: '100%',
-        overflow: 'auto',
+        overflow: 'hidden',
         backgroundColor: 'var(--bg-canvas)'
       }}
     >
-      {/* Sticky Table Header */}
+      {/* 1. Projection Toolbar */}
+      <DataGridToolbar
+        searchQuery={searchQuery}
+        onSearchChange={onSearchChange}
+        sortConfig={sortConfig}
+        onSortChange={setSortConfig}
+        groupBy={groupBy}
+        onGroupByChange={handleGroupByChange}
+        density={density}
+        onToggleDensity={toggleDensity}
+        totalCount={sortedItems.length}
+        selectedCount={multiSelectedIds.length}
+        isColumnManagerOpen={isColumnManagerOpen}
+        onToggleColumnManager={() => setIsColumnManagerOpen((prev) => !prev)}
+        filters={filters}
+        onFilterChange={onFilterChange}
+        onResetFilters={onResetFilters}
+      />
+
+      {/* Column Manager Popover */}
+      <DataGridColumnManager
+        isOpen={isColumnManagerOpen}
+        onClose={() => setIsColumnManagerOpen(false)}
+        columnVisibility={columnVisibility}
+        onToggleColumnVisibility={handleToggleColumnVisibility}
+        onResetColumns={handleResetColumns}
+      />
+
+      {/* 2. Scrollable Grid Canvas */}
       <div
+        ref={tableRef}
         style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 10,
-          display: 'grid',
-          gridTemplateColumns: '32px 90px 100px 1fr 110px 60px 140px 120px 80px',
-          alignItems: 'center',
-          height: '28px',
-          backgroundColor: 'var(--bg-surface-subtle)',
-          borderBottom: '1px solid var(--border-default)',
-          fontSize: 'var(--text-2xs)',
-          fontWeight: 'var(--font-semibold)',
-          color: 'var(--text-muted)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.04em',
-          userSelect: 'none',
-          padding: '0 8px'
+          display: 'flex',
+          flexDirection: 'column',
+          width: '100%',
+          flex: 1,
+          overflow: 'auto',
+          backgroundColor: 'var(--bg-canvas)'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <Checkbox
-            checked={allSelected}
-            indeterminate={isIndeterminate}
-            onChange={() => onSelectAll?.(items.map((i) => i.id))}
-          />
-        </div>
-        <div>ID</div>
-        <div>Priority</div>
-        <div>Title</div>
-        <div>Status</div>
-        <div>Points</div>
-        <div>Assignee</div>
-        <div>Project / Cycle</div>
-        <div style={{ textAlign: 'right' }}>Due</div>
-      </div>
+        {/* Sticky Header */}
+        <DataGridHeader
+          visibleColumns={visibleColumns}
+          columnWidths={columnWidths}
+          sortConfig={sortConfig}
+          onSort={(field) => {
+            setSortConfig((prev) => ({
+              field,
+              direction: prev.field === field && prev.direction === 'asc' ? 'desc' : 'asc'
+            }));
+          }}
+          onResizeColumn={handleResizeColumn}
+          allVisibleSelected={allVisibleSelected}
+          isIndeterminate={isIndeterminate}
+          onSelectAllVisible={handleSelectAllVisible}
+          density={density}
+          headerHeight={headerHeight}
+        />
 
-      {/* Table Rows */}
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {items.map((item, index) => {
-          const isSelected = selectedItemId === item.id;
-          const isChecked = multiSelectedIds.includes(item.id);
-          const isKeyboardActive = activeRowIndex === index;
-          const assignee = USERS.find((u) => u.id === item.assigneeId);
-          const project = PROJECTS.find((p) => p.id === item.projectId);
-          const blockedByRelations = (item.relations || []).filter((r) => r.type === 'blocked_by');
-          const hasBlocker = blockedByRelations.length > 0;
-          const blockerKeys = blockedByRelations.map((r) => r.targetKey).filter(Boolean).join(', ');
-          const hasSpecDoc = (item.documentLinks || []).some((d) => d.type === 'source_spec');
-
-          return (
-            <div
-              key={item.id}
-              onClick={() => {
-                setActiveRowIndex(index);
-                onSelectItem?.(item);
-              }}
-              onDoubleClick={() => onOpenInspector?.(item)}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '32px 90px 100px 1fr 110px 60px 140px 120px 80px',
-                alignItems: 'center',
-                height: `${rowHeight}px`,
-                padding: '0 8px',
-                fontSize: 'var(--text-xs)',
-                borderBottom: '1px solid var(--border-subtle)',
-                backgroundColor: isSelected
-                  ? 'var(--bg-surface-selected)'
-                  : isKeyboardActive
-                  ? 'var(--bg-surface-hover)'
-                  : 'transparent',
-                cursor: 'pointer',
-                transition: 'background-color var(--duration-instant) ease',
-                userSelect: 'none'
-              }}
-              onMouseEnter={(e) => {
-                if (!isSelected && !isKeyboardActive) {
-                  e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isSelected && !isKeyboardActive) {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }
-              }}
-            >
-              {/* Checkbox */}
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleMultiSelect?.(item.id);
-                }}
-                style={{ display: 'flex', alignItems: 'center' }}
-              >
-                <Checkbox
-                  checked={isChecked}
-                  onChange={() => onToggleMultiSelect?.(item.id)}
-                />
-              </div>
-
-              {/* Identifier */}
-              <div
-                className="font-mono"
-                style={{
-                  fontSize: 'var(--text-xs)',
-                  fontWeight: 'var(--font-medium)',
-                  color: 'var(--text-muted)'
-                }}
-              >
-                {item.identifier}
-              </div>
-
-              {/* Priority */}
-              <div>
-                <PriorityBadge
-                  priorityId={item.priority}
-                  interactive
-                  onClick={(e) => {
-                    e?.stopPropagation();
-                    const priorityKeys = ['none', 'low', 'medium', 'high', 'urgent'];
-                    const nextIdx = (priorityKeys.indexOf(item.priority) + 1) % priorityKeys.length;
-                    onUpdateItem?.(item.id, { priority: priorityKeys[nextIdx] });
-                  }}
-                />
-              </div>
-
-              {/* Title & Metadata Badges */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--space-2)',
-                  overflow: 'hidden',
-                  paddingRight: 'var(--space-3)'
-                }}
-              >
-                <TypeBadge typeId={item.type} showLabel={false} />
-                <span
-                  className="truncate"
-                  style={{
-                    color: item.status === 'done' ? 'var(--text-muted)' : 'var(--text-primary)',
-                    textDecoration: item.status === 'done' ? 'line-through' : 'none',
-                    fontWeight: isSelected ? 'var(--font-medium)' : 'var(--font-regular)'
-                  }}
-                >
-                  {item.title}
-                </span>
-
-                {hasBlocker && (
-                  <span
-                    title={blockerKeys ? `Blocked by ${blockerKeys}` : 'Blocked by dependency'}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '2px',
-                      color: 'var(--priority-urgent)',
-                      fontSize: '10px',
-                      backgroundColor: 'var(--priority-urgent-bg)',
-                      padding: '1px 4px',
-                      borderRadius: 'var(--radius-xs)',
-                      flexShrink: 0
-                    }}
-                  >
-                    <AlertTriangle size={10} />
-                    <span>Blocked</span>
-                  </span>
-                )}
-
-                {hasSpecDoc && (
-                  <span
-                    title="Linked to Living PRD Spec"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '2px',
-                      color: 'var(--primary-text)',
-                      fontSize: '10px',
-                      backgroundColor: 'var(--primary-subtle)',
-                      padding: '1px 4px',
-                      borderRadius: 'var(--radius-xs)',
-                      flexShrink: 0
-                    }}
-                  >
-                    Spec
-                  </span>
-                )}
-
-                {item.commentsCount > 0 && (
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '2px',
-                      color: 'var(--text-subtle)',
-                      fontSize: '10px',
-                      flexShrink: 0
-                    }}
-                  >
-                    <MessageSquare size={10} />
-                    {item.commentsCount}
-                  </span>
-                )}
-              </div>
-
-              {/* Status */}
-              <div>
-                <StatusBadge
-                  statusId={item.status}
-                  interactive
-                  onClick={(e) => {
-                    e?.stopPropagation();
-                    const statusKeys = Object.keys(STATUS_DEFINITIONS);
-                    const nextIdx = (statusKeys.indexOf(item.status) + 1) % statusKeys.length;
-                    onUpdateItem?.(item.id, { status: statusKeys[nextIdx] });
-                  }}
-                />
-              </div>
-
-              {/* Estimate Points */}
-              <div className="font-mono" style={{ color: 'var(--text-secondary)' }}>
-                {item.estimate ? `${item.estimate} pts` : '—'}
-              </div>
-
-              {/* Assignee */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <UserAvatar user={assignee} size="xs" showName />
-              </div>
-
-              {/* Project / Cycle */}
-              <div className="truncate" style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-xs)' }}>
-                {project ? project.name : 'Ad-hoc'}
-              </div>
-
-              {/* Due Date */}
-              <div
-                className="font-mono"
-                style={{
-                  textAlign: 'right',
-                  fontSize: 'var(--text-xs)',
-                  color: item.dueDate ? 'var(--text-secondary)' : 'var(--text-subtle)'
-                }}
-              >
-                {item.dueDate ? item.dueDate.slice(5) : '—'}
-              </div>
-            </div>
-          );
-        })}
+        {/* Rows Body */}
+        <DataGridBody
+          items={sortedItems}
+          visibleColumns={visibleColumns}
+          columnWidths={columnWidths}
+          selectedItemId={selectedItemId}
+          multiSelectedIds={multiSelectedIds}
+          focusedRowIndex={focusedRowIndex}
+          rowHeight={rowHeight}
+          groupBy={groupBy}
+          onSelectItem={(item) => {
+            const idx = sortedItems.findIndex((i) => i.id === item.id);
+            if (idx !== -1) setFocusedRowIndex(idx);
+            onSelectItem?.(item);
+          }}
+          onOpenInspector={(item) => {
+            const idx = sortedItems.findIndex((i) => i.id === item.id);
+            if (idx !== -1) setFocusedRowIndex(idx);
+            onOpenInspector?.(item);
+          }}
+          onToggleSelect={onToggleMultiSelect}
+          onUpdateItem={handleUpdateItem}
+          isEditingTitle={isEditingTitle}
+          onCommitTitle={handleCommitTitle}
+          onCancelTitle={handleCancelTitle}
+          activeDropdown={activeDropdown}
+          setActiveDropdown={setActiveDropdown}
+          filterMismatchItemId={filterMismatchItemId}
+        />
       </div>
     </div>
   );
 }
+
+export default DataGrid;

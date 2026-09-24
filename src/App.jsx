@@ -33,12 +33,13 @@ function MainView({ filteredItems }) {
           selectedItemId={selectedItemId}
           onSelectItem={(item) => {
             selectItem(item.id);
-            setIsInspectorOpen(true);
           }}
           onOpenInspector={(item) => {
             selectItem(item.id);
             setIsInspectorOpen(true);
           }}
+          onCloseInspector={() => setIsInspectorOpen(false)}
+          isInspectorOpen={isInspectorOpen}
           onUpdateItem={updateItem}
           density={density}
           multiSelectedIds={multiSelectedIds}
@@ -143,6 +144,7 @@ function OrynqoWorkspace() {
     updateItem,
     createItem,
     bulkUpdateStatus,
+    bulkAssign,
     deleteSelected
   } = useWorkspace();
 
@@ -275,6 +277,8 @@ function OrynqoWorkspace() {
         <BulkActionBar
           selectedCount={multiSelectedIds.length}
           onMarkDone={() => bulkUpdateStatus('done')}
+          onBulkUpdateStatus={bulkUpdateStatus}
+          onBulkAssign={bulkAssign}
           onDelete={deleteSelected}
           onClearSelection={clearSelection}
         />

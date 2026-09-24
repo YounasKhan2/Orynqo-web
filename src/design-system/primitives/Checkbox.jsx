@@ -13,7 +13,9 @@ export function Checkbox({
   size = 14,
   label,
   className = '',
-  style = {}
+  style = {},
+  'aria-label': ariaLabel,
+  ...rest
 }) {
   const handleClick = (e) => {
     e.stopPropagation();
@@ -32,6 +34,7 @@ export function Checkbox({
   return (
     <div
       role="checkbox"
+      aria-label={ariaLabel || label}
       aria-checked={indeterminate ? 'mixed' : checked}
       aria-disabled={disabled}
       tabIndex={disabled ? -1 : 0}
