@@ -1,17 +1,18 @@
 # ORYNQO — UI-01B PRODUCT CONTRACT & DESIGN SPECIFICATION
-## Universal High-Density Data Grid / Work Execution Projection
+## Universal High-Density Data Grid / Work Execution Projection (Correction Pass 01A)
 
 ```text
 Document Reference: docs/08-ui-01b-high-density-data-grid-contract.md
-Phase: UI-01B (Design & Product Contract)
-Status: IN HUMAN REVIEW
+Phase: UI-01B (Design Correction Pass 01A)
+Status: IN HUMAN REVIEW — CORRECTION PASS 01A
 Target Surface: Universal Data Grid / Table Projection (WRK-001)
 Upstream Dependencies:
   - docs/04-ia-competitive-navigation-research.md (FROZEN)
   - docs/05-sidebar-navigation-contract.md (FROZEN)
   - docs/06-complete-page-and-surface-registry.md (FROZEN)
-  - docs/07-ui-01a-work-item-inspector-contract.md (FROZEN - Commit af9178a)
+  - docs/07-ui-01a-work-item-inspector-contract.md (FROZEN - Baseline Commit af9178a)
 Governing Skill: antigravity-enterprise-product-design
+Working Branch: design/ui-01b-high-density-grid
 ```
 
 ---
@@ -36,22 +37,22 @@ The Data Grid is a **projection (HOW)** over canonical WorkItems, not a resource
 │         │                  │                  │                  │          │
 │         ▼                  ▼                  ▼                  ▼          │
 │  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │                CANONICAL WORKITEM QUERY PIPELINE (Filter & Sort)      │  │
+│  │         CANONICAL WORKITEM QUERY PIPELINE (Filter Expression & Sort)  │  │
 │  └───────────────────────────────────┬───────────────────────────────────┘  │
 │                                      │                                      │
 │                                      ▼                                      │
 │  ┌───────────────────────────────────────────────────────────────────────┐  │
 │  │              UNIVERSAL HIGH-DENSITY DATA GRID ENGINE (UI-01B)         │  │
-│  │  • 28px/34px Density    • Roving TabIndex Keyboard Navigation         │  │
-│  │  • Multi-Column Sort    • Hierarchical Grouping (Status/Priority/Team)│  │
-│  │  • Column Registry      • Multi-Row Selection & Bulk Action Bar       │  │
-│  │  • Context Preservation • Inline Property Edit Triggers (UI-01C Rdy)  │  │
+│  │  • 28px/34px Density Rhythm    • Roving TabIndex Navigation           │  │
+│  │  • Multi-Column Sort           • Hierarchical Grouping Dimensions     │  │
+│  │  • Column Registry             • Multi-Row Selection & Bulk Action Bar│  │
+│  │  • Context Preservation        • Inline Property Trigger Contracts    │  │
 │  └───────────────────────────────────┬───────────────────────────────────┘  │
 │                                      │                                      │
 │                                      ▼                                      │
 │  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │               CANONICAL WORKITEM INSPECTOR DRAWER (UI-01A)            │  │
-│  │              (Preserves Grid Focus, Row Position, & Scroll)           │  │
+│  │          CANONICAL WORKITEM INSPECTOR DRAWER (FROZEN UI-01A)          │  │
+│  │             (Preserves Grid Focus, Row Position, & Scroll)            │  │
 │  └───────────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -68,57 +69,51 @@ The Data Grid is a **projection (HOW)** over canonical WorkItems, not a resource
    - **Command Palette = LONG-TAIL ACTIONS** (Global launcher).
 2. **WorkItem Law (Single Source of Truth):**
    - The grid renders canonical WorkItems (`task`, `issue`, `bug`) established in `UI-01A`.
-   - **No grid-specific WorkItem types:** Milestones remain checkpoint resources; Documents remain knowledge resources.
+   - **No grid-specific WorkItem types:** Milestones remain checkpoint planning resources; Documents remain living knowledge resources.
    - **No parallel item models:** Relationships (`relations`), living specs (`documentLinks`), and sub-items (`parentId`) are read from the canonical entity.
    - **No independent row state:** Cell edits dispatch mutations directly to the authoritative domain mutation boundary.
-3. **Dependency Direction:**
-   $$\text{Design System Tokens} \rightarrow \text{Primitives} \rightarrow \text{Composites} \rightarrow \text{Domain Features} \rightarrow \text{Projections / Views} \rightarrow \text{Shell}$$
+3. **UI-01A Inspector Boundary:**
+   - UI-01A Inspector architecture is **frozen** at `af9178a`.
+   - UI-01B does **not** redesign, fork, or re-architect the Inspector. The grid integrates `WorkItemInspector` and `WorkItemDetailContainer` as-is.
+   - Any visual representations of the Inspector in UI-01B design artifacts are illustrative of side-by-side integration only.
+4. **Visual Style Law (No Glassmorphism):**
+   - Orynqo strictly avoids glassmorphism, decorative backdrop blurs, transparency overlays, and glow effects.
+   - All surfaces (including floating bulk actions and popovers) use **opaque semantic elevated surfaces** (`var(--bg-modal)`, `var(--bg-surface-raised)`) with restrained 1px borders and subtle elevation shadows.
 
 ---
 
 ## 3. Existing Grid Audit
 
-The codebase prototype contained an initial `DataGrid.jsx` (`src/views/DataGrid/DataGrid.jsx`). Below is the structured architectural audit:
+An audit of [`src/views/DataGrid/DataGrid.jsx`](file:///d:/Full_Stack_Apps/Orynqo-web/src/views/DataGrid/DataGrid.jsx) and surrounding components established the architectural disposition:
 
 ```text
 ┌───────────────────────────────────────┬─────────────┬────────────────────────────────────────────────────────┐
-│ Prototype Component / Subsystem       │ Disposition │ Architectural Rationale & Transition Plan              │
+│ Prototype Subsystem                   │ Disposition │ Architectural Direction                                │
 ├───────────────────────────────────────┼─────────────┼────────────────────────────────────────────────────────┤
-│ Monolithic `DataGrid.jsx` (370 lines) │ REPLACE     │ Split into modular `DataGridToolbar`, `DataGridHeader`,│
-│                                       │             │ `DataGridBody`, `DataGridRow`, and `DataGridCell`.     │
+│ Monolithic `DataGrid.jsx` (370 lines) │ REPLACE     │ Split into modular toolbar, header, row, cell modules. │
 ├───────────────────────────────────────┼─────────────┼────────────────────────────────────────────────────────┤
-│ Hardcoded CSS Grid template string    │ REPLACE     │ Grid columns (`32px 90px 100px 1fr ...`) must be       │
-│                                       │             │ governed by a configurable `ColumnRegistry`.           │
+│ Hardcoded CSS Grid template string    │ REPLACE     │ Govern columns via extensible `ColumnRegistry`.        │
 ├───────────────────────────────────────┼─────────────┼────────────────────────────────────────────────────────┤
-│ Inline styles on table rows           │ REFACTOR    │ Standardize to semantic CSS variables and design tokens│
-│                                       │             │ (`--space-*`, `--radius-*`, `--color-*`).              │
+│ Inline styles on table rows           │ REFACTOR    │ Standardize to design tokens and semantic CSS vars.    │
 ├───────────────────────────────────────┼─────────────┼────────────────────────────────────────────────────────┤
-│ Multi-selection state & checkboxes    │ KEEP &      │ Preserve `multiSelectedIds` array; add Shift-click     │
-│                                       │ EXTEND      │ contiguous range selection and Space/X shortcuts.      │
+│ Multi-selection state & checkboxes    │ KEEP & EXT  │ Add Shift-click contiguous range select & Space/X.     │
 ├───────────────────────────────────────┼─────────────┼────────────────────────────────────────────────────────┤
-│ Sticky Header layout                  │ REFACTOR    │ Keep sticky behavior; add sort triggers, resize afford-│
-│                                       │             │ ances, and column menu popovers.                       │
+│ Sticky Header layout                  │ REFACTOR    │ Keep sticky layout; add sort triggers & column menus.  │
 ├───────────────────────────────────────┼─────────────┼────────────────────────────────────────────────────────┤
-│ `j` / `k` row navigation              │ KEEP &      │ Preserve fast vertical keyboard movement; upgrade to   │
-│                                       │ ENHANCE     │ true WCAG roving `tabIndex` focus model.               │
+│ `j` / `k` vertical keyboard navigation│ KEEP & ENH  │ Upgrade to full WCAG 2.2 AA roving tabindex model.     │
 ├───────────────────────────────────────┼─────────────┼────────────────────────────────────────────────────────┤
-│ `Enter` / double-click $\rightarrow$ Inspector│ KEEP        │ Canonical workflow; preserve grid scroll & focus anchor│
-│                                       │             │ upon closing Inspector drawer.                         │
+│ `Enter` / double-click -> Inspector   │ KEEP        │ Canonical workflow; preserve scroll and row focus.     │
 ├───────────────────────────────────────┼─────────────┼────────────────────────────────────────────────────────┤
-│ Cycle-on-click badge mutations (`s`,`p`) REPLACE   │ Replace with UI-01C property trigger popovers;         │
-│                                       │             │ eliminate unpredictable cycling interactions.          │
+│ Cycle-on-click badge mutations (`s`,`p`) REPLACE   │ Replace with UI-01C property trigger popovers.         │
 ├───────────────────────────────────────┼─────────────┼────────────────────────────────────────────────────────┤
 │ `ActionStrip.jsx` integration         │ REFACTOR    │ Separate generic layout header from dedicated          │
 │                                       │             │ `DataGridToolbar` (search, compound filter, density).  │
 ├───────────────────────────────────────┼─────────────┼────────────────────────────────────────────────────────┤
-│ `BulkActionBar.jsx` floating drawer   │ KEEP &      │ Floating bottom bar is clean and functional; extend to │
-│                                       │ EXTEND      │ support priority, assignment, and cycle moves.         │
+│ `BulkActionBar.jsx` floating dock     │ KEEP & EXT  │ Retain opaque dock; extend with priority, assignment.  │
 ├───────────────────────────────────────┼─────────────┼────────────────────────────────────────────────────────┤
-│ Sub-item parentId exclusion           │ KEEP        │ `useWorkItemsFilter` correctly excludes child items    │
-│                                       │             │ from root grid rows, preserving hierarchy clarity.     │
+│ Sub-item parentId exclusion           │ KEEP        │ Retain clean separation: sub-items render in parent.   │
 ├───────────────────────────────────────┼─────────────┼────────────────────────────────────────────────────────┤
-│ Full in-memory rendering              │ REFACTOR    │ Add explicit virtualization boundary & cursor-based    │
-│                                       │             │ pagination contract for enterprise scalability.        │
+│ Full in-memory rendering              │ REFACTOR    │ Establish virtualization boundary for large sets.      │
 └───────────────────────────────────────┴─────────────┴────────────────────────────────────────────────────────┘
 ```
 
@@ -137,10 +132,10 @@ The Data Grid state is strictly partitioned into **three orthogonal state spaces
 ├───────────────────────────────┼───────────────────────────────┼─────────────────────────┤
 │ • `items: WorkItem[]`         │ • `columnOrder: ColumnId[]`   │ • `focusedRowId: ID`    │
 │ • `totalCount: number`        │ • `columnWidths: Map<Id, px>` │ • `selectedId: ID`      │
-│ • `filters: CompoundFilter`   │ • `hiddenColumns: Set<Id>`    │ • `multiSelectedIds: Set│
+│ • `filterExpression: FilterGrp│ • `hiddenColumns: Set<Id>`    │ • `multiSelectedIds: Set│
 │ • `sort: { field, direction }`│ • `density: 'compact'|'comf'` │ • `selectionAnchorId: ID│
 │ • `cursor: string | null`     │ • `groupBy: FieldId | null`   │ • `activeCellCoord: {r,c│
-│ • `isLoading: boolean`        │ • `expandedGroups: Set<string>│ • `isAllSelected: bool` │
+│ • `isLoading: boolean`        │ • `expandedGroups: Set<string>│                         │
 │ • `isFetchingMore: boolean`   │ • `activePopover: PopoverId`  │                         │
 │ • `mutationQueue: Optimistic[]│ • `scrollAnchorIndex: number` │                         │
 └───────────────────────────────┴───────────────────────────────┴─────────────────────────┘
@@ -160,8 +155,8 @@ interface DataGridProps {
   // 2. Query / Projection Controls
   sort: SortCriteria;
   onSortChange: (sort: SortCriteria) => void;
-  filters: FilterExpression;
-  onFilterChange: (filters: FilterExpression) => void;
+  filterExpression: FilterGroup;
+  onFilterChange: (filters: FilterGroup) => void;
   groupBy?: GroupField | null;
   onGroupByChange?: (field: GroupField | null) => void;
 
@@ -180,9 +175,9 @@ interface DataGridProps {
 
   // 5. Authoritative Domain Mutations
   onUpdateItem?: (id: string, patch: Partial<WorkItem>) => Promise<void>;
-  onBulkUpdate?: (ids: string[], patch: Partial<WorkItem>) => Promise<void>;
+  onBulkUpdate?: (ids: string[], patch: Partial<WorkItem>) => Promise<BulkMutationResult>;
   onDeleteItem?: (id: string) => Promise<void>;
-  onBulkDelete?: (ids: string[]) => Promise<void>;
+  onBulkDelete?: (ids: string[]) => Promise<BulkMutationResult>;
 
   // 6. Permissions & Context
   isReadOnly?: boolean;
@@ -192,18 +187,44 @@ interface DataGridProps {
 
 ---
 
-## 5. Grid Anatomy & Layout Rhythm
+## 5. Three Distinct Row States
+
+To prevent user confusion, the visual design and DOM attributes strictly distinguish three separate row states:
+
+```text
+┌───────────────────────┬───────────────────────────────┬──────────────────────────────────────────┐
+│ Row State             │ Functional Meaning            │ Visual Treatment                         │
+├───────────────────────┼───────────────────────────────┼──────────────────────────────────────────┤
+│ **1. Focused Row**    │ Active keyboard cursor        │ 1px visible focus ring / outline         │
+│                       │ (`tabIndex={0}`)              │ (`var(--border-focus, #3b82f6)`).        │
+├───────────────────────┼───────────────────────────────┼──────────────────────────────────────────┤
+│ **2. Inspector Active │ WorkItem currently loaded in  │ Solid highlight background               │
+│    / Selected**       │ the open Inspector drawer     │ (`var(--bg-surface-selected)`).          │
+├───────────────────────┼───────────────────────────────┼──────────────────────────────────────────┤
+│ **3. Multi-Selected** │ WorkItem checked for bulk     │ Blue checkbox mark with subtle active    │
+│                       │ action operations             │ background tint (`var(--bg-surface-active│
+└───────────────────────┴───────────────────────────────┴──────────────────────────────────────────┘
+```
+
+### State Combinations
+- **Focused + Inspector Active:** Row has both the selected background highlight AND the active keyboard focus outline.
+- **Focused + Multi-Selected:** Checkbox is checked; row displays the active focus outline.
+- **Inspector Active + Multi-Selected:** Row displays selected background highlight; checkbox is checked.
+
+---
+
+## 6. Grid Anatomy & Layout Rhythm
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────────────────────┐
 │ 1. PROJECTION TOOLBAR (Height: 36px)                                                        │
-│  [Views: Table|Board|Timeline]  [Filter: Status(2), Assignee]  [Sort: Due Date ↓]  [Group]  │
+│  [Views: Table|Board|Timeline]  [Filter: Status(2)]  [Sort: Due Date ↓]  [Group: None]      │
 │  [Search: "auth..."]               [Columns: 9/12]  [Density: 28px]  [Total: 42 WorkItems]  │
 ├─────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 2. STICKY COLUMN HEADER (Height: 28px)                                                      │
+│ 2. STICKY COLUMN HEADER (Height: 28px Compact / 32px Comfortable)                           │
 │  [ ] | ID      | P | Title                      | Status     | Est | Assignee   | Due Date  │
 ├─────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 3. GROUP HEADER (Optional, Height: 32px)                                                    │
+│ 3. GROUP HEADER (Optional, Height: 30px)                                                    │
 │  ▼ In Progress (4 items • 18 pts)                                                           │
 ├─────────────────────────────────────────────────────────────────────────────────────────────┤
 │ 4. WORKITEM ROWS (Height: 28px Compact / 34px Comfortable)                                  │
@@ -211,22 +232,22 @@ interface DataGridProps {
 │  [ ] | ENG-1044| 🟠| Persistent IndexedDB engine...| ⭕ Todo    |  8  | Marcus V.  | Oct 02    │
 │  [ ] | WEB-402 | 🟠| Build 28px compact row data...| ⏳In Prog  |  8  | David K.   | Sep 28    │
 ├─────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 5. FLOATING BULK ACTION BAR (Conditional, floats 16px from viewport bottom)                 │
-│  [3 items selected]  |  [Mark Done]  [Change Priority]  [Move Cycle]  [Delete]  [X Clear]   │
+│ 5. OPAQUE ELEVATED BULK ACTION BAR (Conditional, floats 16px from viewport bottom)          │
+│  [3 items selected]  │  [Change Status]  [Assign To]  [Add Tags]  [Archive]  [✕ Clear]      │
 └─────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 6. Density System & Token Foundation
+## 7. Density System & Predictable Geometry
 
-High density is a core Orynqo differentiator. The grid implements an absolute mathematical 4px rhythm:
+Density is driven by tokens and design targets:
 
 ```text
 ┌────────────────────────┬──────────────────────┬──────────────────────┐
 │ Attribute              │ Compact (Default)    │ Comfortable          │
 ├────────────────────────┼──────────────────────┼──────────────────────┤
-│ Row Height             │ 28px                 │ 34px                 │
+│ Target Row Height      │ 28px                 │ 34px                 │
 │ Header Height          │ 28px                 │ 32px                 │
 │ Horizontal Cell Pad    │ 8px                  │ 12px                 │
 │ Vertical Cell Pad      │ 0px (Centered flex)  │ 0px (Centered flex)  │
@@ -239,11 +260,13 @@ High density is a core Orynqo differentiator. The grid implements an absolute ma
 └────────────────────────┴──────────────────────┴──────────────────────┘
 ```
 
+*Geometric Invariant:* WorkItem rows use predictable density tokens. Implementations should preserve stable row geometry wherever practical to support efficient rendering, keyboard navigation, and optional windowing.
+
 ---
 
-## 7. Column Architecture & Reusable Column Registry
+## 8. Column Architecture & Reusable Column Registry
 
-Every column is declared as an extensible, schema-driven configuration entry:
+Columns are schema-driven configurations:
 
 ```text
 ┌──────────────┬──────────────────┬───────┬──────┬─────────┬─────────┬──────────┬──────────────┐
@@ -267,15 +290,14 @@ Every column is declared as an extensible, schema-driven configuration entry:
 └──────────────┴──────────────────┴───────┴──────┴─────────┴─────────┴──────────┴──────────────┘
 ```
 
-### Column Classification
-- **Fixed / Core Columns (Always Present):** `select`, `identifier`, `title`, `status`.
-- **Standard Default Columns:** `priority`, `estimate`, `assignee`, `dueDate`.
-- **Contextual Columns:** `project` (hidden when inside a project view), `cycle` (hidden when inside a cycle view), `relations` (shown when dependencies exist).
-- **Optional / Extensible Columns:** `spec`, `createdAt`, `updatedAt`, `labels`, `customFields`.
+### Initial Pinning Rules
+- **Default Pinned Columns:** `select` and `identifier` are pinned left by default.
+- `title` may remain sticky only if horizontal-scroll usability warrants it on specific viewports.
+- `status` is **not** pinned by default.
 
 ---
 
-## 8. Inline Editing Contract & Property Triggers
+## 9. Inline Editing Contract & Property Triggers
 
 The repository audit strictly forbade prototype cycle-on-click mutations. In UI-01B, editing behavior is explicitly defined:
 
@@ -299,20 +321,20 @@ The repository audit strictly forbade prototype cycle-on-click mutations. In UI-
 │                    │                         │ Clear date option available.             │
 ├────────────────────┼─────────────────────────┼──────────────────────────────────────────┤
 │ **Title**          │ **HYBRID DECISION**     │ • Single click selects row.              │
-│                    │ (Detailed Below)        │ • Double click or Enter opens Inspector. │
-│                    │                         │ • F2 or explicit rename button activates │
-│                    │                         │   compact inline text edit.              │
+│                    │                         │ • Enter / double-click opens Inspector.  │
+│                    │                         │ • F2 activates inline text rename        │
+│                    │                         │   ('e' provisional pending conflict QA). │
 └────────────────────┴─────────────────────────┴──────────────────────────────────────────┘
 ```
 
-### Decision: Hybrid Title Editing
-*Rationale:* Software engineers and managers scanning 50 rows must be able to click anywhere on a row or title to select/inspect without accidentally activating an inline text input. Therefore:
-- **Default Action:** Single-click selects the row; double-click or `Enter` opens the Inspector drawer where the full multiline title editor resides.
-- **Fast Keyboard Rename:** Pressing `F2` or `e` while a row is focused activates inline title editing in-place without opening the drawer. `Enter` commits the mutation, `Escape` reverts.
+### Approved Hybrid Title Editing Model
+- **Primary Single-Pointer Action:** Single-click selects the row without activating input focus.
+- **Authoritative Detail:** `Enter` or double-click opens the frozen UI-01A Inspector drawer. (Double-click is strictly a pointer accelerator; keyboard and button alternatives always exist).
+- **In-Place Fast Rename:** Pressing `F2` (primary convention) activates in-place title editing. `Enter` commits the mutation; `Escape` reverts. `e` remains a provisional keyboard shortcut candidate subject to shortcut conflict testing.
 
 ---
 
-## 9. Row $\rightarrow$ Inspector Interaction & Focus Anchor Preservation
+## 10. Row $\rightarrow$ Inspector Interaction & Responsive Drawer Contract
 
 Opening the Inspector drawer must **never destroy grid context**:
 
@@ -326,10 +348,12 @@ Grid captures:
   - scrollOffset: 8,420px
       │
       ▼
-WorkItemInspector Opens (Right Drawer 440px / 720px)
-  - Grid width contracts smoothly via CSS transition
+WorkItemInspector Opens (Right Drawer)
+  - Preferred Desktop Range: 400px – 480px (Implementation tunable)
+  - Minimum Usable Width: 360px
+  - Expanded Detail Mode: 640px – 800px (or up to 60% viewport width)
+  - Mobile (<768px): Full-screen modal overlay
   - Row 342 remains visually highlighted (`--bg-surface-selected`)
-  - User mutates status / description / adds comments in Inspector
       │
       ▼  (Press Escape or Click Close 'X')
 WorkItemInspector Closes
@@ -340,9 +364,9 @@ WorkItemInspector Closes
 
 ---
 
-## 10. Keyboard-First Interaction Contract
+## 11. Keyboard-First Interaction & Scoped Roving Focus
 
-The grid implements a **WCAG-compliant Roving TabIndex** interaction model. The grid container has `role="grid"`, rows have `role="row"`, and cells have `role="gridcell"`.
+The grid implements an accessible **Roving TabIndex** focus model:
 
 ```text
 ┌───────────────────────────┬─────────────────────────────────────────────────────────────┐
@@ -353,7 +377,7 @@ The grid implements a **WCAG-compliant Roving TabIndex** interaction model. The 
 │ `Shift + ↓` / `Shift + ↑` │ Extend multi-selection range from selection anchor.         │
 │ `Space` or `x`            │ Toggle checkbox selection of focused row.                   │
 │ `Enter`                   │ Open Inspector Drawer for focused WorkItem.                 │
-│ `F2` or `e`               │ Activate inline title rename editor on focused row.         │
+│ `F2`                      │ Activate inline title rename editor on focused row.         │
 │ `s`                       │ Open Status property selector dropdown on focused row.      │
 │ `p`                       │ Open Priority property selector dropdown on focused row.    │
 │ `a`                       │ Open Assignee property selector dropdown on focused row.    │
@@ -365,166 +389,138 @@ The grid implements a **WCAG-compliant Roving TabIndex** interaction model. The 
 └───────────────────────────┴─────────────────────────────────────────────────────────────┘
 ```
 
+### Focus Model Distinction:
+- **Row-Level Focus (Default):** Navigation between rows occurs at the `role="row"` level using roving `tabIndex` (`tabIndex={0}` on active row only, `tabIndex={-1}` on other rows).
+- **Cell-Level Entry:** Pressing `s`, `p`, `a`, or clicking a cell transfers focus into that cell's interactive property trigger or popover.
+- **Exit to Row:** Pressing `Escape` or completing a selection returns focus to the parent row container.
+
 ---
 
-## 11. Selection Model & Range Algebra
+## 12. Selection Semantics Across Projections & Query Changes
 
-To prevent server-state desynchronization, selection is split into three explicit concepts:
+### Default Selection Scope Invariant
+> **Bulk selection belongs strictly to the current projection query context.**
 
 ```text
-┌───────────────────────┬─────────────────────────────────────────────────────────────────┐
-│ Concept               │ Definition & Operational Boundary                               │
-├───────────────────────┼─────────────────────────────────────────────────────────────────┤
-│ **Focused Row**       │ The row holding the active keyboard cursor (`focusedRowIndex`). │
-│                       │ Styled with a subtle focus ring or highlight. Exactly one.      │
-├───────────────────────┼─────────────────────────────────────────────────────────────────┤
-│ **Selected Item**     │ The primary WorkItem currently loaded in the Inspector drawer   │
-│                       │ (`selectedItemId`). Styled with `--bg-surface-selected`.        │
-├───────────────────────┼─────────────────────────────────────────────────────────────────┤
-│ **Multi-Selected Set**│ An unordered Set of WorkItem IDs (`multiSelectedIds`) checked   │
-│                       │ for batch operations. Triggers floating `BulkActionBar`.       │
-└───────────────────────┴─────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────┬──────────────────────────────────────────────────────┐
+│ Trigger Event                         │ Multi-Selection Behavior                             │
+├───────────────────────────────────────┼──────────────────────────────────────────────────────┤
+│ **Filter Change**                     │ CLEAR selection automatically. Closes BulkActionBar. │
+│ **Saved View Switch**                 │ CLEAR selection automatically. Closes BulkActionBar. │
+│ **Team / Project Context Change**     │ CLEAR selection automatically. Closes BulkActionBar. │
+│ **Sort Reordering**                   │ PRESERVE selection (same result set, reordered).     │
+│ **Group Collapse / Expand**           │ PRESERVE selection. Hidden items remain selected.    │
+│ **Pagination / Incremental Fetch**    │ PRESERVE existing selection across loaded pages.     │
+│ **Item Deletion**                     │ REMOVE deleted ID from selection set.                │
+│ **Permission Revoked on Item**        │ PRESERVE in selection; handle at bulk mutation.      │
+└───────────────────────────────────────┴──────────────────────────────────────────────────────┘
 ```
 
-### Contiguous Range Selection Algorithm:
-When `Shift + Click` or `Shift + ArrowDown` is triggered:
-1. Identify `selectionAnchorId` (the initial clicked/selected row).
-2. Compute index range $[ \min(\text{anchor}, \text{current}), \max(\text{anchor}, \text{current}) ]$.
-3. Populate `multiSelectedIds` with all visible row IDs within that range.
-4. If filters or sorting change, existing `multiSelectedIds` remain active until cleared, but the header checkbox reflects indeterminate state.
+### Elimination of Ambiguous `isAllSelected`
+- The system supports selection of **visible / loaded rows** only (`multiSelectedIds: string[]`).
+- The grid header checkbox reflects:
+  - Unchecked: `multiSelectedIds.length === 0`.
+  - Indeterminate: `0 < multiSelectedIds.length < visibleItems.length`.
+  - Checked: `multiSelectedIds.length === visibleItems.length`.
+- Cross-database "Select all 50,000 items matching query" is deferred to later server-query selection phases.
 
 ---
 
-## 12. Bulk Operations & BulkActionBar Integration
+## 13. Bulk Operations & BulkActionBar Integration
 
-When `multiSelectedIds.length > 0`, the floating `BulkActionBar` mounts at the bottom center:
+When `multiSelectedIds.length > 0`, the **opaque elevated BulkActionBar** mounts at the bottom center:
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│  [3 items selected]  │  [Mark Done]  [Priority ▼]  [Assignee ▼]  [Cycle ▼]  [Delete]  [✕]│
+│  [3 items selected]  │  [Change Status]  [Assign To]  [Add Tags]  [Archive]  [✕ Clear]      │
 └─────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Bulk Mutation Boundary
-- **Atomic Operations:** Bulk mutations call `onBulkUpdate(ids, patch)`.
-- **Zero Forked Logic:** Bulk mutations pass through the same mutation pipeline and permission validation as individual updates.
-- **Partial Permission Rejection:** If 3 items are selected and 1 is read-only, the server/domain boundary commits the 2 permitted items and raises a non-blocking toast warning identifying the skipped item (`"Updated 2 items. ENG-1042 was skipped due to restricted permissions."`).
+### Bulk Mutation UX Contract
+- Calls `onBulkUpdate(ids, patch)`.
+- **Outcome Reporting:** Bulk mutation returns a normalized result: `{ succeeded: string[], skipped: string[], failed: string[] }`.
+- **Partial Permission Outcome:**
+  - Permitted items commit immediately.
+  - Restricted items are skipped without failing the entire batch.
+  - Non-blocking notification informs user: `"Updated 2 items. ENG-1042 was skipped due to restricted permissions."`
+  - Successful items remain updated; selection clears upon batch completion.
 
 ---
 
-## 13. Sorting Architecture
+## 14. Forward-Compatible Filter Architecture
 
-1. **Default Sorting:** Natural pipeline order (e.g. `dueDate: asc` then `priority: desc` then `identifier: asc`).
-2. **Deterministic Tie-Breaking:** All client and server sorts enforce a stable secondary tie-breaker (`id: asc`).
-3. **Cursor Pagination Safe:** Sorting fields must map to indexed database columns (e.g. `updatedAt`, `priority`, `dueDate`, `identifier`).
-4. **Header Interaction:**
-   - First click: Sort Ascending ($\uparrow$).
-   - Second click: Sort Descending ($\downarrow$).
-   - Third click: Reset to Default Sort.
-
----
-
-## 14. Compound Filter Algebra Integration
-
-The grid consumes the canonical filter algebra from `useWorkItemsFilter`:
+To avoid contradictions between flat mock objects and enterprise requirements, the grid consumes a **FilterGroup** expression model:
 
 ```typescript
-interface FilterExpression {
-  status: 'all' | 'unstarted' | 'started' | 'completed' | string;
-  priority: 'all' | 'urgent' | 'high' | 'medium' | 'low';
-  assignee: 'all' | 'unassigned' | string;
-  project?: 'all' | string;
-  cycle?: 'all' | string;
-  searchQuery?: string;
-  hasBlockersOnly?: boolean;
+type FilterOperator = 'eq' | 'neq' | 'in' | 'nin' | 'contains' | 'gt' | 'lt';
+
+interface FilterCondition {
+  field: string;
+  operator: FilterOperator;
+  value: any;
+}
+
+interface FilterGroup {
+  operator: 'AND' | 'OR';
+  conditions: Array<FilterCondition | FilterGroup>;
 }
 ```
 
-- When an item is edited such that it no longer satisfies active filters, it remains visible with an inline "Modified" indicator until focus leaves the row or the user manually refreshes, preventing disruptive row disappearance under the user's cursor.
+- Simple flat filter objects used by prototype views are adapted into a root `AND` group.
+- **Mutation + Filter Transition:** When an item is edited such that it no longer matches active filters:
+  1. The canonical WorkItem mutates immediately in the domain cache.
+  2. The projection flags the row as `"Modified"` and retains it temporarily in-place while focused.
+  3. Once focus transitions away or the user refreshes, the item cleanly leaves the projection without creating a duplicate cache.
 
 ---
 
-## 15. Grouping Architecture
+## 15. Sorting Contract
 
-Grouping partitions the flat query result into ordered, collapsible sections:
-
-```text
-▼ In Progress (3 items • 21 pts) ───────────────────────────────────────────────────────────
-   [✓] ENG-1041  Implement Tarjan cycle detection...
-   [ ] WEB-402   Build 28px compact row data grid...
-   [ ] WEB-410   Bi-directional document block embedding...
-▶ Todo (5 items • 24 pts) ──────────────────────────────────────────────────────────────────
-▶ Done (2 items • 10 pts) ──────────────────────────────────────────────────────────────────
-```
-
-### Supported Grouping Fields
-1. `groupBy: 'status'` (Workflow progression)
-2. `groupBy: 'priority'` (Urgency matrix)
-3. `groupBy: 'assignee'` (Capacity balance)
-4. `groupBy: 'project'` (Deliverable mapping)
-5. `groupBy: 'cycle'` (Sprint boundary)
-
-### Grouping Rules:
-- **Collapsed Memory:** Collapsed group IDs are stored in local presentation state (`expandedGroups: Set<string>`).
-- **Keyboard Traversal:** When a group is collapsed, `j`/`k` skips the hidden children and navigates directly to the next group header or item.
-- **Drag & Drop (Later):** Moving a row between group headers updates the grouping property automatically.
+1. **Deterministic Ordering:** Pipeline sorts by active column criteria (Ascending $\uparrow$ / Descending $\downarrow$).
+2. **Stable Tie-Breaking:** All client projections enforce a secondary tie-breaker (`id: asc`).
+3. **Cursor-Compatible:** Sort attributes map to indexed domain fields (`updatedAt`, `priority`, `dueDate`, `identifier`). The UI does not dictate database indexing internals.
 
 ---
 
-## 16. Column Management
+## 16. Grouping Architecture
 
-Users can customize their working surface:
-- **Resizing:** Dragging the border between header cells updates column pixel width with visual guidelines (minimum width: 40px; maximum: 600px).
-- **Visibility Toggle:** Projection toolbar $\rightarrow$ "Columns" popover menu with toggles for every optional column.
-- **Reordering:** Drag-and-drop column headers.
-- **Persistence Boundary:**
-  - *Ephemeral:* Transient filter/sort adjustments reset on full page reload.
-  - *Saved View:* Stored in workspace configuration when user clicks "Save View".
+Supported grouping dimensions: `status`, `priority`, `assignee`, `project`, `cycle`.
 
----
-
-## 17. Large Dataset & Virtualization Boundary
-
-To deliver sub-50ms interaction fidelity without false performance claims:
-- **DOM Threshold:** For datasets under 100 items, standard high-density DOM rendering is used (avoids virtualization overhead and focus jumps).
-- **Virtualization Activation Boundary:** When `totalItems > 100`, the grid activates windowed rendering:
-  - Fixed row height ($28\text{px}$ or $34\text{px}$) allows $O(1)$ calculation of row offsets ($\text{top} = \text{index} \times \text{rowHeight}$).
-  - Overscan buffer of 10 rows above and below viewport prevents blank flashing during high-speed wheel or keyboard scrolling.
-- **Incremental Cursor Fetching:** When scroll approaches $80\%$ of virtual height, `onLoadMore()` triggers the next cursor chunk.
+### UX Contract:
+- **Group Headers:** Display group title, item count, and point sum.
+- **Collapse/Expand:** Toggleable via chevron or keyboard `Space`/`Enter` on header. Collapsed group state is preserved in local presentation state (`expandedGroups: Set<string>`).
+- **Keyboard Traversal:** `j`/`k` skips children of collapsed groups.
+- **Mutation Relocation:** Mutating an item's grouping property (e.g. changing Status from Todo to Done) immediately relocates the row to the target group container and updates summary counters.
+- *Drag-between-groups interaction is deferred to a future interaction pass.*
 
 ---
 
-## 18. Optimistic Mutation & Error Handling
+## 17. Column Management & Persistence Boundaries
 
-```text
-User changes Status to 'Done' on Row
-                 │
-                 ▼
-1. OPTIMISTIC UPDATE:
-   - Row immediately renders with 'Done' badge and strikethrough title
-   - Property trigger closes instantly (<16ms)
-   - Mutation pushed to background queue
-                 │
-                 ├──► SERVER SUCCEEDS:
-                 │    - Optimistic flag cleared silently
-                 │    - Item confirmed in local cache
-                 │
-                 └──► SERVER FAILS / REJECTED:
-                      - Row automatically reverts to previous status
-                      - Toast alert: "Failed to update ENG-1041. Changes reverted."
-                      - Grid focus and scroll position remain 100% stable
-```
+1. **Resizing:** Interactive drag dividers between header cells with visual guides (min width: 40px; max: 600px).
+2. **Visibility & Reordering:** Configurable via "Columns" popover on the projection toolbar.
+3. **Persistence Hierarchy:**
+   - **Session / Local Presentation:** Transient adjustments (reset on page reload).
+   - **Saved View:** Persisted view definitions stored in workspace settings upon clicking "Save View".
+   - **User Preference:** Personal ergonomics (e.g. default density) stored in user profile. Column adjustments are **not** automatically written to Workspace-level configuration.
 
 ---
 
-## 19. Permission & Zero-Leakage Contract
+## 18. Large Datasets & Virtualization Contract
 
-1. **Read-Only Items:**
-   - Display a subtle padlock icon in the identifier cell.
-   - Interactive badge clicks are disabled (`cursor: default`).
-   - Keyboard edit shortcuts (`s`, `p`, `F2`) are suppressed with an accessible screen-reader announcement.
-2. **Restricted Related Items:**
-   - In `relations` cell, restricted items display zero-leakage placeholder pills (`Restricted`) without disclosing private keys, titles, or assignees.
+### Performance Invariants
+- **Adaptive Activation:** The Data Grid architecture must support windowed/virtualized rendering when dataset size, rendered complexity, device capability, or measured performance warrants it.
+- **Profiling-Driven Threshold:** Implementation may determine the initial activation threshold through profiling rather than an arbitrary hardcoded constant.
+- **Predictable Geometry:** WorkItem rows use stable density tokens ($28\text{px}$ compact, $34\text{px}$ comfortable) to enable $O(1)$ offset calculation when virtualization is active.
+- **Incremental Prefetching:** The grid architecture supports proactive incremental fetching and configurable overscan to prevent blank loading gaps during fast keyboard or wheel scrolling.
+
+---
+
+## 19. Optimistic Mutation & Error Handling
+
+- **Immediate Perceived Feedback:** Row updates instantly reflect in the UI upon action.
+- **Non-Blocking Dispatch:** Changes dispatch asynchronously to the domain mutation boundary.
+- **Rollback on Error:** If the server rejects a mutation, the cell flashes a subtle warning border, reverts to the previous canonical value, and raises an accessible toast notification. The grid's vertical scroll position and row focus remain stable.
 
 ---
 
@@ -543,9 +539,9 @@ User changes Status to 'Done' on Row
 │ 7. Stale / Reconnecting   │ Muted yellow banner: "Reconnecting... Showing cached snapshot." │
 │ 8. Read-Only Item         │ Padlock icon; cell hover shows no edit trigger chevrons.        │
 │ 9. Partially Restricted   │ Relation cells show zero-leakage "Restricted" badges.            │
-│ 10. Bulk Selection Active │ Floating bottom `BulkActionBar` displaying selected count.       │
+│ 10. Bulk Selection Active │ Floating opaque `BulkActionBar` displaying selected count.       │
 │ 11. Active Inline Edit    │ Cell highlights with primary focus ring and active text cursor.  │
-│ 12. Optimistic Mutation   │ Subtle pulse indicator until server confirms.                    │
+│ 12. Optimistic Mutation   │ Row updates instantly; subtle indicator until server confirms.   │
 │ 13. Failed Mutation       │ Flash red border $\rightarrow$ rollback to previous value.       │
 │ 14. Grouped View          │ Section headers with caret, title, item counter, and point sum.  │
 │ 15. Collapsed Group       │ Single header row with collapsed caret and summary metrics.      │
@@ -562,16 +558,16 @@ User changes Status to 'Done' on Row
    - Rows: `role="row"` with `aria-rowindex={index + 1}`.
    - Cells: `role="gridcell"`.
 2. **Keyboard Roving TabIndex:**
-   - Only the currently focused row has `tabIndex={0}`; all other rows have `tabIndex={-1}`.
-   - Screen-reader users navigate with arrow keys without tabbing 500 times.
-3. **Live Region Announcements:**
-   - Sort toggles and filter resets announce updates via an invisible `aria-live="polite"` container.
+   - Focus is managed at the row level (`tabIndex={0}` on focused row only).
+   - Screen-reader users navigate with arrow keys without tabbing through every single cell.
+3. **Live Announcements:**
+   - Filter resets and sort changes announce results via an `aria-live="polite"` region.
 
 ---
 
 ## 22. Responsive Adaptation
 
-Desktop is Orynqo's primary dense execution environment. However, responsive behavior is explicitly specified:
+Desktop is Orynqo's primary dense execution environment:
 
 ```text
 ┌───────────────────────────┬──────────────────────────────────────────────────────────────────┐
@@ -580,8 +576,9 @@ Desktop is Orynqo's primary dense execution environment. However, responsive beh
 │ **Wide Desktop (>1280px)**│ Full data grid with all configured columns visible.              │
 │ **Compact Desktop/Tablet**│ Primary columns (`select`, `id`, `title`, `status`, `assignee`)  │
 │ **(768px – 1279px)**      │ remain fixed; secondary columns scroll horizontally via sticky. │
-│ **Mobile Client (<768px)**│ Grid automatically projects as a **Compact Work List Card**:     │
-│                           │ Tap opens full-screen WorkItemDetailContainer. No tiny tables.   │
+│ **Mobile Client (<768px)**│ Grid automatically projects as a **Compact WorkItem List**:      │
+│                           │ Scannable list (ID, title, status, priority). Tapping opens      │
+│                           │ full-screen canonical `WorkItemDetailContainer`. No tiny tables. │
 └───────────────────────────┴──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -589,7 +586,7 @@ Desktop is Orynqo's primary dense execution environment. However, responsive beh
 
 ## 23. Modular Component Architecture
 
-The implementation will refactor `src/views/DataGrid/` into clean, single-responsibility modules:
+The implementation will structure `src/views/DataGrid/` into clean, single-responsibility modules:
 
 ```text
 src/views/DataGrid/
@@ -598,34 +595,25 @@ src/views/DataGrid/
 ├── DataGridHeader.jsx          # Sticky header container
 ├── DataGridHeaderCell.jsx      # Sortable, resizable header cell with menu trigger
 ├── DataGridBody.jsx            # Body container supporting standard & virtualized modes
-├── DataGridRow.jsx             # High-density row component (memoized)
+├── DataGridRow.jsx             # High-density row component
 ├── DataGridCell.jsx            # Polymorphic cell renderer (badges, mono text, avatars)
 ├── DataGridGroupHeader.jsx     # Collapsible section header for grouped projections
 ├── DataGridColumnManager.jsx   # Column visibility & reorder popover
 ├── columnRegistry.js           # Authoritative column registry & definitions
 ├── useGridKeyboard.js          # Roving tabindex and grid keyboard navigation hook
 ├── useGridSelection.js         # Multi-selection, range select, and bulk action hook
-└── useGridVirtualizer.js       # Windowing buffer calculator (activated when rows > 100)
+└── useGridVirtualizer.js       # Windowing buffer calculator (activated when warranted)
 ```
 
----
-
-## 24. Scalability Rules
-
-1. **Granular Row Memoization:** `DataGridRow` must be wrapped in `React.memo` with custom comparator checking `item.updatedAt`, `isSelected`, `isFocused`, and `isMultiSelected`.
-2. **No Monolithic Context Subscriptions:** Cells must not subscribe to root `WorkspaceContext`. Data is passed via props or selector hooks.
-3. **Fixed Row Height:** Enforce strictly $28\text{px}$ or $34\text{px}$ to guarantee $O(1)$ offset calculation for virtualization.
-4. **Stable Query References:** Sorting and filter objects must be memoized to prevent infinite query re-execution.
+*Architectural Invariant:* The row/cell architecture must support granular rendering and avoid whole-grid re-renders for isolated WorkItem changes.
 
 ---
 
-## 25. Design Validation Scenarios
-
-The architecture has been verified against the 10 mandatory validation scenarios:
+## 24. Design Validation Scenarios
 
 ### Scenario 1: Open WorkItem $\rightarrow$ Edit in Inspector $\rightarrow$ Close
 - **Flow:** User selects row 42 (`ENG-1044`) and presses `Enter`.
-- **Result:** Inspector drawer opens. User changes status to `in_review`. Upon pressing `Escape`, Inspector closes; grid scroll position remains pinned at row 42, focus is restored to row 42, and status reflects `in_review`.
+- **Result:** Frozen UI-01A Inspector drawer opens. User changes status to `in_review`. Upon pressing `Escape`, Inspector closes; grid scroll position remains pinned at row 42, focus is restored to row 42, and status reflects `in_review`.
 
 ### Scenario 2: Keyboard Traversal of 20+ Rows $\rightarrow$ Open $\rightarrow$ Close
 - **Flow:** User presses `j` 25 times to navigate from row 1 to row 26, then presses `Enter`.
@@ -633,11 +621,11 @@ The architecture has been verified against the 10 mandatory validation scenarios
 
 ### Scenario 3: Filter + Sort $\rightarrow$ Mutation Disqualifies Item
 - **Flow:** Grid filtered to `status: 'todo'`. User uses inline status trigger on row 3 to change status to `done`.
-- **Result:** Item transitions visually to `done`, remains in place with an inline indicator while focused, and gracefully leaves the view once focus moves away, preventing layout shifts under the cursor.
+- **Result:** Item transitions visually to `done`, remains in place with an inline `"Modified"` indicator while focused, and gracefully leaves the view once focus moves away, preventing layout shifts under the cursor.
 
 ### Scenario 4: Multi-Selection $\rightarrow$ Bulk Status Change with Partial Permission Failure
-- **Flow:** User selects 3 items (2 editable, 1 read-only) and clicks "Mark Done" in `BulkActionBar`.
-- **Result:** The 2 editable items update to `done`. The read-only item remains unchanged. A non-blocking toast informs the user that 1 item was skipped due to permissions.
+- **Flow:** User selects 3 items (2 editable, 1 read-only) and clicks "Change Status" in `BulkActionBar`.
+- **Result:** The 2 editable items update to `done`. The read-only item is skipped. A non-blocking toast informs user that 1 item was skipped due to permissions.
 
 ### Scenario 5: Column Customization Persistence
 - **Flow:** User hides "Due Date" and widens "Title" to 400px.
@@ -649,7 +637,7 @@ The architecture has been verified against the 10 mandatory validation scenarios
 
 ### Scenario 7: Large Result Set Incremental Fetching
 - **Flow:** User scrolls past item 100 in a 500-item query.
-- **Result:** Grid triggers `onLoadMore()`, loads items 101–200, appends them to the virtualized body, and preserves existing multi-selection without re-sorting or jumping.
+- **Result:** Grid triggers `onLoadMore()`, loads next page, appends to the body, and preserves existing multi-selection without re-sorting or jumping.
 
 ### Scenario 8: Inline Edit Rollback on Network Failure
 - **Flow:** User changes estimate from 5 to 8 pts. Network fails.
@@ -661,12 +649,8 @@ The architecture has been verified against the 10 mandatory validation scenarios
 
 ### Scenario 10: Mobile Responsive Projection
 - **Flow:** Viewport resizes to 390px (mobile).
-- **Result:** Grid transforms into high-density card-list projection. Tapping opens full-screen `WorkItemDetailContainer`.
+- **Result:** Grid transforms into compact WorkItem list projection. Tapping opens full-screen `WorkItemDetailContainer`.
 
----
-
-## 26. Open Decisions for Human Review
-
-1. **Title Editing Default:** Proposed hybrid (Single-click selects row, double-click/Enter opens Inspector, `F2`/`e` activates inline text input). Confirm if direct single-click text editing is preferred by any specific persona.
-2. **Column Pinning:** Proposed pinning `select`, `identifier`, and `title` on wide horizontal viewports. Confirm if pinning `status` as well is desired.
-3. **Default Density Mode:** Proposed `compact` ($28\text{px}$) as the system default, with `comfortable` ($34\text{px}$) available via toolbar switch.
+### Scenario 11: Projection Query Changes During Bulk Selection
+- **Flow:** User selects multiple WorkItems and changes an active filter or switches saved views.
+- **Result:** Bulk selection automatically clears, `BulkActionBar` closes, new query renders, and focus deterministically resets to the first visible row. No invisible selected IDs remain.
