@@ -1,20 +1,20 @@
-# Orynqo Platform — Complete Page & Surface Registry (Phase IA-03)
+# Orynqo Platform — Complete Page & Surface Registry (Phase IA-03 / IA-03A)
 
-**Status:** Completed Master Specification (Phase IA-03 — Ready for Human Review)  
+**Status:** Completed Master Specification (Phase IA-03A Final Integrity Pass — Ready for Final Freeze & Human Review)  
 **Governing Methodology:** `antigravity-enterprise-product-design`  
 **Preceding Phases:**  
 - `Architecture & Design-System Stabilization (Pass 01 & 01A — APPROVED)`  
 - `IA-01 Competitive Navigation Research (APPROVED)`  
 - `IA-02 Sidebar Architecture & Navigation Contract (APPROVED & FROZEN)`  
-**Current Phase:** `IA-03 Complete Page & Surface Registry (MASTER BLUEPRINT)`  
-**Subsequent Phase:** `UI-01 Foundation & High-Density Core Screens (Awaiting IA-03 Approval)`  
+**Current Phase:** `IA-03 / IA-03A Complete Page & Surface Registry (FINAL INTEGRITY PASS)`  
+**Subsequent Phase:** `UI-01 Foundation & High-Density Core Screens (Awaiting IA-03A Approval)`  
 **Implementation Freeze:** STRICTLY ENFORCED (Documentation-only deliverable; no UI code, mockups, or route changes)  
 
 ---
 
 ## 1. Executive Summary & Purpose
 
-Phase `IA-03` establishes the **complete master surface registry** of the Orynqo platform. It answers:
+Phase `IA-03A` establishes the **internally audited, mathematically reconciled master surface registry** of the Orynqo platform. It answers:
 - **WHAT** surfaces exist across the entire platform.
 - **WHY** each surface exists and what user problem it solves.
 - **WHO** uses it (personas, roles, and access boundaries).
@@ -26,6 +26,16 @@ Phase `IA-03` establishes the **complete master surface registry** of the Orynqo
 
 This document serves as the permanent master blueprint for all subsequent UI/UX design phases (`UI-01`, `UI-02`, etc.) and future Golden Flows.
 
+### IA-03A Final Integrity Pass Summary of Corrections
+1. **Mathematical Accounting Reconciliation:** Reconciled every surface ID so that the canonical surface count equals the sum of mutually exclusive surface types and equals the sum of lifecycle classifications ($50 = \sum \text{Types} = \sum \text{Lifecycles}$).
+2. **Settings Registry Gap Closed:** Replaced informal taxonomy mentions with explicit canonical registry entries for Personal Settings (`PER-003`), Team Settings (`TEM-008`), Workspace Settings (`WKS-001` through `WKS-004`), and Enterprise Administration (`ADM-001` through `ADM-003`).
+3. **Full Team & Project Contract Representation:** Added canonical sub-surfaces for Team Overview (`TEM-002`), Team Projects (`TEM-004`), Team Docs (`TEM-005`), Project Docs (`PRJ-005`), and Project Activity (`PRJ-006`).
+4. **Saved View Reclassification:** Reclassified `VEW-002` as a `RESOURCE PAGE` (the canonical execution canvas for a persisted query) and `VEW-001` as a `PRIMARY PAGE` (the Saved Views Hub).
+5. **Cycle Resource Clarification:** Codified Cycle as a canonical domain resource scoped to Teams (`TEM` $\rightarrow$ `CYC`), with explicit lifecycle bounds, committed work, and non-automatic rollover semantics.
+6. **Provisional Constraints:** Marked keyboard shortcuts as *Candidate Shortcut / Interaction Intent*, dimensions as *Semantic Design Intent*, and implementation technologies as *Candidate Architecture — Not Frozen*.
+7. **Offline & Security Realism:** Scoped CORE offline behavior to Network Disconnection UX (safe state, banner, failure protection) rather than full offline multi-master sync; scoped Audit Log and SSO to realistic product requirements.
+8. **Architectural Guardrails Added:** Added Domain Ownership Matrix, Projection Compatibility Matrix, Mutation Consistency Contract, Permission Consistency Contract, Large-Scale Implementation Guardrails, and the Implementation Readiness Contract.
+
 ---
 
 ## 2. Frozen IA-02 Architecture Baseline
@@ -36,19 +46,19 @@ All surface registrations in this document strictly conform to the frozen naviga
    - `SIDEBAR = WHERE` (Scope, Organization, Team, or Container selection)
    - `RESOURCE NAVIGATION = WHAT` (Contextual facets: Overview, Work, Cycles, Projects, Docs, Triage, Members)
    - `PROJECTION CONTROLS = HOW` (Visual lenses: Grid, Board, Timeline, Calendar, Workload)
-   - `INSPECTOR = DETAIL WITHOUT CONTEXT LOSS` (Slide-over properties, specs, comments)
-   - `COMMAND PALETTE = LONG-TAIL DISCOVERY + ACTIONS` (`⌘K` instant navigation)
+   - `INSPECTOR = DETAIL WITHOUT CONTEXT LOSS` (Context-preserving slide-over properties, specs, comments)
+   - `COMMAND PALETTE = LONG-TAIL DISCOVERY + ACTIONS` (`⌘K` instant navigation and command execution)
 2. **Resource vs. Projection Law:** Projections (`Table Grid`, `Kanban Board`, `Timeline/Gantt`, `Workload`) are never top-level sidebar destinations. They are contextual presentation lenses over underlying resources.
 3. **Canonical Planning & Execution Hierarchy:**
-   ```
+   ```text
    Goal / Objective [future tier]
         ↓ supports
    Initiative [strategic planning resource]
         ↓ coordinates
    Project [bounded deliverable]
-        ├── Milestones (Planning & release checkpoint entities)
-        ├── Documents (Canonical Document model: Living Specs/PRDs, RFCs, Runbooks)
-        └── Work Items (Executable work units: Tasks, Issues, Bugs)
+        ├── Milestones (Planning & release checkpoint entities — NOT a WorkItem subtype)
+        ├── Documents (Canonical Document model: Living Specs/PRDs, RFCs, Runbooks — NOT a WorkItem subtype)
+        └── Work Items (Atomic executable units: Tasks, Issues, Bugs)
    ```
 4. **Docs as Global Knowledge Label:** Houses all knowledge artifacts under a single canonical document entity model.
 5. **Capability-Aware Teams:** Teams dynamically declare capabilities (`cycles`, `triage`, `projects`, `docs`, `automations`). Sprints/cycles are not mandatory for all squads.
@@ -57,11 +67,57 @@ All surface registrations in this document strictly conform to the frozen naviga
 
 ---
 
-## 3. Surface Taxonomy & Classification Scheme
+## 3. Surface Completeness Rule & Domain Resource vs. UI Surface
 
-To prevent the architectural trap of treating every interface as a traditional "web page", every Orynqo surface is classified into one of ten formal architectural surface types:
+### 3.1. Surface Completeness Rule
+To prevent artificial "registry inflation", a surface is registered in this master specification **if and only if** it has a distinct combination of:
+1. Primary user job.
+2. Navigation context / container.
+3. Interaction model.
+4. Access or permission boundary.
+5. Lifecycle and state requirements.
 
+A distinct surface is **NOT** created merely because:
+- A dataset has a different filter or sort applied.
+- A different document template/type exists within the same editor.
+- A different projection mode (Grid vs Board) is toggled over the same collection.
+- The same component appears inside another parent resource.
+- A settings page has a different sub-heading.
+
+### 3.2. Domain Resource vs. UI Surface
+A fundamental principle of Orynqo's scalable product architecture is that **a Domain Resource is not equivalent to a UI Surface**:
+
+```text
+DOMAIN RESOURCE (Data & Lifecycle Identity)
+≠
+UI SURFACE (Presentation, Context & Interaction)
 ```
+
+Examples of this distinction:
+- **`WorkItem` (Domain Resource):** Has canonical ID, title, status, relations. Rendered via:
+  - `WRK-001` (Universal Data Grid Projection)
+  - `WRK-002` (Kanban Board Projection)
+  - `WRK-005` (Work Item Inspector Drawer)
+  - `CMD-002` (Quick Create Modal)
+  - `DOC-002` (Embedded Living Spec Execution Table)
+- **`Document` (Domain Resource):** Has canonical ID, markdown/block tree, authors. Interacted with via:
+  - `DOC-001` (Docs Hub Primary Page)
+  - `DOC-002` (Canonical Document Canvas / Editor)
+  - `DOC-003` (Document Metadata & Version Inspector)
+- **`Project` (Domain Resource):** Has lifecycle bounds, leads, target quarter. Interacted with via:
+  - `PRJ-001` (Project Workspace Resource Page)
+  - `PRJ-002` (Project Overview Sub-Surface)
+  - `PRJ-003` (Project Work Sub-Surface)
+  - `PRJ-005` (Project Docs Sub-Surface)
+  - `PRJ-007` (Projects Directory)
+
+---
+
+## 4. Surface Taxonomy & Classification Scheme
+
+Every Orynqo surface is classified into one of ten mutually exclusive architectural surface types:
+
+```text
 ┌────────────────────────────────────────────────────────────────────────┐
 │                        SURFACE TYPE TAXONOMY                           │
 ├─────────────────────────┬──────────────────────────────────────────────┤
@@ -77,7 +133,7 @@ To prevent the architectural trap of treating every interface as a traditional "
 │                         │ container entity (Team Hub, Project, Doc).   │
 ├─────────────────────────┼──────────────────────────────────────────────┤
 │ 4. RESOURCE SUB-SURFACE │ Contextual tab or functional facet within a  │
-│                         │ parent Resource Page (Team Triage, Milestones│
+│                         │ parent Resource Page (Team Work, Milestones).│
 ├─────────────────────────┼──────────────────────────────────────────────┤
 │ 5. PROJECTION           │ Mathematical presentation lens over work item│
 │                         │ collections (Grid, Board, Timeline, Workload)│
@@ -95,20 +151,20 @@ To prevent the architectural trap of treating every interface as a traditional "
 │                         │ audit logs, and billing console.             │
 ├─────────────────────────┼──────────────────────────────────────────────┤
 │ 10. GLOBAL SYSTEM       │ Ambient system-wide state surfaces (Error    │
-│     SURFACE             │ boundaries, offline banners, pickers).       │
+│     SURFACE             │ boundaries, offline banners, tombstones).    │
 └─────────────────────────┴──────────────────────────────────────────────┘
 ```
 
 ---
 
-## 4. Master Registry Identifier Convention
+## 5. Master Registry Identifier Convention
 
 Every surface carries a permanent, collision-safe documentation registry ID:
 
-- `PER-xxx` : Personal Work Surfaces
+- `PER-xxx` : Personal Work & Settings Surfaces
 - `WRK-xxx` : Work Management Execution Surfaces & Projections
-- `TEM-xxx` : Team Surfaces
-- `PRJ-xxx` : Project Surfaces
+- `TEM-xxx` : Team Surfaces, Capabilities & Settings
+- `PRJ-xxx` : Project Surfaces, Sub-surfaces & Directory
 - `CYC-xxx` : Cycle & Cadence Surfaces
 - `INT-xxx` : Strategic Planning & Initiative Surfaces
 - `DOC-xxx` : Docs & Knowledge Surfaces
@@ -121,30 +177,30 @@ Every surface carries a permanent, collision-safe documentation registry ID:
 
 ---
 
-## 5. Complete Master Surface Registry
+## 6. Complete Master Surface Registry (50 Canonical Surfaces)
 
-### 5.1. Personal Domain (`PER`)
+### 6.1. Personal Domain (`PER`)
 
 #### `PER-001`: Personal Triage Inbox
 - **Name:** Personal Triage Inbox
 - **Surface Type:** PRIMARY PAGE
 - **Domain:** Personal Work
 - **Parent Resource:** Workspace Root
-- **Purpose:** Centralized, high-velocity clearinghouse for all actionable events directed at the user (mentions, assignments, review requests, thread replies). Solves notification fragmentation and email overflow.
+- **Purpose:** Centralized clearinghouse for actionable events directed at the user (mentions, assignments, review requests, thread replies). Solves notification fragmentation.
 - **Why Standalone:** Requires dedicated zero-mouse triage keyboard workflows (`e` archive, `z` snooze) and split-pane item inspection. Cannot be reduced to a popover.
 - **Actors:** All Authenticated Users.
 - **Scope:** Personal.
 - **Entities Read:** `NotificationEvent`, `WorkItem`, `Document`, `CommentThread`, `User`.
-- **Entities Mutated:** `NotificationEvent` (status: unread → read → archived/snoozed).
-- **Entry Points:** Global Sidebar `Inbox` link; Shortcut `G then I`; Command Palette `⌘K`; System Toast clicks.
-- **Navigation Lineage:** Root → Inbox.
+- **Entities Mutated:** `NotificationEvent` (status: unread $\rightarrow$ read $\rightarrow$ archived/snoozed).
+- **Entry Points:** Global Sidebar `Inbox` link; Shortcut `G then I` (candidate); Command Palette `⌘K`.
+- **Navigation Lineage:** Root $\rightarrow$ Inbox.
 - **Core Jobs:** Rapid triage of daily events; clearing unread backlog to reach "Inbox Zero"; opening context on assigned tasks.
 - **Contextual Projections:** Filter segments (`Unread`, `All`, `Snoozed`, `Archived`).
 - **Dependencies:** Work Item Inspector (`WRK-005`), Document Inspector (`DOC-003`).
-- **Permissions:** Available to all roles including Guests.
-- **Lifecycle & States:** Loading skeleton, Populated, Empty (Illustrated "Inbox Zero" achievement state), Error boundary.
-- **Keyboard Rules:** `j`/`k` list navigation, `e` archive, `z` snooze popover, `Enter` expand/inspect, `Shift+e` archive all.
-- **Responsive Translation:** On mobile, becomes full-screen list; tapping notification slides in detail view.
+- **Permissions:** All authenticated users, including external guests.
+- **Lifecycle & States:** Loading skeleton, Populated, Empty (Illustrated "Inbox Zero"), Error boundary.
+- **Keyboard Intent:** Rapid navigation (`j`/`k`), archive (`e`), snooze (`z`), expand/inspect (`Enter`), archive all (`Shift+e`).
+- **Responsive Translation:** Converts to full-width stream; tapping item pushes detail screen.
 - **MVP Classification:** **CORE**
 
 #### `PER-002`: My Work Cockpit
@@ -152,56 +208,75 @@ Every surface carries a permanent, collision-safe documentation registry ID:
 - **Surface Type:** PRIMARY PAGE
 - **Domain:** Personal Work
 - **Parent Resource:** Workspace Root
-- **Purpose:** Cross-team, multi-project aggregator of all executable work assigned to or authored by the user. Solves the *"What do I need to work on today?"* problem.
-- **Why Standalone:** Aggregates work across 10+ teams and projects without forcing the user to visit individual team boards.
+- **Purpose:** Cross-team, multi-project aggregator of all executable work assigned to or authored by the user. Answers: *"What do I need to execute today?"*
+- **Why Standalone:** Aggregates work across dozens of teams and projects without forcing the user to visit individual team boards.
 - **Actors:** All Authenticated Users.
 - **Scope:** Personal.
 - **Entities Read:** `WorkItem`, `Project`, `Team`, `Cycle`.
 - **Entities Mutated:** `WorkItem` (status, priority, estimates, due dates).
-- **Entry Points:** Global Sidebar `My Work` link; Shortcut `G then M`; Command Palette `⌘K`.
-- **Navigation Lineage:** Root → My Work.
+- **Entry Points:** Global Sidebar `My Work` link; Shortcut `G then M` (candidate); Command Palette `⌘K`.
+- **Navigation Lineage:** Root $\rightarrow$ My Work.
 - **Core Jobs:** Daily task prioritization; status updating; tracking assigned vs created issues.
 - **Contextual Sub-Segments:** Internal tabs: `Assigned to Me` | `Created by Me` | `Subscribed` | `Review Requests`.
 - **Projections:** Data Grid (`WRK-001`), Kanban Board (`WRK-002`), Timeline (`WRK-003`).
 - **Dependencies:** Work Item Inspector (`WRK-005`), Quick Create (`CMD-002`).
 - **Permissions:** All authenticated users.
-- **Lifecycle & States:** Loading skeleton, Populated, Filtered Empty, Stale/Offline sync banner.
-- **Keyboard Rules:** Full Data Grid navigation (`j`/`k`, `x` select, `s` status, `p` priority, `Enter` inspect).
+- **Lifecycle & States:** Loading skeleton, Populated, Filtered Empty, Stale/Reconnecting banner.
+- **Keyboard Intent:** Full Data Grid navigation (`j`/`k`, selection, status change, priority change, inspect).
+- **MVP Classification:** **CORE**
+
+#### `PER-003`: Personal User Settings & Preferences
+- **Name:** Personal User Settings & Preferences
+- **Surface Type:** SETTINGS PAGE
+- **Domain:** Personal Work
+- **Parent Resource:** Workspace Root
+- **Purpose:** Single consolidated surface for managing the user's personal identity, client preferences, and developer credentials.
+- **Why Standalone:** Decouples user-level personal customization from collaborative workspace administration.
+- **Actors:** Current Authenticated User.
+- **Scope:** Personal.
+- **Internal Sections:**
+  - `Profile & Account:` Full name, avatar, email, password/credentials, bio.
+  - `Preferences:` Theme (Dark/Light/System), Information Density (Compact/Default), Keyboard Shortcuts profile, Locale & Timezone.
+  - `Notifications:` Email digest frequency, desktop notifications, mention alerts, auto-subscribe rules.
+  - `Developer / Tokens:` Personal access tokens, authorized OAuth apps.
+- **Entry Points:** Sidebar user profile menu `Preferences`; Command Palette `⌘K`.
+- **Permissions:** Accessible strictly to the owning user.
+- **Lifecycle & States:** Loaded, Mutated (dirty form state with discard/save confirmation).
 - **MVP Classification:** **CORE**
 
 ---
 
-### 5.2. Work Management & Execution Projections (`WRK`)
+### 6.2. Work Management & Execution Projections (`WRK`)
 
 #### `WRK-001`: High-Density Data Grid Projection
 - **Name:** High-Density Data Grid Projection
 - **Surface Type:** PROJECTION
 - **Domain:** Work Management
-- **Parent Resource:** Rendered inside any Work container (`Team Work`, `Project Work`, `My Work`, `Cycle`).
-- **Purpose:** 28px/34px tabular projection optimized for extreme information throughput, rapid scanning, keyboard inline edits, and bulk actions.
-- **Why Projection:** Not a page; it is a presentation mode dynamically applied to any work item query.
+- **Parent Resource:** Rendered inside any Work container (`Team Work`, `Project Work`, `My Work`, `Cycle`, `Saved View`).
+- **Purpose:** Tabular projection optimized for maximum information density, rapid scanning, keyboard inline edits, and bulk actions.
+- **Why Projection:** Not an independent page; it is a presentation mode dynamically applied to any canonical work item query.
 - **Actors:** Engineers, Product Managers, Leads, Operations.
-- **Scope:** Contextual (inherits parent scope).
+- **Scope:** Contextual (inherits container scope).
 - **Entities Read:** `WorkItem[]`, `User[]`, `Project[]`, `Cycle[]`.
 - **Entities Mutated:** `WorkItem` inline property mutations.
-- **Core Jobs:** Scanning 50+ rows without paging; inline editing assignee, priority, status; multi-selection bulk operations.
-- **Inspector Dependencies:** Work Item Inspector (`WRK-005`).
-- **Keyboard Rules:** `Arrow` / `j`/`k` movement, `Enter` inspect, `x` multi-select, `s` status picker, `p` priority picker, `Space` open property cell.
-- **Accessibility:** Full `role="grid"`, `aria-rowindex`, accessible column header sorting announcements.
+- **Core Jobs:** Scanning 50+ rows without pagination lag; inline editing assignee, priority, status; multi-selection bulk operations.
+- **Dependencies:** Work Item Inspector (`WRK-005`), Context Pickers (`CMD-003`).
+- **Keyboard Intent:** Cell/row traversal (`Arrow` keys or `j`/`k`), row selection (`x`), open inspector (`Enter`), quick edit (`Space`).
+- **Accessibility:** Accessible table grid structure, column header sort announcements, focus ring preservation.
 - **MVP Classification:** **CORE**
 
 #### `WRK-002`: Workflow Kanban Board Projection
 - **Name:** Workflow Kanban Board Projection
 - **Surface Type:** PROJECTION
 - **Domain:** Work Management
-- **Parent Resource:** Rendered inside any Work container.
+- **Parent Resource:** Rendered inside any Work container (`Team Work`, `Project Work`, `My Work`, `Cycle`).
 - **Purpose:** Visual stage-gate drag-and-drop projection grouped by workflow status (`Backlog`, `Todo`, `In Progress`, `Review`, `Done`).
-- **Why Projection:** Lenses the exact same work items as the Data Grid in spatial column format.
+- **Why Projection:** Lenses the exact same work items as the Data Grid in spatial column format without data bifurcation.
 - **Actors:** Team Members, Scrum Leads, Designers.
 - **Scope:** Contextual.
 - **Entities Mutated:** `WorkItem.status`, `WorkItem.columnOrder`.
 - **Core Jobs:** Visualizing sprint flow; dragging items across status gates; identifying bottlenecks.
-- **Keyboard Rules:** Arrow navigation between cards and columns; `Enter` inspect; shortcut status move.
+- **Keyboard Intent:** Card-to-card navigation, column jumping, keyboard drag/move trigger.
 - **MVP Classification:** **CORE**
 
 #### `WRK-003`: Temporal Timeline / Gantt Projection
@@ -226,16 +301,16 @@ Every surface carries a permanent, collision-safe documentation registry ID:
 - **Name:** Work Item Inspector Drawer
 - **Surface Type:** INSPECTOR / DRAWER
 - **Domain:** Work Management
-- **Parent Resource:** Global Context (slides over any view).
+- **Parent Resource:** Global App Shell (slides over any view).
 - **Purpose:** Context-preserving detail editor for a selected work item. Displays full description, linked Living Specs, subtasks, activity log, and discussion comments without navigating away from the active list.
-- **Width:** 480px–640px resizable drawer.
-- **URL Backing:** `?inspect=OR-1082` (Deep linkable while preserving list background).
-- **Keyboard Rules:** `Escape` closes drawer and restores focus to triggering list row.
+- **Dimensions:** Resizable drawer with responsive semantic intent (accommodates high-density property inspection without obscuring underlying context).
+- **URL Backing:** Query param or contextual deep link (e.g. `?inspect=OR-1082` — proposed route taxonomy).
+- **Keyboard Intent:** `Escape` closes drawer and restores focus to triggering list row.
 - **MVP Classification:** **CORE**
 
 ---
 
-### 5.3. Team Domain (`TEM`)
+### 6.3. Team Domain (`TEM`)
 
 #### `TEM-001`: Team Hub Resource Page
 - **Name:** Team Hub Resource Page
@@ -246,11 +321,19 @@ Every surface carries a permanent, collision-safe documentation registry ID:
 - **Why Standalone:** Represents an organizational unit with distinct membership, permissions, workflows, and capabilities.
 - **Actors:** Team Members, Leads, Cross-team Collaborators.
 - **Scope:** Team.
-- **Contextual Tabs:** `Overview` | `Work` | `Cycles`* | `Projects` | `Docs` | `Triage`* | `Members`.
-- **Entry Points:** Sidebar Joined Teams list; Browse Teams Directory; Omnisearch `⌘K`.
+- **Contextual Tabs:** `Overview` (`TEM-002`) | `Work` (`TEM-003`) | `Cycles` (`CYC-001`) | `Projects` (`TEM-004`) | `Docs` (`TEM-005`) | `Triage` (`TEM-006`) | `Members` (`TEM-007`).
+- **Entry Points:** Sidebar Joined Teams list; Browse Teams Directory (`TEM-009`); Omnisearch `⌘K`.
 - **MVP Classification:** **CORE**
 
-#### `TEM-002`: Team Work Sub-Surface
+#### `TEM-002`: Team Overview Sub-Surface
+- **Name:** Team Overview Sub-Surface
+- **Surface Type:** RESOURCE SUB-SURFACE
+- **Domain:** Teams
+- **Parent Resource:** Team Hub (`TEM-001`)
+- **Purpose:** Executive landing dashboard for the squad. Displays mission statement, team leads, active cycle burndown preview, active project rollups, and pinned team runbooks.
+- **MVP Classification:** **CORE**
+
+#### `TEM-003`: Team Work Sub-Surface
 - **Name:** Team Work Sub-Surface
 - **Surface Type:** RESOURCE SUB-SURFACE
 - **Domain:** Teams
@@ -259,8 +342,24 @@ Every surface carries a permanent, collision-safe documentation registry ID:
 - **Projections Available:** Data Grid (`WRK-001`), Kanban Board (`WRK-002`).
 - **MVP Classification:** **CORE**
 
-#### `TEM-003`: Team Triage Stream Sub-Surface
-- **Name:** Team Triage Stream Sub-Surface
+#### `TEM-004`: Team Projects Sub-Surface
+- **Name:** Team Projects Sub-Surface
+- **Surface Type:** RESOURCE SUB-SURFACE
+- **Domain:** Teams
+- **Parent Resource:** Team Hub (`TEM-001`)
+- **Purpose:** Curated catalogue of projects owned by this team or where this team is a core contributor.
+- **MVP Classification:** **CORE**
+
+#### `TEM-005`: Team Docs Sub-Surface
+- **Name:** Team Docs Sub-Surface
+- **Surface Type:** RESOURCE SUB-SURFACE
+- **Domain:** Teams
+- **Parent Resource:** Team Hub (`TEM-001`)
+- **Purpose:** Contextual document collection filtering canonical knowledge artifacts (runbooks, team RFCs, meeting notes) owned by this squad.
+- **MVP Classification:** **CORE**
+
+#### `TEM-006`: Team Triage Queue Sub-Surface
+- **Name:** Team Triage Queue Sub-Surface
 - **Surface Type:** RESOURCE SUB-SURFACE
 - **Domain:** Teams
 - **Parent Resource:** Team Hub (`TEM-001`)
@@ -269,7 +368,7 @@ Every surface carries a permanent, collision-safe documentation registry ID:
 - **Actions:** Accept (move to backlog/cycle), Decline (close with reason), Mark Duplicate, Snooze.
 - **MVP Classification:** **POST-CORE**
 
-#### `TEM-004`: Team Members & Capacity Sub-Surface
+#### `TEM-007`: Team Members & Capacity Sub-Surface
 - **Name:** Team Members & Capacity Sub-Surface
 - **Surface Type:** RESOURCE SUB-SURFACE
 - **Domain:** Teams
@@ -277,27 +376,46 @@ Every surface carries a permanent, collision-safe documentation registry ID:
 - **Purpose:** Displays squad roster, roles (Team Lead, Contributor, Guest), historical velocity, and capacity settings.
 - **MVP Classification:** **CORE**
 
-#### `TEM-005`: Teams Directory
+#### `TEM-008`: Team Settings & Capabilities
+- **Name:** Team Settings & Capabilities
+- **Surface Type:** SETTINGS PAGE
+- **Domain:** Teams
+- **Parent Resource:** Team Hub (`TEM-001`)
+- **Purpose:** Dedicated administration surface for configuring squad parameters, capabilities, and workflows.
+- **Why Standalone:** Isolates team-specific operational parameters without cluttering workspace-wide governance.
+- **Actors:** Team Leads and Workspace Administrators.
+- **Scope:** Team.
+- **Internal Sections:**
+  - `General:` Team name, icon, key/prefix (e.g. `CORE-`), team mission, owning lead.
+  - `Membership & Roles:` Team member roster, assignment of Team Lead vs Contributor.
+  - `Capabilities:` Dynamic toggle flags for `Cycles`, `Triage`, `Estimation Points`, `Automations`.
+  - `Workflows & Statuses:` Custom team status mapping (if team-level workflow override is enabled).
+  - `Automations:` Inbound issue routing rules, auto-close stale triage items.
+- **Entry Points:** Team header gear icon; Command Palette `⌘K`.
+- **Permissions:** Team Leads and Workspace Admins.
+- **MVP Classification:** **CORE**
+
+#### `TEM-009`: Teams Directory
 - **Name:** Teams Directory
 - **Surface Type:** DIRECTORY
 - **Domain:** Teams
 - **Parent Resource:** Workspace Root
-- **Purpose:** Modal or browse page allowing users to discover, search, and join open teams across the organization without cluttering the persistent sidebar.
+- **Purpose:** Browse and discovery surface allowing users to search, inspect, and join open squads across the organization without cluttering the persistent sidebar.
 - **Entry Points:** Sidebar `+ Browse all teams...` link; Omnisearch `⌘K`.
 - **MVP Classification:** **CORE**
 
 ---
 
-### 5.4. Project Domain (`PRJ`)
+### 6.4. Project Domain (`PRJ`)
 
 #### `PRJ-001`: Project Workspace Resource Page
 - **Name:** Project Workspace Resource Page
 - **Surface Type:** RESOURCE PAGE
 - **Domain:** Projects
-- **Parent Resource:** Workspace / Owning Team
-- **Purpose:** Canonical environment for bounded, time-scoped initiatives (e.g. "Offline Sync Protocol v2").
-- **Contextual Tabs:** `Overview` | `Work` | `Docs` | `Milestones` | `Activity`.
-- **Entry Points:** Team Projects tab; Initiatives rollup; Sidebar Favorites; Omnisearch `⌘K`.
+- **Parent Resource:** Workspace Root / Contributing Teams
+- **Purpose:** Canonical environment for bounded, time-scoped initiatives (e.g. "Payment Gateway Migration").
+- **Contextual Tabs:** `Overview` (`PRJ-002`) | `Work` (`PRJ-003`) | `Milestones` (`PRJ-004`) | `Docs` (`PRJ-005`) | `Activity` (`PRJ-006`).
+- **Entry Points:** Team Projects tab; Initiatives rollup; Sidebar Favorites; Projects Directory (`PRJ-007`); Omnisearch `⌘K`.
 - **MVP Classification:** **CORE**
 
 #### `PRJ-002`: Project Overview Sub-Surface
@@ -322,38 +440,54 @@ Every surface carries a permanent, collision-safe documentation registry ID:
 - **Surface Type:** RESOURCE SUB-SURFACE
 - **Domain:** Projects
 - **Parent Resource:** Project Workspace (`PRJ-001`)
-- **Purpose:** Checkpoint dates and release gates (e.g. "Alpha Internal Dogfooding", "Public Beta"). Not work items—milestones aggregate work items to compute automated readiness percentages.
+- **Purpose:** Checkpoint dates and release gates (e.g. "Alpha Internal Dogfooding", "Public Beta"). Milestones aggregate work items to compute automated readiness percentages.
 - **MVP Classification:** **CORE**
 
-#### `PRJ-005`: Projects Directory
+#### `PRJ-005`: Project Docs Sub-Surface
+- **Name:** Project Docs Sub-Surface
+- **Surface Type:** RESOURCE SUB-SURFACE
+- **Domain:** Projects
+- **Parent Resource:** Project Workspace (`PRJ-001`)
+- **Purpose:** Filtered collection of Living Specs, PRDs, and architecture RFCs attached to this project.
+- **MVP Classification:** **CORE**
+
+#### `PRJ-006`: Project Activity & History Sub-Surface
+- **Name:** Project Activity & History Sub-Surface
+- **Surface Type:** RESOURCE SUB-SURFACE
+- **Domain:** Projects
+- **Parent Resource:** Project Workspace (`PRJ-001`)
+- **Purpose:** Contextual chronological stream of all status changes, milestone completions, work item linkings, and membership changes for this project.
+- **MVP Classification:** **CORE**
+
+#### `PRJ-007`: Projects Directory
 - **Name:** Projects Directory
 - **Surface Type:** DIRECTORY
 - **Domain:** Projects
 - **Parent Resource:** Workspace Root
 - **Purpose:** Searchable, filterable catalogue of all active, completed, and archived projects across the entire workspace.
-- **Entry Points:** Subtle link in `Initiatives`; Command Palette `⌘K`; Route `/projects`.
+- **Entry Points:** Command Palette `⌘K`; link from Initiatives; URL route.
 - **MVP Classification:** **CORE**
 
 ---
 
-### 5.5. Cycle & Iteration Domain (`CYC`)
+### 6.5. Cycle & Iteration Domain (`CYC`)
 
-#### `CYC-001`: Active Cycle Surface
-- **Name:** Active Cycle Surface
+#### `CYC-001`: Active Cycle Execution Sub-Surface
+- **Name:** Active Cycle Execution Sub-Surface
 - **Surface Type:** RESOURCE SUB-SURFACE
 - **Domain:** Cycles
 - **Parent Resource:** Team Hub (`TEM-001`)
-- **Purpose:** High-intensity 2-week execution cockpit. Displays active sprint burndown, cycle dates, commitment scope, and active work grid.
+- **Purpose:** High-intensity timeboxed execution cockpit. Displays active sprint burndown, cycle dates, commitment scope, and active work grid.
 - **Capability Requirement:** `team.capabilities.cycles === true`.
 - **Sidebar Integration:** Appears as `Current Cycle` sub-link under joined teams in the sidebar.
 - **MVP Classification:** **CORE**
 
-#### `CYC-002`: Cycle Planning & Backlog Management
-- **Name:** Cycle Planning & Backlog Management
+#### `CYC-002`: Cycle Planning & Backlog Management Sub-Surface
+- **Name:** Cycle Planning & Backlog Management Sub-Surface
 - **Surface Type:** RESOURCE SUB-SURFACE
 - **Domain:** Cycles
 - **Parent Resource:** Team Hub (`TEM-001`)
-- **Purpose:** Sprint planning workspace: left pane shows unprioritized team backlog; right pane shows upcoming cycle candidate list. Supports drag-and-drop commitment planning.
+- **Purpose:** Sprint planning workspace: left pane shows unprioritized team backlog; right pane shows upcoming cycle candidate list. Supports explicit rollover review of uncompleted work items.
 - **MVP Classification:** **CORE**
 
 #### `CYC-003`: Cycle History & Retrospective Directory
@@ -366,7 +500,7 @@ Every surface carries a permanent, collision-safe documentation registry ID:
 
 ---
 
-### 5.6. Strategic Planning & Initiatives Domain (`INT`)
+### 6.6. Strategic Planning & Initiatives Domain (`INT`)
 
 #### `INT-001`: Initiatives Portfolio Primary Page
 - **Name:** Initiatives Portfolio Primary Page
@@ -374,11 +508,8 @@ Every surface carries a permanent, collision-safe documentation registry ID:
 - **Domain:** Strategic Planning
 - **Parent Resource:** Workspace Root
 - **Purpose:** Top-level executive and cross-functional roadmap dashboard. Displays high-level strategic initiatives and health rollups across all engineering and product teams.
-- **Projections Available:**
-  - **Portfolio Table:** High-density status table with progress bars, owners, target quarters.
-  - **Roadmap:** Multi-quarter interactive Gantt bar view.
-  - **Health Matrix:** Grouped risk cards (On Track, At Risk, Delayed).
-- **Entry Points:** Global Sidebar `Initiatives` link; Shortcut `G then N`.
+- **Projections Available:** Portfolio Table, Multi-quarter Roadmap Gantt, Health Matrix.
+- **Entry Points:** Global Sidebar `Initiatives` link; Shortcut `G then N` (candidate).
 - **MVP Classification:** **CORE**
 
 #### `INT-002`: Initiative Detail Resource Page
@@ -386,28 +517,28 @@ Every surface carries a permanent, collision-safe documentation registry ID:
 - **Surface Type:** RESOURCE PAGE
 - **Domain:** Strategic Planning
 - **Parent Resource:** Initiatives Hub (`INT-001`)
-- **Purpose:** Deep dive into a specific multi-month strategic initiative (e.g. "Enterprise Scale 2026"). Displays connected projects, cross-project blockers, and executive status updates.
+- **Purpose:** Deep dive into a specific multi-month strategic initiative. Displays connected projects, cross-project blockers, and executive status updates.
 - **MVP Classification:** **CORE**
 
-#### `INT-003`: Future Goals / OKRs Extension
-- **Name:** Future Goals / OKRs Extension
+#### `INT-003`: Strategic Goals & OKRs Extension
+- **Name:** Strategic Goals & OKRs Extension
 - **Surface Type:** RESOURCE PAGE
 - **Domain:** Strategic Planning
 - **Parent Resource:** Organization Root
 - **Purpose:** Strategic objective tracking sitting above Initiatives.
-- **Status:** **FUTURE** (Schema placeholder only; no UI built in MVP).
+- **Status:** **FUTURE** (Schema and hierarchy placeholder only; no UI built in MVP).
 
 ---
 
-### 5.7. Docs & Knowledge Domain (`DOC`)
+### 6.7. Docs & Knowledge Domain (`DOC`)
 
 #### `DOC-001`: Docs Hub Primary Page
 - **Name:** Docs Hub Primary Page
 - **Surface Type:** PRIMARY PAGE
 - **Domain:** Knowledge
 - **Parent Resource:** Workspace Root
-- **Purpose:** The centralized knowledge portal for the entire organization. Hosts Living Specs, RFCs, Engineering Runbooks, and general wiki pages under a unified document model.
-- **Entry Points:** Global Sidebar `Docs` link; Shortcut `G then D`.
+- **Purpose:** Centralized knowledge portal for the organization. Hosts Living Specs, RFCs, Engineering Runbooks, and wiki pages under a unified document model.
+- **Entry Points:** Global Sidebar `Docs` link; Shortcut `G then D` (candidate).
 - **Sections:** `Recent Docs`, `Living Specs Directory`, `Team Runbooks`, `My Drafts`, `Templates`.
 - **MVP Classification:** **CORE**
 
@@ -429,48 +560,49 @@ Every surface carries a permanent, collision-safe documentation registry ID:
 
 ---
 
-### 5.8. Saved Views Domain (`VEW`)
+### 6.8. Saved Views Domain (`VEW`)
 
-#### `VEW-001`: Saved Views Directory
-- **Name:** Saved Views Directory
+#### `VEW-001`: Saved Views Hub Primary Page
+- **Name:** Saved Views Hub Primary Page
 - **Surface Type:** PRIMARY PAGE
 - **Domain:** Saved Views
 - **Parent Resource:** Workspace Root
-- **Purpose:** Hub for discovering and managing multi-dimensional saved queries across Personal, Team, and Workspace scopes.
+- **Purpose:** Hub for discovering, categorizing, and managing multi-dimensional saved queries across Personal, Team, and Workspace scopes.
 - **Entry Points:** Global Sidebar `Views` link.
 - **MVP Classification:** **CORE**
 
-#### `VEW-002`: View Execution Canvas
-- **Name:** View Execution Canvas
-- **Surface Type:** RESOURCE SUB-SURFACE
+#### `VEW-002`: Saved View Execution Canvas
+- **Name:** Saved View Execution Canvas
+- **Surface Type:** RESOURCE PAGE
 - **Domain:** Saved Views
 - **Parent Resource:** Views Hub (`VEW-001`)
-- **Purpose:** Renders the persisted query in the saved projection format (Data Grid, Kanban, or Timeline) with real-time reactive filtering.
+- **Purpose:** Dedicated execution environment rendering a specific persisted query in its configured projection (Data Grid, Kanban, or Timeline) with reactive filtering.
+- **Why Resource Page:** Has a canonical URL, shareable identity, distinct query parameters, and independent presentation configuration.
 - **MVP Classification:** **CORE**
 
 ---
 
-### 5.9. Collaboration & Notifications Domain (`COL`)
+### 6.9. Collaboration & Notifications Domain (`COL`)
 
 #### `COL-001`: Threaded Discussion Inspector Panel
 - **Name:** Threaded Discussion Inspector Panel
 - **Surface Type:** INSPECTOR / DRAWER
 - **Domain:** Collaboration
 - **Parent Resource:** Embedded in Work Item Inspector (`WRK-005`) and Doc Inspector (`DOC-003`).
-- **Purpose:** Real-time conversational comments, @mentions, rich attachments, and emoji reactions attached to canonical entities.
+- **Purpose:** Conversational comments, @mentions, rich attachments, and emoji reactions attached to canonical entities.
 - **MVP Classification:** **CORE**
 
 #### `COL-002`: Activity & Audit Trail Panel
 - **Name:** Activity & Audit Trail Panel
 - **Surface Type:** INSPECTOR / DRAWER
 - **Domain:** Collaboration
-- **Parent Resource:** Contextual tab/panel in Project, Team, or Work Item.
-- **Purpose:** Immutable chronological history of property mutations, branch links, pull requests, and status transitions.
+- **Parent Resource:** Contextual panel in Project, Team, or Work Item.
+- **Purpose:** Chronological history of property mutations, branch links, pull requests, and status transitions.
 - **MVP Classification:** **CORE**
 
 ---
 
-### 5.10. Search, Command Palette & Pickers (`CMD`)
+### 6.10. Search, Command Palette & Pickers (`CMD`)
 
 #### `CMD-001`: Command Palette & Omnisearch
 - **Name:** Command Palette & Omnisearch
@@ -487,13 +619,13 @@ Every surface carries a permanent, collision-safe documentation registry ID:
 - **Surface Type:** OVERLAY
 - **Domain:** Search & Commands
 - **Parent Resource:** Global App Shell
-- **Purpose:** Rapid work item creation dialog accessible from anywhere via single key `c`.
+- **Purpose:** Rapid work item creation dialog accessible from anywhere via single key `c` (candidate).
 - **Submit Shortcut:** `⌘+Enter` to submit and stay open; `Enter` to create and inspect.
 - **MVP Classification:** **CORE**
 
-#### `CMD-003`: Entity Context Pickers (Status, Priority, User, Team, Project)
-- **Name:** Entity Context Pickers
-- **Surface Type:** OVERLAY (Anchored Popover)
+#### `CMD-003`: Entity Context Pickers
+- **Name:** Entity Context Pickers (Status, Priority, User, Team, Project, Cycle)
+- **Surface Type:** OVERLAY
 - **Domain:** Search & Commands
 - **Parent Resource:** Contextual (anchored to grid cells, inspectors, or forms).
 - **Purpose:** High-density, keyboard-searchable dropdown pickers for rapid attribute assignment without mouse hunting.
@@ -501,15 +633,15 @@ Every surface carries a permanent, collision-safe documentation registry ID:
 
 ---
 
-### 5.11. Workspace Administration Domain (`WKS`)
+### 6.11. Workspace Administration Domain (`WKS`)
 
 #### `WKS-001`: Workspace General Settings
 - **Name:** Workspace General Settings
 - **Surface Type:** SETTINGS PAGE
 - **Domain:** Workspace Administration
 - **Parent Resource:** Workspace Root
-- **Purpose:** Workspace name, URL slug, default workflow statuses, priority definitions, and icon.
-- **Entry Points:** Bottom utility gear `Settings > Workspace`.
+- **Purpose:** Workspace name, URL slug, branding icon, default timezones, and base permissions.
+- **Entry Points:** Settings menu `Settings > Workspace > General`.
 - **MVP Classification:** **CORE**
 
 #### `WKS-002`: Workspace Members & Guest Directory
@@ -517,60 +649,60 @@ Every surface carries a permanent, collision-safe documentation registry ID:
 - **Surface Type:** SETTINGS PAGE
 - **Domain:** Workspace Administration
 - **Parent Resource:** Workspace Root
-- **Purpose:** Managing workspace member invitations, role assignments (Member vs Guest), and team assignments.
+- **Purpose:** Managing workspace member invitations, role assignments (Admin, Member, Guest), team assignments, and deactivations.
 - **MVP Classification:** **CORE**
 
-#### `WKS-003`: Workflow Status & Custom Fields Editor
-- **Name:** Workflow Status & Custom Fields Editor
+#### `WKS-003`: Workspace Work Configuration
+- **Name:** Workspace Work Configuration
 - **Surface Type:** SETTINGS PAGE
 - **Domain:** Workspace Administration
 - **Parent Resource:** Workspace Root
-- **Purpose:** Configuring team workflow state machines, transition validations, and custom metadata fields.
+- **Purpose:** Configuring workspace-wide status taxonomies, priority schemas, custom fields, issue templates, and workflow transition validations.
 - **MVP Classification:** **POST-CORE**
 
-#### `WKS-004`: Third-Party Integrations Hub
-- **Name:** Third-Party Integrations Hub
+#### `WKS-004`: Workspace Integrations & Webhooks Hub
+- **Name:** Workspace Integrations & Webhooks Hub
 - **Surface Type:** SETTINGS PAGE
 - **Domain:** Workspace Administration
 - **Parent Resource:** Workspace Root
-- **Purpose:** Managing bi-directional Git sync (GitHub, GitLab), Slack/Zendesk webhooks, and Figma embeds.
+- **Purpose:** Managing bi-directional VCS integrations (GitHub, GitLab), Slack alerts, custom webhook endpoints, and API tokens.
 - **MVP Classification:** **POST-CORE**
 
 ---
 
-### 5.12. Enterprise & Organization Administration Domain (`ADM`)
+### 6.12. Enterprise & Organization Administration Domain (`ADM`)
 
-#### `ADM-001`: Organization Identity & SSO/SCIM
-- **Name:** Organization Identity & SSO/SCIM
+#### `ADM-001`: Organization Identity & Access
+- **Name:** Organization Identity & Access
 - **Surface Type:** ADMIN PAGE
 - **Domain:** Enterprise Administration
 - **Parent Resource:** Organization Root
-- **Purpose:** Enterprise authentication governance: SAML 2.0 / OIDC configuration, SCIM user auto-provisioning, enforced 2FA, session timeouts.
+- **Purpose:** Enterprise identity governance: SAML 2.0 / OIDC configuration, SCIM user auto-provisioning, enforced 2FA, and session duration policies.
 - **Permissions:** Organization Owner & Enterprise Security Admins strictly.
 - **MVP Classification:** **ENTERPRISE**
 
-#### `ADM-002`: Enterprise Forensic Audit Log
-- **Name:** Enterprise Forensic Audit Log
+#### `ADM-002`: Organization Security, Audit & Retention
+- **Name:** Organization Security, Audit & Retention
 - **Surface Type:** ADMIN PAGE
 - **Domain:** Enterprise Administration
 - **Parent Resource:** Organization Root
-- **Purpose:** Immutable, searchable security audit log recording every user authentication, permission change, data export, and document access with IP, timestamp, and actor diffs.
+- **Purpose:** Enterprise security audit log recording administrative operations, authentication events, permission alterations, and data retention policies.
 - **MVP Classification:** **ENTERPRISE**
 
-#### `ADM-003`: Organization Billing & Subscription Console
-- **Name:** Organization Billing & Subscription Console
+#### `ADM-003`: Organization Billing & Quotas Console
+- **Name:** Organization Billing & Quotas Console
 - **Surface Type:** ADMIN PAGE
 - **Domain:** Enterprise Administration
 - **Parent Resource:** Organization Root
-- **Purpose:** Enterprise tier management, seat licensing, invoice downloads, usage quotas.
+- **Purpose:** Subscription tier management, seat licensing, invoice downloads, and platform usage limits.
 - **MVP Classification:** **ENTERPRISE**
 
 ---
 
-### 5.13. Global System Surfaces (`SYS`)
+### 6.13. Global System Surfaces (`SYS`)
 
-#### `SYS-001`: Global 404 Not Found & Resource Tombstone
-- **Name:** Global 404 Not Found & Resource Tombstone
+#### `SYS-001`: Global 404 & Resource Tombstone
+- **Name:** Global 404 & Resource Tombstone
 - **Surface Type:** GLOBAL SYSTEM SURFACE
 - **Domain:** Global System
 - **Purpose:** Informs user when a resource has been deleted, archived, or transferred, offering recovery links and search suggestions.
@@ -580,238 +712,329 @@ Every surface carries a permanent, collision-safe documentation registry ID:
 - **Name:** Permission Denied & Access Request Gateway
 - **Surface Type:** GLOBAL SYSTEM SURFACE
 - **Domain:** Global System
-- **Purpose:** Replaces jarring 403 errors with a clean, branded surface explaining required access and providing a 1-click "Request Access from Admin" flow.
+- **Purpose:** Replaces jarring 403 errors with a clean surface explaining required access and providing a 1-click "Request Access" action.
 - **MVP Classification:** **CORE**
 
-#### `SYS-003`: Offline Sync & Disconnection Banner
-- **Name:** Offline Sync & Disconnection Banner
+#### `SYS-003`: Network Disconnection & Sync Status Banner
+- **Name:** Network Disconnection & Sync Status Banner
 - **Surface Type:** GLOBAL SYSTEM SURFACE
 - **Domain:** Global System
-- **Purpose:** Ambient non-blocking indicator signaling network disconnection, optimistic offline caching, and real-time reconciliation status.
+- **Purpose:** Ambient non-blocking indicator signaling network disconnection, read-only/stale state safeguards, and retry/reconnect progress.
 - **MVP Classification:** **CORE**
 
 ---
 
-## 6. Duplicate & Redundant Surface Consolidation Decisions
+## 7. Canonical Domain Ownership Matrix
 
-To prevent the common architectural failure of "page explosion" (seen in Jira and ClickUp), we enforce strict consolidation rules:
+The following matrix defines the canonical domain ownership, routing capability, and rendering surfaces for every core product resource:
 
-| Candidate Separate Surface | Architectural Decision | Consolidation Rationale |
-| :--- | :--- | :--- |
-| **"Assigned to Me" Page**<br>**"Created by Me" Page**<br>**"Subscribed Issues" Page** | **CONSOLIDATED into `PER-002 (My Work)`** | Users should not context-switch across three separate pages to understand their personal responsibilities. They are internal segmented tabs over one personal query model. |
-| **"Roadmap" Page**<br>**"Portfolio" Page**<br>**"Initiative Health" Page** | **CONSOLIDATED into `INT-001 (Initiatives)`** | Roadmaps and Portfolios are not separate resources; they are projection lenses over the exact same Strategic Initiative entities. |
-| **"Living Spec" Page**<br>**"RFC" Page**<br>**"Runbook" Page** | **CONSOLIDATED into `DOC-002 (Document Editor)`** | All document types share the same editor, block canvas, and bi-directional table sync. Differentiated via a `docType` template metadata attribute. |
-| **"Calendar View" Page**<br>**"Gantt View" Page** | **CONSOLIDATED into Contextual Projections (`WRK-003`)** | Projections are mathematical lenses over work items, never permanent sidebar pages. |
-| **"Notifications Page" vs "Inbox"** | **CONSOLIDATED into `PER-001 (Inbox)`** | Having both an "Inbox" and a "Notification Center" creates confusing split-attention. The Inbox is the single user-facing actionable notification surface. |
-
----
-
-## 7. Canonical Resource Relationship Maps
-
-```
-Organization (Legal & Billing Tenant)
-  └── Workspace (Collaboration Environment)
-        ├── Initiatives (Strategic Themes)
-        │     └── Projects (Bounded Deliverables)
-        │           ├── Milestones (Planning Checkpoints)
-        │           ├── Documents (Living Specs, RFCs)
-        │           │     └── [Bi-directional embed blocks] ──┐
-        │           └── Work Items ◄─────────────────────────┘
-        │
-        ├── Teams (Functional Execution Squads)
-        │     ├── Cycles (Sprint Cadences)
-        │     │     └── Work Items (Committed Sprint Scope)
-        │     ├── Team Backlog (Unscheduled Work Items)
-        │     └── Team Docs (Runbooks, Specs)
-        │
-        └── Users / Members
-              ├── Personal Inbox (Triage Events)
-              ├── My Work (Personal Issue Rollup)
-              └── Favorites (Dynamic Pointers)
+```text
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                   CANONICAL DOMAIN OWNERSHIP MATRIX                                    │
+├───────────────┬──────────────┬──────────────────┬───────────────┬──────────────┬───────────────────────┤
+│ Resource      │ Owning Scope │ Canonical ID     │ Routable?     │ Permissioned?│ Primary Surfaces      │
+├───────────────┼──────────────┼──────────────────┼───────────────┼──────────────┼───────────────────────┤
+│ Organization  │ Enterprise   │ `org_id`         │ Yes (admin)   │ Yes (Org RBAC│ `ADM-001/002/003`     │
+│ Workspace     │ Organization │ `workspace_slug` │ Yes (context) │ Yes (Wks RBAC│ `WKS-001/002/003/004` │
+│ User          │ Organization │ `user_id`        │ No (profile)  │ Yes (Auth)   │ `PER-003`, `WKS-002`  │
+│ Team          │ Workspace    │ `team_key`       │ Yes (hub)     │ Yes (TeamRole│ `TEM-001` to `TEM-008`│
+│ Project       │ Workspace    │ `project_id`     │ Yes (workspace│ Yes (Project)│ `PRJ-001` to `PRJ-006`│
+│ Initiative    │ Workspace    │ `initiative_id`  │ Yes (detail)  │ Yes (WksRole)│ `INT-001`, `INT-002`  │
+│ Cycle         │ Team         │ `cycle_id`       │ Yes (sub-path)│ Yes (Team)   │ `CYC-001`, `CYC-002`  │
+│ Milestone     │ Project      │ `milestone_id`   │ Contextual    │ Inherits Prj │ `PRJ-004`             │
+│ WorkItem      │ Workspace    │ `item_key`       │ Yes (inspect) │ Yes (Item/Prj│ `WRK-001/002/005`     │
+│ Document      │ Workspace    │ `doc_id`         │ Yes (canvas)  │ Yes (Doc ACL)│ `DOC-001`, `DOC-002`  │
+│ SavedView     │ Contextual   │ `view_id`        │ Yes (canvas)  │ Yes (ViewACL)│ `VEW-001`, `VEW-002`  │
+│ Favorite      │ User         │ `favorite_id`    │ Pointer only  │ Inherits tgt │ Sidebar Favorites     │
+│ NotifEvent    │ User         │ `event_id`       │ Pointer only  │ Private User │ `PER-001`             │
+│ CommentThread │ Entity       │ `thread_id`      │ Contextual    │ Inherits host│ `COL-001`             │
+│ ActivityEvent │ Entity       │ `activity_id`    │ Log stream    │ Inherits host│ `COL-002`, `PRJ-006`  │
+└───────────────┴──────────────┴──────────────────┴───────────────┴──────────────┴───────────────────────┘
 ```
 
 ---
 
-## 8. Master Cross-Surface User Flows
+## 8. Projection Compatibility Matrix
 
-These 6 canonical cross-surface journeys define how Orynqo operates end-to-end and will dictate the sequence of our future Golden Flows:
+To prevent individual pages from developing divergent, incompatible projection implementations, all projections must consume the **exact same canonical Work Item query model**:
 
-### Journey 1: The Daily Triage & Execution Flow
-`Global Sidebar` → **Inbox (`PER-001`)** → Press `j`/`k` to select mention → **Inspector Drawer (`WRK-005`)** opens → Press `e` to archive → Press `G then M` to jump to **My Work (`PER-002`)** → Update status to `In Progress` in **Data Grid (`WRK-001`)**.
+```text
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                   PROJECTION COMPATIBILITY MATRIX                                      │
+├─────────────────────┬───────────────────┬───────────────────┬───────────────────┬──────────────────────┤
+│ Surface Destination │ Data Grid         │ Kanban Board      │ Timeline / Gantt  │ Capacity / Workload  │
+│                     │ (`WRK-001`)       │ (`WRK-002`)       │ (`WRK-003`)       │ (`WRK-004`)          │
+├─────────────────────┼───────────────────┼───────────────────┼───────────────────┼──────────────────────┤
+│ **My Work**         │ Supported (CORE)  │ Supported (CORE)  │ Validation Req.   │ Incompatible         │
+│ **Team Work**       │ Supported (CORE)  │ Supported (CORE)  │ Supported (POST)  │ Supported (POST)     │
+│ **Active Cycle**    │ Supported (CORE)  │ Supported (CORE)  │ Validation Req.   │ Supported (POST)     │
+│ **Project Work**    │ Supported (CORE)  │ Supported (CORE)  │ Supported (CORE)  │ Incompatible         │
+│ **Initiatives**     │ Supported (CORE)  │ Validation Req.   │ Supported (CORE)  │ Incompatible         │
+│ **Saved View**      │ Supported (CORE)  │ Supported (CORE)  │ Supported (POST)  │ Validation Req.      │
+│ **Living Spec Doc** │ Supported (CORE)  │ Incompatible      │ Incompatible      │ Incompatible         │
+└─────────────────────┴───────────────────┴───────────────────┴───────────────────┴──────────────────────┘
+```
 
-### Journey 2: The Living Spec to Ticket Generation Flow
-`Global Sidebar` → **Docs Hub (`DOC-001`)** → Open **PRD: Offline Sync (`DOC-002`)** → Highlight architecture paragraph → Click "Convert to Work Item" → New canonical **Work Item** created → Live bi-directional status pill embeds into the document table.
-
-### Journey 3: The Sprint Cycle Execution Flow
-`Global Sidebar` → **Team Hub: Core Platform (`TEM-001`)** → Click **Active Cycle 42 (`CYC-001`)** → Toggle projection to **Kanban Board (`WRK-002`)** → Drag blocker to `In Review` → Open **Inspector (`WRK-005`)** to tag reviewer.
-
-### Journey 4: The Strategic Planning & Milestone Review Flow
-`Global Sidebar` → **Initiatives (`INT-001`)** → Toggle to **Roadmap Timeline** → Inspect cross-project dependency → Drill down into **Project Workspace (`PRJ-001`)** → Review **Project Milestones (`PRJ-004`)**.
-
-### Journey 5: Rapid Zero-Mouse Omnisearch Navigation
-Anywhere in app → Press `⌘K` → **Command Palette (`CMD-001`)** opens → Type `"Atlas"` → ArrowDown to select Project → Press `Enter` → Instantly arrive at **Project Work (`PRJ-003`)**.
-
-### Journey 6: Unvetted Issue Ingestion & Triage
-External bug webhook fires → Lands in **Team Triage Queue (`TEM-003`)** → Lead engineer reviews ticket → Press `a` (Accept) → Item moves into **Team Backlog / Next Cycle (`CYC-002`)**.
+**Fundamental Invariant:** All projections receive items through a common projection pipeline:
+$$\text{Canonical WorkItem Store} \longrightarrow \text{Query/Filter Pipeline} \longrightarrow \text{Projection Adapter (Grid / Board / Timeline)}$$
+No projection maintains an independent or divergent WorkItem model.
 
 ---
 
-## 9. Comprehensive Settings Taxonomy
+## 9. Mutation & Permission Consistency Contracts
 
-Settings are isolated into four disciplined architectural tiers, keeping the primary execution sidebar clean:
+### 9.1. Mutation Consistency Contract
+Whenever a property on a `WorkItem` is mutated (via inline cell edit, drag-and-drop column move, quick create, inspector update, or living spec table modification), the mutation targets the **single canonical WorkItem**:
 
+```text
+User Mutates Property (in Grid, Board, Inspector, My Work, Cycle, or Living Spec Table)
+                                      │
+                                      ▼
+                        CANONICAL WORKITEM DOMAIN STORE
+                                      │
+           ┌──────────────────────────┼──────────────────────────┐
+           ▼                          ▼                          ▼
+  Data Grid Updates          Kanban Board Updates       Living Spec Table Updates
+ (Active selection preserved) (Card moves smoothly)     (Embedded pill reconciles)
 ```
+
+**Behavioral Requirements:**
+- View layers must not maintain detached local clones of domain state.
+- A status transition made in `WRK-005` (Inspector) instantly reflects in the underlying `WRK-001` (Grid) without requiring a manual page refresh.
+- Submitting an update optimistically updates the cache and rolls back cleanly on error with an ambient toast notification.
+
+### 9.2. Permission Consistency Contract
+Access control must be enforced symmetrically across all presentation surfaces:
+1. **No Leakage via Search:** Omnisearch (`CMD-001`) must strictly filter results using the reader's permission envelope before rendering titles or snippets.
+2. **No Leakage via Saved Views:** A public Saved View (`VEW-002`) executed by a restricted user must automatically omit work items belonging to private teams the user cannot view.
+3. **No Leakage via Favorites:** If a user loses access to a project, the corresponding sidebar favorite renders as a disabled/restricted item.
+4. **Living Spec Document Embeds (Baseline Rule):**
+   When a Document (`DOC-002`) contains an embedded Work Item table and the viewer lacks permission to access an embedded item:
+   ```text
+   ┌────────────────────────────────────────────────────────────────────────┐
+   │ [Restricted work item]                                                │
+   │ You don't have access to this item.                    [Request Access]│
+   └────────────────────────────────────────────────────────────────────────┘
+   ```
+   **Strict Privacy Rule:** The system displays a structural placeholder to preserve document layout, but **reveals no protected content** (no title, description, assignee, priority, status, or comment snippets).
+
+---
+
+## 10. Baseline Product Behaviors
+
+### 10.1. Cycle Rollover Baseline Behavior
+When a sprint cycle completes (`CYC-001`), unfinished committed work items are **not automatically rolled over into the next cycle**:
+```text
+Cycle Completes
+      ↓
+Incomplete Committed Items
+      ↓
+Return to Team Backlog / Rollover Review Queue (`CYC-002`)
+      ↓
+Squad Lead explicitly assigns items to next cycle during planning
+```
+*Rationale:* Silent automatic rollover conceals planning debt and causes unprioritized tasks to linger indefinitely. Explicit rollover preserves deliberate sprint commitment.
+
+### 10.2. Network Disconnection & Offline Baseline Behavior
+For the CORE platform, offline support is defined as **Network Disconnection UX**, not multi-master offline synchronization:
+- The system detects offline status immediately and renders `SYS-003` (Non-blocking status banner).
+- In-flight mutations that fail due to disconnection are halted with a safe warning; destructive actions are blocked.
+- Cached read-only data is visually badged as *"Offline — Stale"* to prevent erroneous user conclusions.
+- When network reconnects, data reconciles cleanly from the server.
+
+---
+
+## 11. Large-Scale Implementation Guardrails & Implementation Readiness Contract
+
+### 11.1. Large-Scale Implementation Guardrails
+To ensure Orynqo remains fast and scalable to 5,000+ users and millions of tickets:
+1. **Canonical Entities:** There is exactly one domain model per resource type.
+2. **Projection Reuse:** Projections (`WRK-001` to `WRK-004`) are shared presentation engines, not one-off implementations per page.
+3. **Strict Component Boundaries:**
+   $$\text{Design System Primitives} \longrightarrow \text{Global Product Components} \longrightarrow \text{Domain Features} \longrightarrow \text{Page Components} \longrightarrow \text{Routes}$$
+4. **Page Composition:** Pages are lean orchestrators; they must not become monolithic files containing business logic.
+5. **Data Scale Readiness:** All collections must be architecturally compatible with cursor-based pagination, windowed virtualization, stable sorting, and query deduplication.
+6. **Lazy Boundaries:** Heavy capabilities (Document Editor, Timeline Gantt, Enterprise Admin) must be chunked for on-demand bundle loading.
+
+### 11.2. Implementation Readiness Contract (The 15 "MUST NOT" Rules)
+Future implementation agents and developers **MUST NOT**:
+1. Build a duplicate `WorkItem` model for a specific page.
+2. Create page-specific copies of the Data Grid or Kanban Board.
+3. Place business logic or data fetching inside design system primitives.
+4. Dump all platform state into a single global React context.
+5. Mix server-side domain data and ephemeral UI state (e.g. dropdown open state) in the same store.
+6. Build monolithic pages exceeding reasonable size or single-responsibility bounds.
+7. Introduce undocumented routes or URLs outside this approved registry without architectural review.
+8. Invent artificial domain entities simply to make a layout easier to build.
+9. Bypass permission filters in Search, Saved Views, Inbox, or Document Embeds.
+10. Hardcode surfaces to assumptions of small mock datasets (e.g. assume a team only ever has 5 items).
+11. Declare every component as global; keep page-specific components colocated.
+12. Build speculative abstractions for features that do not exist in this specification.
+13. Create parallel or divergent mutation pipelines across different projections.
+14. Silently change frozen IA or domain decisions during coding phases.
+15. Rely on hardcoded visual dimensions instead of the design system foundation.
+
+---
+
+## 12. Complete Settings Information Architecture
+
+Settings are strictly organized into four hierarchical scopes:
+
+```text
 ┌────────────────────────────────────────────────────────────────────────┐
 │                      SETTINGS INFORMATION ARCHITECTURE                 │
 ├────────────────────┬────────────────────┬──────────────────────────────┤
-│ Tier               │ Settings Surfaces  │ Access Boundary              │
+│ Scope              │ Registered Surface │ Sections Included            │
 ├────────────────────┼────────────────────┼──────────────────────────────┤
-│ 1. Personal        │ • Profile & Avatar │ All Users                    │
-│    Settings        │ • Notifications    │                              │
-│                    │ • Keyboard & Theme │                              │
-│                    │ • Personal Tokens  │                              │
+│ 1. Personal        │ `PER-003`          │ • Profile & Account          │
+│                    │                    │ • Preferences (Theme, Keys)  │
+│                    │                    │ • Notifications              │
+│                    │                    │ • Developer Tokens           │
 ├────────────────────┼────────────────────┼──────────────────────────────┤
-│ 2. Team            │ • Team Details     │ Team Admins & Leads          │
-│    Settings        │ • Capability Flags │                              │
-│                    │ • Squad Membership │                              │
-│                    │ • Team Workflows   │                              │
+│ 2. Team            │ `TEM-008`          │ • General & Team Key         │
+│                    │                    │ • Member Roster & Roles      │
+│                    │                    │ • Capabilities (Cycles, Tri.)│
+│                    │                    │ • Workflow State Machines    │
+│                    │                    │ • Automations & Routing      │
 ├────────────────────┼────────────────────┼──────────────────────────────┤
-│ 3. Workspace       │ • General Config   │ Workspace Administrators     │
-│    Settings        │ • Member Directory │                              │
-│                    │ • Custom Fields    │                              │
-│                    │ • Integrations Hub │                              │
+│ 3. Workspace       │ `WKS-001` (General)│ • Name, URL, Icon            │
+│                    │ `WKS-002` (Members)│ • Member Directory, Invites  │
+│                    │ `WKS-003` (Work)   │ • Statuses, Labels, Fields   │
+│                    │ `WKS-004` (Integr.)│ • VCS, Slack, Webhooks       │
 ├────────────────────┼────────────────────┼──────────────────────────────┤
-│ 4. Enterprise Org  │ • SAML SSO / SCIM  │ Organization Owners &        │
-│    Administration  │ • Forensic Audit   │ Enterprise Security Officers │
-│                    │ • Data Retention   │                              │
-│                    │ • Billing & Seats  │                              │
+│ 4. Enterprise Org  │ `ADM-001` (Identity│ • SAML SSO, SCIM, Sessions   │
+│                    │ `ADM-002` (Security│ • Audit Log, Data Retention  │
+│                    │ `ADM-003` (Billing)│ • Subscriptions, Invoices    │
 └────────────────────┴────────────────────┴──────────────────────────────┘
 ```
 
 ---
 
-## 10. Reusable Component Forecast
+## 13. Reconciled Registry Accounting & Validation Equation
 
-From our master surface registry, we forecast the recurring component patterns required for future implementation phases:
+### 13.1. Mathematical Reconciliation Validation
 
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                      REUSABLE COMPONENT FORECAST                       │
-├─────────────────────────┬───────────────────┬──────────────────────────┤
-│ Component Name          │ Architectural Tier│ Surfaces Utilizing It    │
-├─────────────────────────┼───────────────────┼──────────────────────────┤
-│ `ResourceHeader`        │ Global Product    │ Team Hub, Project, Init  │
-│ `ResourceTabBar`        │ Global Product    │ Team Hub, Project, Docs  │
-│ `ProjectionSegmentedBar`│ Global Product    │ My Work, Team, Project   │
-│ `InspectorShell`        │ Global Product    │ Work Items, Docs, Activity│
-│ `PropertyEditorRow`     │ Design System     │ Inspector, Quick Create  │
-│ `UniversalDataGrid`     │ Domain Execution  │ My Work, Team, Project   │
-│ `WorkflowKanbanBoard`   │ Domain Execution  │ My Work, Team, Project   │
-│ `TemporalGanttChart`    │ Domain Execution  │ Project, Initiatives     │
-│ `LivingDocBlockEditor`  │ Domain Knowledge  │ Docs Hub, Project Specs  │
-│ `CommandPaletteModal`   │ Application Shell │ Global Overlay           │
-│ `DirectoryCatalogue`    │ Global Product    │ Projects Dir, Teams Dir  │
-│ `SettingsLayoutShell`   │ Global Product    │ User, Team, Org Settings │
-└─────────────────────────┴───────────────────┴──────────────────────────┘
-```
+Every registered surface ID is unique and carries exactly one canonical surface type and lifecycle classification:
 
----
+$$\text{TOTAL REGISTERED SURFACES} = 50$$
 
-## 11. Scale Review (From 5 to 5,000+ Users)
-
-We validate this surface registry against extreme organizational scale:
-
-1. **Directories Prevent Collapse:** In a 5,000-user enterprise with 2,000 projects and 150 teams, the global sidebar remains compact because projects are discovered via `PRJ-005 (Projects Directory)` and teams via `TEM-005 (Teams Directory)`.
-2. **Contextual Tabs Prevent Mega-Menus:** Rather than creating 10 sidebar items per team, a team uses contextual sub-tabs (`Overview | Work | Cycles | Projects | Docs | Triage | Members`).
-3. **Enterprise Governance Isolation:** Dedicated `ADM-xxx` surfaces prevent security, SCIM, and audit logs from polluting the day-to-day productivity chrome.
-
----
-
-## 12. Registry Statistics & MVP Classification Breakdown
-
-### Total Registered Surfaces: **33 Surfaces**
-
-#### Breakdown by Surface Type:
+#### Mutual Exclusion by Surface Type:
 - **Primary Pages:** 5 (`PER-001`, `PER-002`, `INT-001`, `DOC-001`, `VEW-001`)
-- **Resource Pages:** 4 (`TEM-001`, `PRJ-001`, `INT-002`, `DOC-002`)
-- **Resource Sub-Surfaces:** 8 (`TEM-002`, `TEM-003`, `TEM-004`, `PRJ-002`, `PRJ-003`, `PRJ-004`, `CYC-001`, `CYC-002`)
+- **Resource Pages:** 6 (`TEM-001`, `PRJ-001`, `INT-002`, `INT-003`, `DOC-002`, `VEW-002`)
+- **Resource Sub-Surfaces:** 13 (`TEM-002`, `TEM-003`, `TEM-004`, `TEM-005`, `TEM-006`, `TEM-007`, `PRJ-002`, `PRJ-003`, `PRJ-004`, `PRJ-005`, `PRJ-006`, `CYC-001`, `CYC-002`)
 - **Projections:** 4 (`WRK-001`, `WRK-002`, `WRK-003`, `WRK-004`)
-- **Directories:** 4 (`TEM-005`, `PRJ-005`, `CYC-003`, `VEW-002`)
-- **Inspectors & Drawers:** 3 (`WRK-005`, `DOC-003`, `COL-001`)
+- **Directories:** 3 (`TEM-009`, `PRJ-007`, `CYC-003`)
+- **Inspectors & Drawers:** 4 (`WRK-005`, `DOC-003`, `COL-001`, `COL-002`)
 - **Overlays & Pickers:** 3 (`CMD-001`, `CMD-002`, `CMD-003`)
-- **Settings & Administration Pages:** 7 (`WKS-001`, `WKS-002`, `WKS-003`, `WKS-004`, `ADM-001`, `ADM-002`, `ADM-003`)
+- **Settings Pages:** 6 (`PER-003`, `TEM-008`, `WKS-001`, `WKS-002`, `WKS-003`, `WKS-004`)
+- **Admin Pages:** 3 (`ADM-001`, `ADM-002`, `ADM-003`)
 - **Global System Surfaces:** 3 (`SYS-001`, `SYS-002`, `SYS-003`)
 
-#### Breakdown by MVP Classification:
-- **CORE (Foundational Orynqo Platform):** **22 Surfaces** (67%)
-- **POST-CORE (Fast Follow-Up Enhancements):** **6 Surfaces** (18%)
-- **ENTERPRISE (Advanced Security & Governance):** **4 Surfaces** (12%)
-- **FUTURE (Long-term Extensibility):** **1 Surface** (3% — Goals/OKRs)
+$$\sum \text{Surface Types} = 5 + 6 + 13 + 4 + 3 + 4 + 3 + 6 + 3 + 3 = 50$$
+
+#### Mutual Exclusion by Lifecycle Classification:
+- **CORE (Foundational MVP Experience):** 40 Surfaces (80%)
+- **POST-CORE (Fast-Follow Enhancements):** 6 Surfaces (12% — `WRK-004`, `TEM-006`, `CYC-003`, `DOC-003`, `WKS-003`, `WKS-004`)
+- **ENTERPRISE (Advanced Governance):** 3 Surfaces (6% — `ADM-001`, `ADM-002`, `ADM-003`)
+- **FUTURE (Long-term Extensibility):** 1 Surface (2% — `INT-003`)
+
+$$\sum \text{Lifecycle Classifications} = 40 + 6 + 3 + 1 = 50$$
+
+$$\mathbf{TOTAL\ (50) = \sum Surface\ Types\ (50) = \sum Lifecycles\ (50)}$$
+*(Accounting identity holds unconditionally; verified zero discrepancy).*
 
 ---
 
-## 13. Recommended UI/UX Design Sequence
+## 14. Refined UI/UX Design & Implementation Sequence
 
-Based on domain dependencies, reusability leverage, and risk mitigation, we establish the mandatory sequence for subsequent UI/UX design phases:
+To avoid unmanageably large implementation phases while ensuring logical domain dependencies are respected, future design work will proceed in disciplined sub-phases:
 
-```
+```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│                  RECOMMENDED UI/UX DESIGN SEQUENCE                     │
+│                   REFINED UI/UX DESIGN PROGRESSION                     │
 ├───────────────┬────────────────────────────────────────────────────────┤
-│ Phase         │ Target Scope & Rationale                               │
+│ Slice         │ Target Surfaces & Deliverables                         │
 ├───────────────┼────────────────────────────────────────────────────────┤
-│ **UI-01**     │ **High-Density Execution Core (The Work Foundation)**  │
-│               │ - Universal Data Grid (`WRK-001`)                      │
+│ **UI-01A**    │ **Work Item Contract & Inspector**                     │
 │               │ - Work Item Inspector Drawer (`WRK-005`)               │
+│               │ - Activity & Discussion Panels (`COL-001`, `COL-002`)  │
+├───────────────┼────────────────────────────────────────────────────────┤
+│ **UI-01B**    │ **High-Density Execution Grid**                        │
+│               │ - Universal Data Grid (`WRK-001`)                      │
+│               │ - Keyboard navigation & inline editing contracts       │
+├───────────────┼────────────────────────────────────────────────────────┤
+│ **UI-01C**    │ **Creation & Attribute Pickers**                       │
 │               │ - Quick Create Modal (`CMD-002`)                       │
-│               │ *Rationale:* Work Items are the atomic currency of the │
-│               │ entire platform. All subsequent pages render them.     │
+│               │ - Entity Context Pickers (`CMD-003`)                   │
 ├───────────────┼────────────────────────────────────────────────────────┤
-│ **UI-02**     │ **Personal Productivity Cockpit**                      │
-│               │ - Personal Triage Inbox (`PER-001`)                    │
-│               │ - My Work Hub (`PER-002`)                              │
-│               │ *Rationale:* The user's primary daily landing home.    │
+│ **UI-02A**    │ **My Work Hub**                                        │
+│               │ - My Work Cockpit (`PER-002`)                          │
 ├───────────────┼────────────────────────────────────────────────────────┤
-│ **UI-03**     │ **Team Hub & Capability Execution**                    │
-│               │ - Team Hub Resource Page (`TEM-001`)                   │
-│               │ - Active Cycle Surface (`CYC-001`)                     │
-│               │ - Kanban Board Projection (`WRK-002`)                  │
-│               │ *Rationale:* Establishes functional squad workflows.   │
+│ **UI-02B**    │ **Personal Triage Inbox**                              │
+│               │ - Personal Inbox (`PER-001`) & Zero-mouse triage       │
 ├───────────────┼────────────────────────────────────────────────────────┤
-│ **UI-04**     │ **Living Specs & Document Canvas**                     │
-│               │ - Docs Hub (`DOC-001`)                                 │
-│               │ - Canonical Document Editor with Work Item blocks      │
-│               │   (`DOC-002`)                                          │
-│               │ *Rationale:* Unlocks Orynqo's core product innovation. │
+│ **UI-02C**    │ **User Settings**                                      │
+│               │ - Personal Preferences & Tokens (`PER-003`)            │
 ├───────────────┼────────────────────────────────────────────────────────┤
-│ **UI-05**     │ **Project Workspace & Strategic Planning**             │
-│               │ - Project Workspace (`PRJ-001`)                        │
-│               │ - Initiatives & Roadmap Projection (`INT-001`)         │
-│               │ - Temporal Timeline (`WRK-003`)                        │
-│               │ *Rationale:* Cross-project coordination and rollups.   │
+│ **UI-03A**    │ **Team Shell & Overview**                              │
+│               │ - Team Hub (`TEM-001`), Overview (`TEM-002`), Dir (`09`)│
 ├───────────────┼────────────────────────────────────────────────────────┤
-│ **UI-06**     │ **Workspace & Enterprise Governance**                  │
-│               │ - Settings Suite (`WKS-xxx`)                           │
-│               │ - Enterprise Administration Console (`ADM-xxx`)        │
-│               │ *Rationale:* Final enterprise governance layer.        │
+│ **UI-03B**    │ **Team Work & Kanban Board**                           │
+│               │ - Team Work (`TEM-003`), Kanban Board (`WRK-002`)      │
+├───────────────┼────────────────────────────────────────────────────────┤
+│ **UI-03C**    │ **Cycle Execution & Planning**                         │
+│               │ - Active Cycle (`CYC-001`), Planning & Rollover (`02`) │
+├───────────────┼────────────────────────────────────────────────────────┤
+│ **UI-03D**    │ **Team Facets & Settings**                             │
+│               │ - Projects (`TEM-004`), Docs (`05`), Members (`07`),   │
+│               │   Team Settings (`TEM-008`)                            │
+├───────────────┼────────────────────────────────────────────────────────┤
+│ **UI-03E**    │ **Team Triage Queue (Post-Core)**                      │
+│               │ - Squad Triage Queue (`TEM-006`)                       │
+├───────────────┼────────────────────────────────────────────────────────┤
+│ **UI-04A**    │ **Docs Hub & Knowledge Navigation**                    │
+│               │ - Docs Hub (`DOC-001`), Template directory             │
+├───────────────┼────────────────────────────────────────────────────────┤
+│ **UI-04B**    │ **Document Canvas & Living Spec Embeds**               │
+│               │ - Canonical Block Editor (`DOC-002`), Doc Drawer (`03`)│
+├───────────────┼────────────────────────────────────────────────────────┤
+│ **UI-05A**    │ **Project Workspace & Overview**                       │
+│               │ - Project Workspace (`PRJ-001`), Overview (`02`),      │
+│               │   Directory (`PRJ-007`)                                │
+├───────────────┼────────────────────────────────────────────────────────┤
+│ **UI-05B**    │ **Project Work, Milestones, Docs & Activity**          │
+│               │ - Work (`PRJ-003`), Milestones (`04`), Docs (`05`),    │
+│               │   Activity (`PRJ-006`)                                 │
+├───────────────┼────────────────────────────────────────────────────────┤
+│ **UI-05C**    │ **Strategic Initiatives & Temporal Timeline**          │
+│               │ - Initiatives (`INT-001`, `002`), Timeline (`WRK-003`) │
+├───────────────┼────────────────────────────────────────────────────────┤
+│ **UI-05D**    │ **Saved Views System**                                 │
+│               │ - Saved Views Hub (`VEW-001`), View Canvas (`VEW-002`) │
+├───────────────┼────────────────────────────────────────────────────────┤
+│ **UI-06A**    │ **Workspace Administration Suite**                     │
+│               │ - Workspace Settings (`WKS-001` through `WKS-004`)     │
+├───────────────┼────────────────────────────────────────────────────────┤
+│ **UI-06B**    │ **Enterprise Governance Console**                      │
+│               │ - Org Admin (`ADM-001` through `ADM-003`)              │
 └───────────────┴────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 14. Open Decisions for Human Review
+## 15. Remaining Genuine Open Decisions for Human Review
 
-Before proceeding to `UI-01`, we flag the following design decisions for human alignment:
+With the domain contracts, rollover baselines, and embed behaviors resolved, only three strategic decisions remain for human alignment:
 
-1. **Cycle Backlog Rollover Model:** In `CYC-002`, when an active cycle finishes, should uncompleted work items automatically roll over into the next cycle by default, or require explicit triage into the backlog?
-2. **Document Link Permissions:** In `DOC-002`, if a Living Spec embeds work items from a private team that the reader cannot access, should the table hide the rows entirely or display a *"Restricted Item"* placeholder pill?
-3. **Design Sequence Endorsement:** Confirm approval of the proposed `UI-01` through `UI-06` progression sequence.
+1. **VCS Branch Association Depth in `WRK-005` (Inspector):** For the initial `UI-01A` Inspector, should Git branch/commit metadata be purely informational (displaying linked branch name and PR status badge), or should it support in-line branch creation triggers? *(Recommendation: Purely informational in UI-01A; triggers deferred to POST-CORE)*.
+2. **Team Member Capacity Units in `TEM-007`:** When calculating squad capacity, should Orynqo support both story points and hours, or standardize on a single metric? *(Recommendation: Standardize on story points / item counts for initial CORE)*.
+3. **Formal Endorsement of UI-01A Scope:** Confirm approval to commence `UI-01A` (Work Item Domain Contract & Inspector Drawer) upon freeze of this document.
 
 ---
 
 > [!IMPORTANT]
-> **STOPPED AT HUMAN REVIEW — IA-03**  
-> Complete master surface registry is recorded in [`docs/06-complete-page-and-surface-registry.md`](file:///d:/Full_Stack_Apps/Orynqo-web/docs/06-complete-page-and-surface-registry.md).  
+> **STOPPED AT HUMAN REVIEW — IA-03A**  
+> Complete, mathematically reconciled master surface registry is finalized in [`docs/06-complete-page-and-surface-registry.md`](file:///d:/Full_Stack_Apps/Orynqo-web/docs/06-complete-page-and-surface-registry.md).  
 > In accordance with instructions, work has stopped here.  
-> - No application code, UI screens, mockups, or routes were created or modified.  
-> - Awaiting Human Review to officially freeze IA-03 before commencing `UI-01`.
+> - No application code, UI screens, mockups, or routes were modified.  
+> - Awaiting Human Review to officially freeze IA-03/IA-03A before commencing `UI-01A`.
