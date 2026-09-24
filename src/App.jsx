@@ -22,7 +22,7 @@ function MainView({ filteredItems }) {
     toggleMultiSelect,
     selectAll
   } = useWorkspace();
-  const { activeView, density, setIsInspectorOpen, setIsCreateModalOpen, isOverlayActive } = useUI();
+  const { activeView, density, isInspectorOpen, setIsInspectorOpen, setIsCreateModalOpen, isOverlayActive } = useUI();
 
   switch (activeView) {
     case 'data-grid':
