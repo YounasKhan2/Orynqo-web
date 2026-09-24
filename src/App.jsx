@@ -180,10 +180,10 @@ function OrynqoWorkspace() {
   // Centralized keyboard shortcuts
   useKeyboardShortcuts({
     onToggleCommandPalette: () => setIsCommandPaletteOpen((prev) => !prev),
-    onToggleSidebar,
+    onToggleSidebar: toggleSidebar,
     onOpenCreateModal: () => setIsCreateModalOpen(true),
     onOpenShortcutsModal: () => setIsShortcutsModalOpen(true),
-    onToggleInspector,
+    onToggleInspector: toggleInspector,
     onSelectView: setActiveView,
     onEscape: () => {
       if (isCommandPaletteOpen) setIsCommandPaletteOpen(false);
