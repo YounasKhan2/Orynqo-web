@@ -2,22 +2,22 @@
 # UI-01C: Quick Create & Universal Property Picker System
 
 **Document ID:** `docs/09-ui-01c-quick-create-property-pickers-contract.md`  
-**Status:** DRAFT FOR HUMAN REVIEW  
+**Phase Status:** DRAFT FOR HUMAN REVIEW — UI-01C DESIGN CORRECTION PASS 01A  
 **Authoritative Working Branch:** `design/ui-01c-quick-create-property-pickers`  
 **Parent / Frozen Baseline:** `feat/ui-01b-high-density-grid` (`75387c1`)  
-**Design Phase Gate:** `# HUMAN REVIEW — UI-01C DESIGN`
+**Design Phase Gate:** `# HUMAN REVIEW — UI-01C DESIGN CORRECTION PASS 01A`
 
 ---
 
 ## 1. Phase Status & Frozen Dependencies
 
-### 1.1 Status
-This document establishes the authoritative product, interaction, and component architecture contract for **UI-01C: Quick Create + Universal Property Pickers**. It serves as the bridge between the frozen WorkItem contract (UI-01A) and Data Grid (UI-01B), eliminating ad-hoc prototype dropdowns and establishing a single canonical property interaction substrate across Orynqo.
+### 1.1 Status & Purpose
+This document establishes the authoritative product contract, interaction specification, and component architecture for **UI-01C: Quick Create + Universal Property Pickers (Design Correction Pass 01A)**. It supersedes initial drafting inconsistencies regarding Team-change cascades, Project-team resolution, Status option sourcing, picker commit ownership, and performance contract wording.
 
-### 1.2 Frozen Upstream Baselines
+### 1.2 Frozen Upstream Baselines (STRICTLY PRESERVED)
 - **Architecture Stabilization 01 / 01A:** Frozen in `refactor/architecture-stabilization-01`.
 - **IA-01 / IA-02 / IA-03 / IA-03A:** Complete Page & Surface Registry frozen in [`docs/06-complete-page-and-surface-registry.md`](file:///d:/Full_Stack_Apps/Orynqo-web/docs/06-complete-page-and-surface-registry.md).
-- **UI-01A (WorkItem Contract & Inspector):** Frozen at commit `af9178a`. Established canonical WorkItem data model, single-source-of-truth fields (`parentId`, `relations`, `documentLinks`), and Inspector drawer.
+- **UI-01A (WorkItem Contract & Inspector):** Frozen at commit `af9178a`. Established the canonical single-source-of-truth WorkItem schema (`Task`, `Issue`, `Bug`, `parentId`, `relations`, `documentLinks`) and Inspector drawer.
 - **UI-01B (Universal High-Density Data Grid):** Frozen at commit `75387c1`. Established 28px/34px data grid projection, controlled/uncontrolled selection laws, roving tabindex keyboard navigation, optimistic overrides with failure rollback, and end-to-end bulk action outcomes.
 
 ---
@@ -25,65 +25,58 @@ This document establishes the authoritative product, interaction, and component 
 ## 2. Product Objective & Governing Principles
 
 ### 2.1 The Problem
-Prior to UI-01C, property editing across Orynqo was fragmented:
-1. `WorkItemProperties.jsx` (Inspector) rendered local dropdown menus for Status and Priority while leaving other fields non-interactive.
+Prior to UI-01C, property interaction across Orynqo suffered from duplicate, ad-hoc implementations:
+1. `WorkItemProperties.jsx` (Inspector) rendered local dropdown menus for Status and Priority while other attributes remained non-interactive badges.
 2. `DataGridCell.jsx` (Grid) duplicated local status and priority listboxes with separate keyboard and click handling.
-3. `CreateItemModal.jsx` used primitive native `<select>` tags, hardcoded initial mock data, lacked status/cycle/label pickers, and had no context inheritance.
+3. `CreateItemModal.jsx` relied on primitive native `<select>` tags, hardcoded initial mock data, lacked status/cycle/label pickers, and had no context inheritance.
 
 ### 2.2 Core Governing Principle
 > **One property interaction contract, many presentation contexts.**
 
-Every WorkItem property interaction across Orynqo—whether invoked inside the WorkItem Inspector, directly inside a 28px Data Grid cell, within the rapid Quick Create dialog, or in future Kanban/Timeline/Triage surfaces—must share the exact same underlying conceptual architecture, keyboard semantics, permission guards, and mutation dispatch pipeline.
+Every WorkItem property interaction across Orynqo—whether invoked inside the WorkItem Inspector, directly inside a 28px Data Grid cell, within the rapid Quick Create dialog, or in future Kanban/Timeline/Triage surfaces—must share the exact same underlying conceptual architecture, keyboard semantics, permission guards, and intent emission contracts.
 
 ---
 
 ## 3. Universal Property Picker Architecture
 
 ### 3.1 Conceptual Decomposition
-The Universal Property Picker system decouples the **Trigger**, the **Presentation Shell**, the **Listbox/Search Engine**, and the **Domain Property Adapter**:
+The Universal Property Picker system cleanly separates the **Trigger Anchor**, the **Presentation Shell**, the **Listbox/Search Engine**, and the **Domain Property Adapter**:
 
 ```text
 [ PropertyTrigger ] (Badge, Avatar, Button, or Grid Cell Anchor)
         │  Click / Keyboard Hotkey ('s', 'p', 'a', etc.)
         ▼
-[ PropertyPicker Popover / Command Sheet ] (Overlay with Focus Trap & Keyboard Scope)
+[ PropertyPicker Popover / Command Sheet ] (Overlay with Focus Trap & OVERLAY Keyboard Scope)
         ├── [ PickerSearchInput ] (Filtered input with auto-focus & clear)
-        ├── [ PickerSection ] (e.g., Status Category, Active vs Backlog Cycles)
+        ├── [ PickerSection ] (e.g., Status Categories, Active vs Upcoming Cycles)
         │       ├── [ PickerOption ] (Icon/Badge + Label + Shortcut + Selection Checkmark)
         │       └── [ PickerOption ]
-        ├── [ PickerEmptyState ] (No results, Restricted indicator, or Create Action)
+        ├── [ PickerEmptyState ] (No results, Protected Reference indicator, or Create Action)
         └── [ PickerFooter ] (Navigation shortcuts hint: ↑↓ to navigate, ↵ to select, Esc to close)
 ```
 
 ### 3.2 Generic Component Primitives (`src/components/property-picker/`)
-Generic picker primitives reside at the product-component boundary and contain **zero WorkItem business logic**:
-
+Generic picker primitives reside at the product-component boundary and contain **zero WorkItem domain logic**:
 1. `PropertyTrigger`: Focusable semantic button representing current value (badge, user avatar, text) with dropdown indicator and disabled/read-only styling.
-2. `PropertyPicker`: Context-aware anchored popover / floating overlay managed with collision-aware positioning (`@floating-ui` or portal boundary).
+2. `PropertyPicker`: Context-aware anchored popover / floating overlay managed with collision-aware positioning.
 3. `PropertyPickerSearch`: Search input with keyboard interception (ArrowDown jumps to first option; Escape closes picker).
 4. `PropertyPickerList`: ARIA-compliant `role="listbox"` container with virtualized or standard roving option focus.
 5. `PropertyPickerOption`: ARIA `role="option"` with `aria-selected`, keyboard active highlight, leading icon/badge, title, description, and trailing checkmark.
-6. `PropertyPickerSection`: Group header with `role="group"` and `aria-label` for categorized lists (e.g., Status categories: To Do, In Progress, Done).
-7. `PropertyPickerEmptyState`: Graceful fallback for empty search results or permission-blocked queries.
+6. `PropertyPickerSection`: Group header with `role="group"` and `aria-label` for categorized lists.
+7. `PropertyPickerEmptyState`: Graceful fallback for empty search results or protected entity notices.
 
 ### 3.3 Domain Adapter Contract (`src/features/work-items/property-pickers/`)
-Each WorkItem property is defined by a declarative adapter configuration:
+The `PropertyAdapter` interface specifies **responsibilities and behavioral invariants**, without freezing concrete React rendering signatures or component JSX types prematurely:
 
-```typescript
-interface PropertyAdapter<TValue, TOption> {
-  propertyKey: string;
-  label: string;
-  isMultiSelect: boolean;
-  isSearchable: boolean;
-  isClearable: boolean;
-  loadOptions: (query: string, context: PropertyContext) => Promise<TOption[]> | TOption[];
-  getOptionKey: (option: TOption) => string;
-  getOptionLabel: (option: TOption) => string;
-  renderOption: (option: TOption, isSelected: boolean) => React.ReactNode;
-  renderTrigger: (value: TValue, isReadOnly: boolean) => React.ReactNode;
-  validateSelection?: (option: TOption, context: PropertyContext) => { valid: boolean; reason?: string };
-}
-```
+- **Property Identity:** Canonical WorkItem field name (e.g., `status`, `priority`, `assigneeId`, `teamId`).
+- **Selection Semantics:** Single-select vs. Multi-select (`isMultiSelect`).
+- **Option Identity & Labels:** Unique option identifier and semantic human-readable label.
+- **Option Sourcing:** Sync vs. async query delegation via the `OptionSource` boundary.
+- **Search Capability:** Flag indicating if option list supports active text filtering.
+- **Clearability:** Whether the property can be unassigned/cleared (e.g., `assigneeId = null`, `cycleId = null`).
+- **Permission Awareness:** Evaluation of whether the current user may mutate this specific property.
+- **Contextual Dependencies:** Declaration of upstream dependencies (e.g., Cycle depending on Team).
+- **Selection Intent:** Emits semantic property change intent (`onSelect(value)`) rather than mutating domain state directly.
 
 ---
 
@@ -91,15 +84,15 @@ interface PropertyAdapter<TValue, TOption> {
 
 | Property | Value Type | Selection Mode | Searchable | Grouping / Structure | Dependency Invariants |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **WorkItem Type** | `CoreItemType` | Single | No | Task, Issue, Bug (Milestone & Doc excluded) | Read-only once committed if cross-type schema differs |
-| **Status** | `string` (status key) | Single | Filterable | Grouped by `statusCategory` (unstarted, started, completed, cancelled) | Dependent on Team workflow configuration |
-| **Priority** | `PriorityLevel` | Single | No | 5 levels: Urgent, High, Medium, Low, None | Canonical semantic values; ordering derived |
-| **Assignee** | `string \| null` | Single | Yes (Async) | Unassigned, Workspace Members, Team Members | Resolves avatar, email, name; server-search ready |
-| **Team** | `string` | Single | Yes | Accessible Workspace Teams | **Primary Owner**. Invalidates Cycles, Projects, Statuses |
-| **Project** | `string \| null` | Single | Yes | Recent Projects, Active Team Projects, All Projects, None | Multi-team resource; filtered by Workspace permissions |
-| **Cycle** | `string \| null` | Single | Filterable | Current Active Cycle, Upcoming Cycles, Backlog / No Cycle | Strictly Team-owned; depends on selected `teamId` |
+| **WorkItem Type** | `CoreItemType` | Single | No | Task, Issue, Bug (Milestone & Doc strictly excluded) | Static semantic enum; read-only once committed if schema differs |
+| **Status** | `string` (status key) | Single | Filterable | Grouped by `statusCategory` (unstarted, started, completed, cancelled) | **Context/Configuration-driven** from active Team workflow |
+| **Priority** | `PriorityLevel` | Single | No | 5 levels: Urgent, High, Medium, Low, None | Static semantic enum; canonical semantic ordering |
+| **Assignee** | `string \| null` | Single | Yes (Async) | Unassigned, Workspace Members, Team Members | Scalable query boundary; server-search ready |
+| **Team** | `string` | Single | Yes | Accessible Workspace Teams | **Ownership Root**. Changes require dependency consequence confirmation |
+| **Project** | `string \| null` | Single | Yes | Recent Projects, Active Projects, None | Workspace resource; may span multiple Teams |
+| **Cycle** | `string \| null` | Single | Filterable | Current Active Cycle, Upcoming Cycles, Backlog / None | Strictly Team-owned; depends on selected `teamId` |
 | **Labels** | `string[]` | Multi | Yes | Categorized Labels, Selected chips | Supports tag toggling, removal, creation if authorized |
-| **Dates** | `string \| null` | Single | Relative shortcuts | Today, Tomorrow, Next Week, Custom Calendar, Clear | ISO-8601 `YYYY-MM-DD`; no complex recurring rules |
+| **Dates** | `string \| null` | Single | Relative shortcuts | Today, Tomorrow, Next Week, End of Sprint, Custom, Clear | ISO-8601 `YYYY-MM-DD`; no complex recurring rules |
 
 ### 4.1 WorkItem Type Picker
 - **Options:** Strictly `Task`, `Issue`, `Bug`.
@@ -109,12 +102,12 @@ interface PropertyAdapter<TValue, TOption> {
   - Legacy `feature` and `chore` types are strictly prohibited.
 - **Trigger:** Type badge with semantic icon and label.
 
-### 4.2 Status Picker
-- **Options:** Concrete workflow statuses defined for the active team (e.g. `backlog`, `todo`, `in_progress`, `in_review`, `done`, `cancelled`).
+### 4.2 Status Picker (Team Configuration Driven)
+- **Options:** Concrete workflow statuses defined for the active team (e.g., `backlog`, `todo`, `in_progress`, `in_review`, `done`, `cancelled`).
 - **Grouping:** Options are visually grouped by resolved `statusCategory`. Users select the concrete `status`; `statusCategory` is automatically derived.
-- **Invariants:** No cycling on click. Selecting an option immediately dispatches a canonical mutation.
+- **Invariants:** No cycling on click. Selecting an option immediately emits property change intent.
 
-### 4.3 Priority Picker
+### 4.3 Priority Picker (Semantic Enum)
 - **Options:** 5 semantic levels in strict hierarchy:
   1. `Urgent` (red double chevron)
   2. `High` (orange 3-bar signal)
@@ -123,27 +116,26 @@ interface PropertyAdapter<TValue, TOption> {
   5. `None` (subtle gray dash)
 - **Invariants:** Users select semantic priority; numeric ordering values are internal implementation details.
 
-### 4.4 Assignee Picker
+### 4.4 Assignee Picker (Scalable Query Boundary)
 - **Options:** `Unassigned` anchor at the top, followed by workspace/team members.
-- **Search:** Instant client search for current members; query boundary abstracts async pagination for enterprise scaling.
 - **Representation:** Displays avatar (`UserAvatar`), display name, and handle.
 - **Zero-Leakage:** Restricted user accounts or external guest accounts hidden unless explicitly shared.
 
 ### 4.5 Team Picker (Ownership Root)
 - **Role:** WorkItem ownership root (`workspaceId`, `teamId`).
 - **Options:** Teams the user has write/create access to within the current workspace.
-- **Dependent Consequences:** Changing Team triggers dependency validation (see Section 8).
+- **Dependent Consequences:** Changing Team triggers dependency validation and consequence confirmation (Section 11).
 
-### 4.6 Project Picker
+### 4.6 Project Picker (Workspace Resource)
 - **Role:** Cross-functional initiative deliverable grouping.
 - **Options:** `No Project` option, followed by active projects. Projects are workspace resources and may span multiple teams.
 
-### 4.7 Cycle Picker
+### 4.7 Cycle Picker (Strictly Team-Owned)
 - **Role:** Time-boxed iteration container.
 - **Invariants:** Cycles are strictly Team-owned. The Cycle picker queries only cycles belonging to the item's `teamId`.
 - **Options:** `Current Cycle (Cycle 42)`, `Next Cycle (Cycle 43)`, `Upcoming`, and `No Cycle / Backlog`.
 
-### 4.8 Labels Picker (Multi-Select)
+### 4.8 Labels Picker (Multi-Select Tagging)
 - **Selection Mode:** Multi-select toggle list.
 - **Interaction:** Clicking an option toggles membership without closing the picker. Trailing checkmarks show active state.
 - **Keyboard:** Typing filters labels. `Enter` toggles focused label. `Backspace` when search is empty removes the last active tag.
@@ -155,42 +147,44 @@ interface PropertyAdapter<TValue, TOption> {
 
 ---
 
-## 5. Picker Presentation Modes
+## 5. Option-Source Classification & Scalability Architecture
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ PRESENTATION MODES                                                          │
-├────────────────────────┬─────────────────────────┬──────────────────────────┤
-│ Anchored Popover       │ Command-Style Overlay   │ Compact Mobile Sheet     │
-├────────────────────────┼─────────────────────────┼──────────────────────────┤
-│ Desktop Inspector,     │ Keyboard accelerators   │ Viewports < 768px;       │
-│ Data Grid cells,       │ inside Quick Create     │ Full-width bottom drawer │
-│ Action Strip filters   │ and Command Palette     │ with touch-target sizing │
-│ Dense: 220px-260px     │ Width: 320px-400px      │ Height: Auto / 50vh max  │
-└────────────────────────┴─────────────────────────┴──────────────────────────┘
-```
+### 5.1 Option-Source Sourcing Tiers
+Option sources are classified by their semantic nature:
 
-1. **Anchored Popover (Desktop Default):** Floats adjacent to the triggering cell or badge. Max height 280px with scroll. Collision-aware edge flipping.
-2. **Command-Style Picker:** Centered or docked within Quick Create modal. Keyboard-first navigation directly from property accelerator triggers.
-3. **Compact Mobile Sheet:** Rendered via bottom sheet drawer for touch interfaces (<768px). Search input anchored at top, large touch targets (40px).
+1. **Static / Local Semantic Options:**
+   - Entities: `WorkItem Type`, `Priority`.
+   - Characteristics: Immutable enum values defined by the product contract. Always loaded in memory.
+2. **Context / Configuration-Driven Options:**
+   - Entities: `Status`.
+   - Characteristics: Dynamic per-Team workflow configuration. Must NOT be modeled as a globally static enum. May be locally cached by the active team context, but must be dynamically re-evaluated whenever the execution Team changes.
+3. **Scaled / Asynchronous Query Options:**
+   - Entities: `Assignee`, `Project`, `Team`, `Labels`.
+   - Characteristics: Large or unbounded entity sets. Must operate through an async-capable query boundary.
 
----
-
-## 6. Search, Scale & Query Boundary
-
-To guarantee sub-50ms responsiveness on both small local prototype datasets and 100,000-user enterprise workspaces, the picker query boundary enforces:
-
-1. **Static Option Sets (Type, Priority, Status):** Synced synchronously in memory. Search filter runs locally in O(N) where N ≤ 10.
-2. **Dynamic / Scaled Option Sets (Assignee, Project, Labels):**
-   - Managed via a standardized `OptionSource<T>` contract.
-   - Initial render displays recent/suggested options.
-   - Typing triggers debounced search query.
-   - Supports async pagination / cursor fetching without freezing UI.
-   - Loading skeleton and retryable error state built into `PropertyPickerList`.
+### 5.2 Scalability Contract (No Premature Numeric Guarantees)
+The option query boundary enforces the following behavioral invariants without relying on artificial numerical thresholds:
+- Picker interactions must remain fluid and responsive under standard user input.
+- Large entity sets must use query boundaries capable of asynchronous search, debouncing, and incremental/cursor retrieval.
+- First-class UI states are mandatory for all pickers: `idle`, `searching`, `loading`, `empty`, `error`, and `retry`.
+- Implementation must not require loading entire enterprise tenant datasets into browser memory.
+- Concrete performance budgets (e.g. latency targets and virtualization cutoffs) are established through implementation profiling on realistic hardware.
 
 ---
 
-## 7. Keyboard & Focus Contracts
+## 6. Picker Presentation Modes & Tunable Dimension Tokens
+
+Universal Property Pickers support three presentation modes sharing the exact same adapter logic. Dimensions are **tunable design tokens**, not frozen architectural invariants:
+
+| Presentation Mode | Context / Form Factor | Current Design Defaults (Tunable Tokens) | Key Behaviors |
+| :--- | :--- | :--- | :--- |
+| **Anchored Popover** | Desktop Inspector, Data Grid cells, Action Strip | Width: 220px–260px; Max height: 280px | Floats adjacent to trigger; collision-aware edge flipping |
+| **Command-Style Picker** | Quick Create accelerators, Command Palette | Width: 320px–400px; Max height: 320px | Centered / docked overlay; keyboard-first navigation |
+| **Compact Mobile Sheet**| Viewports < 768px (tunable mobile breakpoint) | Width: 100vw; Max height: 50vh; Touch targets: ≥40px | Bottom sheet drawer; search pinned to top; large touch targets |
+
+---
+
+## 7. Keyboard Model, Scope Hierarchy & Focus Retention
 
 ### 7.1 Keyboard Interaction Matrix
 
@@ -202,117 +196,227 @@ To guarantee sub-50ms responsiveness on both small local prototype datasets and 
 | `Escape` | No-op / closes parent modal | Closes picker popover | Closes picker popover |
 | `Tab` | Advances to next UI field | Closes picker & tabs to next field | Closes picker & tabs to next field |
 | `Backspace` | No-op | Deletes char / removes last multi-tag | Deletes multi-select tag if search empty |
-| `Typing (a-z)` | Roving hotkey (if in grid) | Appends to search query | Jumps to search input and searches |
+| `Typing (a-z)` | Grid hotkey (if roving row) | Appends to search query | Jumps to search input and searches |
 
-### 7.2 Focus Retention & Restoration Invariants
+### 7.2 Keyboard Scope Hierarchy
+While an anchored picker or command popover is open, it registers itself in the **`OVERLAY` keyboard scope**. Background Data Grid navigation hotkeys (`j`, `k`, `x`, `space`) and global application shortcuts (`c`, `g i`) are completely suppressed until the picker closes.
+
+### 7.3 Deterministic Focus Restoration
 1. **Trigger Opening:** When opened via click or keyboard, focus immediately moves to the `PickerSearchInput` (if searchable) or the currently selected `PickerOption`.
 2. **Dismissal / Selection:** When the picker closes (via option selection, `Escape`, or outside click), **DOM focus is deterministically restored to the originating `PropertyTrigger`**.
-3. **Keyboard Scope Hierarchy:** While open, the picker registers itself in the `OVERLAY` keyboard scope. Global application hotkeys (`c`, `g i`, `j/k` row navigation) are completely suppressed until closed.
+3. **Roving Anchor Retention:** In the Data Grid, focus returns to the cell trigger, preserving the row's `tabindex="0"` anchor.
 
 ---
 
-## 8. Permissions, Zero-Leakage & Dependent Properties
+## 8. Picker Commit Ownership & Mutation Contracts
 
-### 8.1 Permission Invariants
-- **Read-Only Items (`isReadOnly: true`):** Property triggers are disabled, styled with muted borders, and omit dropdown chevrons. Keyboard trigger hotkeys do not fire.
-- **Granular Field Permissions:** If user has edit rights for title but cannot reassign (e.g. guest role), Assignee trigger renders disabled with a tooltip explaining permission constraint.
-- **Zero-Leakage Invariant:** Restricted WorkItems, internal security projects, or confidential users MUST NOT appear in picker search results or option lists. Disabled options never leak metadata.
-
-### 8.2 Dependent-Property Contract & Cascading Changes
-WorkItem properties form a directional dependency graph rooted in `workspaceId` and `teamId`:
-
-```text
-            [ Workspace ]
-                 │
-           [ Team Owner ] ◄── Root of Execution Context
-           /     │      \
-     [ Status ]  │   [ Cycle ] (Strictly Team-owned)
-                 │
-           [ Project ] (Workspace resource; filtered by Team access)
-                 │
-          [ WorkItem ]
-```
-
-When a user modifies **Team**:
-1. **Status Compatibility:** If the current status does not exist in the target Team's workflow, it maps to the default status of the same `statusCategory` (e.g., `in_progress` -> `in_progress`), or defaults to `todo`.
-2. **Cycle Invalidation:** Cycles do NOT cross team boundaries. Changing Team automatically resets `cycleId` to `null` (Backlog) and presents an inline notification.
-3. **Project Relevance:** If the selected Project is restricted to the previous Team, the user is warned: *"Project {Name} is not associated with Team {NewTeam}. Keep or clear?"*.
-4. **Destructive Guard:** Cascading changes are atomic. They are presented in a confirmation prompt before the mutation commits.
-
----
-
-## 9. Quick Create Architecture
-
-### 9.1 Objective
-Quick Create is Orynqo's primary vehicle for rapid work item capture. It must execute with zero lag, minimal visual distraction, and complete keyboard fluidity:
-
-> **Open (`C`) → Type Title → Set Priority/Assignee via accelerators → Submit (`⌘↵`) → Instant Return.**
-
-### 9.2 Form Hierarchy
-Quick Create maintains high visual density without overwhelming the user:
+Universal Property Pickers provide interaction and value-selection behavior, but **do NOT inherently own canonical mutation**. There are two distinct consumer modes:
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  QUICK CREATE WORK ITEM                                            [Esc]    │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  [Type: Task ▾]  [Team: Core Platform ▾]                                    │
-│                                                                             │
-│  Issue title or deliverable...                                              │
-│                                                                             │
-│  [Optional description / acceptance criteria markdown...]                 │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  PROPERTIES:                                                                │
-│  [Status: Todo ▾]  [Priority: Urgent ▾]  [Assignee: Younas ▾]  [Proj: None ▾]│
-│  [Cycle: Cycle 42 ▾]  [Labels: + Add ▾]  [Due Date: None ▾]                │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  Mode: [x] Create another                Press ⌘↵ to create • Esc to cancel │
-│  [Cancel]                                             [ Create Work Item ]  │
-└─────────────────────────────────────────────────────────────────────────────┘
+│ CONSUMER MODES                                                              │
+├──────────────────────────────────────┬──────────────────────────────────────┤
+│ 1. Existing WorkItem Consumer        │ 2. Quick Create Draft Consumer       │
+├──────────────────────────────────────┼──────────────────────────────────────┤
+│ Target: Existing persisted item      │ Target: Unsaved in-flight draft      │
+│ Action: Emits property-change intent │ Action: Modifies QuickCreateDraft    │
+│ Pipeline: Canonical mutation boundary │ Pipeline: Local state update only    │
+│ Example:                             │ Example:                             │
+│ StatusPicker -> status = 'done'      │ StatusPicker -> draft.status = 'done'│
+│ -> dispatches updateWorkItem()       │ -> NO canonical mutation dispatched! │
+│ -> optimistic state & rollback       │ -> Committed only on Quick Create    │
+│                                      │    final submit                      │
+└──────────────────────────────────────┴──────────────────────────────────────┘
 ```
 
-1. **Header / Identity Tier:** Type Picker + Team Picker (establishes execution context).
-2. **Primary Content Tier:** Auto-focused Title input + expandable Description editor.
-3. **Property Strip Tier:** Universal Property Pickers displayed as compact badges.
-4. **Action & Acceleration Tier:** Submission buttons + `Create another` toggle + keyboard hints.
-
-### 9.3 Context Precedence Model
-When Quick Create opens, initial property values are resolved deterministically:
-
-$$\text{Active Value} = \text{Explicit Choice} \succ \text{Invocation Context} \succ \text{Session Defaults} \succ \text{Team Defaults}$$
-
-- **From Team View:** `teamId` prefilled to active team.
-- **From Project View:** `projectId` prefilled; `teamId` defaults to project's lead team.
-- **From Active Cycle:** `teamId` and `cycleId` prefilled.
-- **From Global Shortcut (`C`):** `teamId` inherits active sidebar team; `status` = `todo`; `priority` = `medium`.
+1. **Existing WorkItem Mode:** The picker emits intent (`onSelect(newValue)`). The consumer passes this intent through the canonical WorkItem mutation boundary (e.g. `updateItem(itemId, patch)` in `WorkspaceContext`), triggering optimistic UI updates and failure rollback if rejected.
+2. **Quick Create Mode:** No canonical WorkItem exists yet. The picker emits intent (`onSelect(newValue)`), which updates the local `QuickCreateDraft` state. It **MUST NOT call `updateItem()` or `createItem()`**. Mutation occurs strictly when the user confirms the entire validated draft via `⌘↵` or "Create Item".
 
 ---
 
-## 10. Submission, Modes & Resilience
+## 9. Explicit Labels Commit Semantics
 
-### 10.1 Creation Modes
-1. **Create & Close (Default):** Creates the item in canonical store, clears modal, and returns focus to previous surface.
-2. **Create & Open:** Creates item, closes Quick Create, and immediately opens the newly created WorkItem in the Inspector drawer.
-3. **Create Another (Power-User Toggle):** Creates item, dispatches success banner, resets Title and Description, retains Team/Project/Cycle/Assignee context, and refocuses Title input for subsequent creation.
+The commit behavior for multi-select labels is cleanly differentiated by consumer context:
 
-### 10.2 In-Flight Protection & Deduplication
+### 9.1 Existing WorkItem Context
+- Each deliberate label toggle (clicking an option or pressing `Enter`) is an **immediate, explicit canonical mutation**.
+- Example: Pressing `Enter` on `ui` dispatches `updateItem(id, { labels: [...labels, 'ui'] })`.
+- `Escape` subsequently means: **Close the picker**. It does **NOT** undo or revert already successful mutations.
+- If an individual label mutation fails:
+  - The UI immediately reverts that specific toggle.
+  - The picker remains open with an inline error notice.
+  - Context is preserved for retry.
+
+### 9.2 Quick Create Context
+- Label toggles modify `draft.labels` array in local draft state only.
+- No WorkItem mutation occurs until final Quick Create submission.
+- `Escape` closes the label picker without affecting draft selections.
+
+---
+
+## 10. Zero-Leakage Invariants: Candidate vs. Existing Reference
+
+To preserve security and eliminate privacy leakage across multi-tenant or role-restricted workspaces, the picker system strictly differentiates:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ZERO-LEAKAGE BEHAVIOR                                                       │
+├──────────────────────────────────────┬──────────────────────────────────────┤
+│ A. Restricted Candidate in Search    │ B. Existing Restricted Reference     │
+├──────────────────────────────────────┼──────────────────────────────────────┤
+│ Scenario: User searches for an       │ Scenario: A WorkItem already         │
+│ inaccessible Project, User, or Item  │ references an inaccessible entity    │
+│ Rule: MUST NOT BE DISPLAYED          │ Rule: GENERIC PROTECTED PLACEHOLDER  │
+│ - No name or title                   │ - Renders "[Restricted Project]"     │
+│ - No identifier                      │ - Renders "[Restricted User]"        │
+│ - No avatar or initials              │ - Muted lock icon                    │
+│ - No count or metadata               │ - Non-interactive / disabled         │
+│ - No disabled "secret" option        │ - Opaque ID preserved in data model  │
+└──────────────────────────────────────┴──────────────────────────────────────┘
+```
+
+Search itself is 100% zero-leakage. Users can never probe or infer the existence of protected resources through candidate option lists or search autocompletion.
+
+---
+
+## 11. Team-Change Dependency Semantics & Cascading Mutation Confirmation
+
+WorkItem ownership is rooted in `teamId`. Changing a WorkItem's Team has structural consequences for dependent properties. **The system must never silently destroy or remap dependent properties.**
+
+### 11.1 Consequence Resolution Pipeline
+
+```text
+User selects Proposed Team
+        │
+        ▼
+[ Resolve Dependent Consequences ]
+  ├── Current Status available in target Team?
+  │     ├── Yes: Retain Status
+  │     └── No: Flag incompatibility; propose target Team's default status for matching statusCategory
+  ├── Current Cycle belongs to target Team?
+  │     ├── Yes: Retain Cycle
+  │     └── No: Flag invalidity; propose clearing Cycle to null (Backlog)
+  └── Current Project compatible with target Team?
+        ├── Yes: Retain Project
+        └── No: Flag context mismatch; propose keeping or clearing Project
+        │
+        ▼
+Are there destructive or invalidating consequences?
+  ├── NO: Commit atomic mutation: updateItem(id, { teamId: newTeamId })
+  └── YES:
+        │
+        ▼
+[ Present Consequence Confirmation Dialog ]
+  ├── Clearly lists all affected properties
+  ├── Displays proposed valid replacements/defaults
+  ├── Allows user to adjust proposed replacements
+  └── Actions:
+        ├── [ Cancel ] ──► Zero changes made. Team remains unchanged. Picker closes.
+        └── [ Confirm Changes ] ──► Commits ONE atomic canonical mutation with all resolved fields.
+```
+
+### 11.2 Invariant Rules
+- **No Silent Destruction:** The system must never silently remap Status, clear Cycle, or unlink a Project without explicit user confirmation.
+- **Atomic Mutation:** When confirmed, the change commits as a single canonical mutation (e.g. `{ teamId, status, cycleId }`).
+- **Cancellation Safety:** If the user cancels the confirmation dialog, the Team selection is discarded and the WorkItem retains all original values.
+
+---
+
+## 12. Quick Create Architecture & Multi-Team Project Resolution
+
+### 12.1 Objective
+Quick Create provides sub-second WorkItem capture without modal friction:
+
+> **Open (`C`) → Type Title → Set Priority/Assignee via accelerators → Submit (`⌘↵`) → Instant Return.**
+
+### 12.2 Multi-Team Project Resolution
+Projects are Workspace resources that may span multiple Teams. When Quick Create is invoked from a Project context:
+1. **`projectId` is inherited** directly from context.
+2. **Team Resolution Rules:**
+   - **Unambiguous Team:** If the Project belongs to exactly one execution Team, that `teamId` is inferred and prefilled.
+   - **Active Context Match:** If the Project is multi-team and the user already has an active valid contextual Team (e.g. active sidebar team is a member of the project), that Team is retained.
+   - **Ambiguous Multi-Team:** If no valid execution Team can be unambiguously resolved by context, **Team is NOT guessed**. The Team field remains empty/required, and **submission is blocked until the user explicitly selects an execution Team**.
+   - **No Lead-Team Assumption:** The system does not invent a permanent `leadTeam` requirement merely to simplify prefilling.
+
+### 12.3 Context Inheritance & Precedence Model
+Initial property values for Quick Create resolve deterministically:
+
+$$\text{Active Value} = \text{Explicit User Choice} \succ \text{Invocation View Context} \succ \text{Valid Session Context} \succ \text{Team / Workspace Defaults}$$
+
+---
+
+## 13. Quick Create Required Fields & Dynamic Default Resolution
+
+### 13.1 Minimum Required Fields
+To maintain capture speed while ensuring database and domain integrity:
+- **Title:** Strictly required (trimmed length > 0).
+- **Team:** Strictly required (establishes ownership root).
+
+### 13.2 Dynamic Default Resolution (No Hardcoded Fallbacks)
+Values must resolve through the appropriate product and configuration contracts:
+- **Type:** Resolves to default type for the selected Team (defaults to `Task`).
+- **Status:** **Dynamically resolved from the selected Team's workflow configuration**. Quick Create selects the Team's configured unstarted default status (e.g., `backlog` or `todo`). It must **never submit a hardcoded status that is invalid for the chosen Team**.
+- **Priority:** Resolves to the Team/workspace configured default priority; if none configured, falls back to the product default (`medium`).
+- **Assignee:** Defaults to `null` (`Unassigned`).
+- **Cycle:** Defaults to active cycle if invoked from a Cycle view; otherwise `null`.
+
+---
+
+## 14. Create Another Persistence & Reset Policy
+
+When the user enables the **Create Another** toggle (`[x] Create another`), submitting via `⌘↵` or "Create Item" applies a deterministic reset policy:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ CREATE ANOTHER RESET POLICY                                                 │
+├──────────────────────────────────────┬──────────────────────────────────────┤
+│ ALWAYS RESET (Item-Specific)         │ PRESERVE (Contextual Container)      │
+├──────────────────────────────────────┼──────────────────────────────────────┤
+│ - Title (cleared to empty string)    │ - Team (retains execution context)   │
+│ - Description (cleared to empty)     │ - Project (retains deliverable group)│
+│ - Assignee (reset to Unassigned)*    │ - Cycle (retains active sprint)      │
+│ - Due Date (reset to None)*          │ - WorkItem Type (retains task/bug)   │
+│ - Item-specific Labels               │ - Priority (retains urgency level)   │
+│ - Transient validation errors        │ - Contextual Labels                  │
+│ - In-flight submission flags         │                                      │
+├──────────────────────────────────────┴──────────────────────────────────────┤
+│ *Design Rationale: Assignee and Due Date are reset to prevent accidental    │
+│ repeated assignments of multiple backlog deliverables to a single individual│
+│ or deadline. Team, Project, and Cycle are preserved as the ambient container│
+│ of the current creation session. Focus immediately returns to Title input. │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 15. Submission In-Flight Deduplication & Failure Preservation
+
+### 15.1 In-Flight Deduplication
 - Submitting via `⌘↵` or clicking Create sets `isSubmitting = true`.
 - Subsequent Enter keypresses or clicks while in-flight are ignored.
 - The submit button transitions to a compact spinner state without shifting layout.
 
-### 10.3 Failure Preservation & Rollback
+### 15.2 Failure Preservation & Rollback
 If network or server validation fails:
 - Quick Create **remains open**.
 - User input (Title, Description, selected pickers) is **100% preserved**.
-- An inline error banner displays authoritative failure reason.
+- An inline error banner displays the authoritative failure reason.
 - Focus returns to Title input. No phantom items remain in the UI.
 
 ---
 
-## 11. Component Hierarchy & Clean Dependencies
+## 16. Responsive Adaptation (Desktop vs. Mobile)
+
+- **Desktop (≥ 768px):** Centered compact dialog (tunable default: 560px width). Property triggers displayed in a horizontal badge strip. Property pickers open in anchored popovers.
+- **Mobile (< 768px):** Purposeful fullscreen or bottom-sheet drawer. Search input pinned to top. Property triggers displayed as stacked full-width rows with ≥40px touch targets. Both presentations share the exact same draft state and validation logic.
+
+---
+
+## 17. Component Architecture & Clean Dependency Boundaries
 
 ```text
 src/
-├── design-system/primitives/         # Buttons, Badges, Inputs, Dialogs (No business logic)
+├── design-system/primitives/         # Buttons, Badges, Inputs, Dialogs (Zero business logic)
 ├── components/property-picker/       # Generic Universal Picker Engine
 │   ├── PropertyTrigger.jsx           # Base trigger button with badge/icon slots
 │   ├── PropertyPicker.jsx            # Anchored popover / floating overlay
@@ -324,7 +428,7 @@ src/
 ├── features/work-items/
 │   ├── property-pickers/             # WorkItem Domain Adapters
 │   │   ├── TypePicker.jsx            # Task, Issue, Bug
-│   │   ├── StatusPicker.jsx          # Workflow statuses grouped by category
+│   │   ├── StatusPicker.jsx          # Team-configured workflow statuses
 │   │   ├── PriorityPicker.jsx        # Urgent, High, Medium, Low, None
 │   │   ├── AssigneePicker.jsx        # User selection with avatars & search
 │   │   ├── TeamPicker.jsx            # Workspace team selection
@@ -335,101 +439,119 @@ src/
 │   └── quick-create/
 │       ├── QuickCreateDialog.jsx     # Main dialog orchestration
 │       ├── QuickCreateForm.jsx       # Title, description, and property strip
-│       └── useQuickCreate.js         # Context inheritance & submission state hook
+│       ├── TeamChangeConfirmation.jsx# Consequence confirmation dialog
+│       └── useQuickCreate.js         # Context inheritance & draft state hook
 ```
 
-**Architectural Rule:**  
-`src/components/property-picker/` CANNOT import from `features/work-items`.  
-`features/work-items/property-pickers/` imports from `components/property-picker/` and `constants/workItems`.  
-`QuickCreate` and `DataGridCell` and `WorkItemProperties` consume `features/work-items/property-pickers/`.
+**Dependency Rules:**
+1. `components/property-picker/` CANNOT import from `features/work-items/`.
+2. `features/work-items/property-pickers/` imports generic picker components and WorkItem constants.
+3. `QuickCreateDialog`, `DataGridCell`, and `WorkItemProperties` consume `features/work-items/property-pickers/`.
 
 ---
 
-## 12. Migration Plan for UI-01A & UI-01B
+## 18. UI-01A & UI-01B Migration Plan
 
-To prevent code duplication, existing components will be migrated during implementation:
-
-1. **`CreateItemModal.jsx`:** **REPLACE completely** with `QuickCreateDialog.jsx`. The prototype `<select>` inputs and fake ID generators are decommissioned.
-2. **`WorkItemProperties.jsx` (Inspector):** Refactor property rows to replace custom `openDropdown` state with universal property picker adapters (`<StatusPicker>`, `<PriorityPicker>`, `<AssigneePicker>`, etc.).
+1. **`CreateItemModal.jsx`:** **REPLACE completely** with `QuickCreateDialog.jsx`. The prototype `<select>` inputs and synthetic random IDs are decommissioned.
+2. **`WorkItemProperties.jsx` (Inspector):** Refactor property rows to replace local `openDropdown` state with universal property picker adapters (`<StatusPicker>`, `<PriorityPicker>`, `<AssigneePicker>`, etc.).
 3. **`DataGridCell.jsx` (Data Grid):** Replace inline dropdown menus for status and priority with universal property triggers in anchored popover mode.
 
 ---
 
-## 13. Resolution of the 19 Required Product Decisions
+## 19. Accessibility & ARIA Semantics
+
+- **Triggers:** `aria-haspopup="listbox"`, `aria-expanded={isOpen}`, `aria-label="Change {property}"`.
+- **Picker Listbox:** `role="listbox"`, `aria-label="Select {property}"`, `tabIndex={-1}`.
+- **Picker Options:** `role="option"`, `aria-selected={isSelected}`, `tabIndex={isActive ? 0 : -1}`.
+- **Section Headers:** `role="group"`, `aria-label="{Category Name}"`.
+- **Live Regions:** `aria-live="polite"` for asynchronous search result counts and mutation failure announcements.
+
+---
+
+## 20. Visual Design States & Coverage
+
+The accompanying UI-01C visual design specification illustrates the key system states:
+
+1. **Closed Property Trigger:** Compact badge with icon, semantic color, and chevron.
+2. **Open Anchored Status Picker:** Team-configured statuses grouped by category with active checkmarks.
+3. **Anchored Assignee Picker:** Search input, avatar row, and member list.
+4. **Semantic Priority Popover:** 5-level list with urgency indicators.
+5. **Quick Create Default Dialog:** Title auto-focused, markdown description, horizontal badge strip.
+6. **Multi-Team Project Quick Create:** Project inherited; Team selector highlighted as required when ambiguous.
+7. **Team-Change Consequence Confirmation:** Explicit dialog showing proposed Status/Cycle remapping with Confirm and Cancel actions.
+8. **Protected Existing Reference:** Muted badge with lock icon (`[Protected Reference]`), zero metadata leaked.
+9. **Submission In-Flight State:** Disabled button with spinner; duplicate Enter keys suppressed.
+10. **Creation Failure State:** 100% input preserved; inline red alert banner.
+11. **Mobile Quick Create:** Fullscreen bottom sheet with stacked touch targets.
+
+---
+
+## 21. Authoritative Validation Scenarios
+
+### Scenario A — Team Change Consequence Confirmation
+- **Context:** WorkItem `ENG-101` has `Team: Team Core`, `Status: In Review`, `Cycle: Cycle 42`.
+- **Action:** User opens Team picker and selects `Team Web`.
+- **System Analysis:** `Team Web` uses a 4-state workflow lacking `In Review`; `Cycle 42` belongs strictly to `Team Core`.
+- **Result:** Consequence Confirmation Dialog appears:
+  - *"Changing team to Web will reset Cycle to Backlog and update Status to In Progress."*
+- **Confirm:** Dispatches single canonical mutation `{ teamId: 'team-web', status: 'in_progress', cycleId: null }`.
+- **Cancel:** Dialog dismisses; `ENG-101` remains on `Team Core` with `In Review` and `Cycle 42`.
+
+### Scenario B — Multi-Team Project Quick Create
+- **Context:** Quick Create is opened from Project "Auth V2" (which spans `Team Security` and `Team Core`). Active sidebar team context is not set.
+- **Result:** Project "Auth V2" is inherited. Team is NOT guessed. The Team trigger displays an empty "Select Team *" state. The Create button is disabled until a Team is explicitly chosen.
+
+### Scenario C — Team-Configured Workflow Status
+- **Context:** `Team Security` has custom compliance statuses (`triage`, `audit`, `remediation`, `certified`).
+- **Action:** User opens Status picker for a `Team Security` item.
+- **Result:** The picker renders strictly the 4 compliance statuses. Global default statuses (`todo`, `in_progress`) are not displayed.
+
+### Scenario D — Labels on Existing WorkItem
+- **Context:** User opens Labels picker on `ENG-102` and presses `Enter` on `security`.
+- **Result:** Canonical mutation immediately updates `ENG-102` with `security`. User presses `Escape`. Picker closes. Label `security` remains committed.
+
+### Scenario E — Labels in Quick Create
+- **Context:** User opens Quick Create and toggles label `frontend`.
+- **Result:** `draft.labels` updates locally. No canonical WorkItem mutation is dispatched. User closes picker and continues typing description.
+
+### Scenario F — Zero-Leakage Search & Existing References
+- **Candidate Search:** User searches for "secret" in Assignee picker. No candidate or account metadata is returned.
+- **Existing Reference:** WorkItem references a confidential parent. Grid cell renders `[Restricted WorkItem]` with a lock icon without leaking parent identifier or title.
+
+### Scenario G — Create Another Execution
+- **Context:** User creates a task in Project "Auth V2" with `Priority: High`, `Assignee: Alice`, and `Create another` checked.
+- **Action:** User presses `⌘↵`.
+- **Result:** Item 1 is created. Form remains open. Title and Description are cleared. Assignee is reset to Unassigned. Team, Project, and Priority (High) are preserved. Focus returns to Title.
+
+---
+
+## 22. Resolution of the 19 Explicit Product Decisions
 
 | # | Topic | Authoritative Decision |
 | :--- | :--- | :--- |
 | **1** | Generic PropertyPicker Boundary | Generic picker engine resides in `src/components/property-picker/` with zero domain coupling. Handles ARIA, keyboard navigation, popovers, and option highlighting. |
 | **2** | Domain Picker Configuration | WorkItem-specific pickers reside in `src/features/work-items/property-pickers/`, configuring options, icons, and mutation contracts. |
-| **3** | Sync vs Async Option Sourcing | Small enums (Type, Priority, Status) are synchronous. Scaled entities (Assignee, Project, Labels) use an async-capable query contract with debounce. |
+| **3** | Sync vs Async Option Sourcing | Static enums (Type, Priority) are sync. Status is dynamic Team-workflow configuration. Scaled entities (Assignee, Project, Team, Labels) use an async-capable query contract. |
 | **4** | Single vs Multi-Select API | Unified engine supports `isMultiSelect` prop. Single-select closes on option click; multi-select toggles checkmark without closing popover. |
 | **5** | Focus Restoration Contract | Closing picker (selection or cancellation) deterministically restores DOM focus to the originating `PropertyTrigger`. |
-| **6** | Dependent-Property Behavior | Property dependencies are declared in the domain adapter. Breaking changes trigger confirmation prompts before mutation commits. |
-| **7** | Team-Change Consequences | Team change invalidates Cycle (cleared to Backlog) and re-evaluates Status to default in matching category. |
+| **6** | Dependent-Property Behavior | Breaking changes trigger consequence resolution and require explicit user confirmation before committing. |
+| **7** | Team-Change Consequences | Proposed Team -> Resolve consequences -> Present consequence dialog -> User confirms -> One atomic mutation / Cancel -> zero changes. |
 | **8** | Quick Create Context Inheritance | Strictly deterministic precedence: Explicit User Choice > Invocation View Context > Session Defaults > Team Defaults. |
-| **9** | Minimum Required Creation Fields | Only **Title** and **Team** are strictly mandatory. All other properties provide safe defaults (`Task`, `Todo`, `Medium`, `Unassigned`). |
+| **9** | Minimum Required Creation Fields | Only **Title** and **Team** are strictly mandatory. All other properties provide safe defaults (`Task`, default Status for Team, `Medium`, `Unassigned`). |
 | **10** | Create & Close Behavior | Standard default. Creates item, displays toast, closes modal, restores focus to grid/view. |
 | **11** | Create & Open Behavior | Supported via secondary action button / split shortcut (`⌘⇧↵`). Opens newly created item in Inspector drawer. |
 | **12** | Create Another Decision | **CORE capability**. Checkbox in footer allows continuous creation without closing modal, preserving contextual team/project fields. |
 | **13** | Optimistic Creation Decision | **DEFERRED for Quick Create**. Quick Create awaits authoritative in-memory store creation before closing or resetting, preventing phantom items. |
 | **14** | Failed Creation Behavior | 100% form preservation. Form remains open, error banner displays, focus returns to title for immediate retry. |
 | **15** | Duplicate-Submit Protection | Submit button enters disabled loading state immediately upon trigger. Subsequent Enter keys are suppressed while in-flight. |
-| **16** | Desktop Presentation | Centered, compact modal dialog (560px width) with property badges in an inline horizontal strip. |
+| **16** | Desktop Presentation | Centered, compact modal dialog (tunable default: 560px width) with property badges in an inline horizontal strip. |
 | **17** | Mobile Presentation | Responsive bottom sheet drawer (<768px) with full-width stacked property selectors. |
 | **18** | UI-01A/UI-01B Migration | Both Inspector and Grid will consume the universal domain pickers in implementation phase, deprecating local dropdown code. |
 | **19** | Existing `CreateItemModal` | **REPLACE**. Decommission prototype modal in favor of modular `QuickCreateDialog`. |
 
 ---
 
-## 14. Required Product Flows Verification
-
-1. **Flow 1 — Grid Status Change:** User clicks status badge in row -> Anchored status picker opens -> User navigates with Arrow keys to `Done` -> Press `Enter` -> Status updates optimistically in grid -> Popover closes -> Row retains roving focus.
-2. **Flow 2 — Inspector Assignee Change:** User opens Inspector -> Clicks Assignee trigger -> Searchable picker opens -> Types "Younas" -> Debounced filter highlights matching member -> User presses `Enter` -> Canonical mutation dispatches -> Inspector badge & grid cell update simultaneously.
-3. **Flow 3 — Quick Create from Team View:** User is in Team Web -> Presses `C` -> Quick Create opens with `Team: Web` prefilled -> User types "Add Web Worker telemetry" -> Hits `⌘↵` -> Item created in Team Web -> Modal closes -> Grid scrolls to new item.
-4. **Flow 4 — Quick Create from Project:** User is in Project Auth V2 -> Presses `C` -> Quick Create opens with `Project: Auth V2` prefilled -> Associated team prefilled -> User enters title and creates.
-5. **Flow 5 — Cycle Selection with Team Dependency:** User opens Cycle picker -> Only cycles matching the item's `teamId` are listed -> Selecting `Cycle 42` attaches item to the active sprint.
-6. **Flow 6 — Multi-Label Tagging:** User opens Labels picker -> Types "ui" -> Press `Enter` to toggle `ui` -> Types "perf" -> Press `Enter` to toggle `perf` -> Press `Escape` -> Both labels committed to item.
-7. **Flow 7 — Permission Revocation:** User attempts to edit property on read-only item -> Trigger is disabled; no picker opens; tooltip communicates read-only constraint.
-8. **Flow 8 — Failed Creation Preservation:** Network error occurs during creation -> Error banner displays "Database sync timed out" -> Title, description, and chosen properties remain intact in form.
-9. **Flow 9 — Pure Keyboard Creation:** Press `C` -> Focus in Title -> Type title -> Press `Tab` to navigate to Priority -> Press `p` to open Priority picker -> ArrowDown to `Urgent` -> `Enter` -> `⌘↵` -> WorkItem created.
-10. **Flow 10 — Mobile Quick Create:** Viewport at 375px width -> Tap floating action button -> Bottom sheet slides up with stacked full-width touch pickers -> Save creates item and dismisses sheet.
-
----
-
-## 15. Visual Design States & Coverage
-
-The accompanying UI-01C visual design artifact illustrates all 23 core system states across Universal Pickers and Quick Create:
-
-### Universal Property Pickers
-1. Closed Property Trigger (Badge / Avatar / Text)
-2. Open Single-Select Picker Popover
-3. Searchable Picker with Active Query Filter
-4. Keyboard-Focused Option Highlight (`tabindex="0"`)
-5. Selected Option State with Trailing Checkmark
-6. Clearable Value Option (`Unassigned` / `No Project`)
-7. Multi-Select Labels Picker with Active Tags
-8. Asynchronous Option Loading State (Skeleton)
-9. Empty Search Results State
-10. Option Load Error / Retry State
-11. Read-Only / Disabled Trigger State
-12. Zero-Leakage Restricted Option State
-13. Compact Mobile Bottom Sheet Presentation
-
-### Quick Create
-14. Default Quick Create Desktop Dialog (Clean, calm, semantic dark theme)
-15. Context-Inherited Quick Create (Team Pre-selected)
-16. Context-Inherited Quick Create (Project Pre-selected)
-17. Property Picker Nested & Opened inside Quick Create
-18. Client Validation State (Missing Title / Error outline)
-19. Submission In-Flight State (Loading spinner, double-submit lock)
-20. Creation Failure State (Preserved input + Error notification banner)
-21. Successful Creation / Create & Close State
-22. Create & Open Inspector Behavior
-23. Responsive Mobile Fullscreen Quick Create Sheet
-
----
-
-## 16. Human Review Gate
+## 23. Human Review Gate
 
 **STOP AT THIS GATE.**  
-Do NOT implement production code for UI-01C until this product interaction contract and visual design artifact have received explicit Human Review and approval.
+Do NOT implement production code for UI-01C until this corrected product interaction contract and updated visual design artifact have received explicit Human Review and approval.
