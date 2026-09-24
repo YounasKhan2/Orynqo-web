@@ -44,9 +44,11 @@ export function CreateItemModal({
       priority,
       estimate: Number(estimate) || 0,
       assigneeId,
-      subtasks: [],
-      blockedBy: [],
-      blocks: [],
+      workspaceId: 'wks-core',
+      parentId: null,
+      documentLinks: [],
+      relations: [],
+      labels: [],
       createdAt: new Date().toISOString(),
       commentsCount: 0
     };

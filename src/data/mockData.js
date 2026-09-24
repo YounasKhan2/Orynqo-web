@@ -216,20 +216,14 @@ export const INITIAL_WORK_ITEMS = [
     projectId: 'proj-2',
     cycleId: 'cycle-42',
     dueDate: '2026-09-25',
-    specDocId: 'doc-1',
-    documentLinks: [{ documentId: 'doc-1', type: 'source_spec', title: 'PRD: Offline-First Synchronization & CRDT Substrate' }],
     parentId: null,
     labels: ['algorithms', 'backend', 'core-sync'],
     description: 'When users declare `A blocks B`, we must detect transitive loops (A -> B -> C -> A) in O(V + E) time before committing the relation to the normalized state cache.',
-    subtasks: [
-      { id: 'sub-1', title: 'Implement DFS adjacency list validator in TypeScript', done: true },
-      { id: 'sub-2', title: 'Write property-based fuzz tests with random cyclic graphs', done: true },
-      { id: 'sub-3', title: 'Connect conflict rejection callback to client toast system', done: false }
-    ],
-    blockedBy: [],
-    blocks: ['ENG-1044'],
     relations: [
       { type: 'blocks', targetKey: 'ENG-1044', targetTitle: 'Persistent IndexedDB storage engine with delta log compression' }
+    ],
+    documentLinks: [
+      { documentId: 'doc-1', type: 'source_spec', title: 'PRD: Offline-First Synchronization & CRDT Substrate' }
     ],
     createdAt: '2026-09-14T09:30:00Z',
     commentsCount: 4
@@ -248,20 +242,13 @@ export const INITIAL_WORK_ITEMS = [
     projectId: 'proj-1',
     cycleId: 'cycle-42',
     dueDate: '2026-09-26',
-    specDocId: null,
-    documentLinks: [],
     parentId: null,
     labels: ['security', 'auth', 'soc2'],
     description: 'Strict verification of InResponseTo attributes in SAML assertions. Ensure clock-skew tolerance is capped at 120 seconds.',
-    subtasks: [
-      { id: 'sub-4', title: 'Patch assertion consumer service endpoint', done: true },
-      { id: 'sub-5', title: 'Add regression tests against captured malicious replay payloads', done: true }
-    ],
-    blockedBy: [],
-    blocks: [],
     relations: [
       { type: 'relates_to', isRestricted: true }
     ],
+    documentLinks: [],
     createdAt: '2026-09-15T11:20:00Z',
     commentsCount: 6
   },
@@ -279,19 +266,13 @@ export const INITIAL_WORK_ITEMS = [
     projectId: 'proj-3',
     cycleId: 'cycle-42',
     dueDate: '2026-09-28',
-    specDocId: 'doc-1',
-    documentLinks: [{ documentId: 'doc-1', type: 'source_spec', title: 'PRD: Offline-First Synchronization & CRDT Substrate' }],
     parentId: null,
     labels: ['ui', 'data-grid', 'performance'],
     description: 'Ensure 10,000 work items can be scrolled at 60 FPS without memory leaks. Keep total rendered DOM nodes between 150 and 200.',
-    subtasks: [
-      { id: 'sub-6', title: 'Calculate fixed row offset matrix with dynamic overscan', done: true },
-      { id: 'sub-7', title: 'Implement keyboard arrow key continuous scrolling', done: false },
-      { id: 'sub-8', title: 'Support multi-row selection with Shift + ArrowDown', done: false }
-    ],
-    blockedBy: [],
-    blocks: [],
     relations: [],
+    documentLinks: [
+      { documentId: 'doc-1', type: 'source_spec', title: 'PRD: Offline-First Synchronization & CRDT Substrate' }
+    ],
     createdAt: '2026-09-13T14:15:00Z',
     commentsCount: 9
   },
@@ -309,19 +290,14 @@ export const INITIAL_WORK_ITEMS = [
     projectId: 'proj-2',
     cycleId: 'cycle-42',
     dueDate: '2026-10-02',
-    specDocId: 'doc-1',
-    documentLinks: [{ documentId: 'doc-1', type: 'source_spec', title: 'PRD: Offline-First Synchronization & CRDT Substrate' }],
     parentId: null,
     labels: ['offline', 'storage', 'crdt'],
     description: 'Store client state operations in an IndexedDB write-ahead log. Compress snapshot states every 1,000 transactions.',
-    subtasks: [
-      { id: 'sub-9', title: 'Define schema migrations for IndexedDB v3', done: false },
-      { id: 'sub-10', title: 'Implement lz4 block compression for cold snapshots', done: false }
-    ],
-    blockedBy: ['ENG-1041'],
-    blocks: [],
     relations: [
       { type: 'blocked_by', targetKey: 'ENG-1041', targetTitle: 'Implement Tarjan cycle detection algorithm' }
+    ],
+    documentLinks: [
+      { documentId: 'doc-1', type: 'source_spec', title: 'PRD: Offline-First Synchronization & CRDT Substrate' }
     ],
     createdAt: '2026-09-16T10:00:00Z',
     commentsCount: 2
@@ -340,18 +316,11 @@ export const INITIAL_WORK_ITEMS = [
     projectId: 'proj-1',
     cycleId: 'cycle-41',
     dueDate: '2026-09-10',
-    specDocId: null,
-    documentLinks: [],
     parentId: null,
     labels: ['scim', 'enterprise', 'auth'],
     description: 'Implement `/scim/v2/Users` and `/scim/v2/Groups` following RFC 7644.',
-    subtasks: [
-      { id: 'sub-11', title: 'Implement PATCH user status (active = false)', done: true },
-      { id: 'sub-12', title: 'Add Okta SCIM verification integration test suite', done: true }
-    ],
-    blockedBy: [],
-    blocks: [],
     relations: [],
+    documentLinks: [],
     createdAt: '2026-08-30T08:00:00Z',
     commentsCount: 3
   },
@@ -369,18 +338,11 @@ export const INITIAL_WORK_ITEMS = [
     projectId: 'proj-3',
     cycleId: 'cycle-42',
     dueDate: '2026-09-18',
-    specDocId: null,
-    documentLinks: [],
     parentId: null,
     labels: ['ui', 'keyboard', 'navigation'],
     description: 'Cmd+K launcher supporting instant navigation across projects, views, documents, and execution actions.',
-    subtasks: [
-      { id: 'sub-13', title: 'Fuzzy match scoring with prefix boosting', done: true },
-      { id: 'sub-14', title: 'Category grouping: Actions, Navigation, Work Items', done: true }
-    ],
-    blockedBy: [],
-    blocks: [],
     relations: [],
+    documentLinks: [],
     createdAt: '2026-09-10T16:40:00Z',
     commentsCount: 5
   },
@@ -398,15 +360,11 @@ export const INITIAL_WORK_ITEMS = [
     projectId: 'proj-4',
     cycleId: 'cycle-42',
     dueDate: '2026-09-30',
-    specDocId: null,
-    documentLinks: [],
     parentId: null,
     labels: ['ios', 'mobile', 'sync'],
     description: 'Utilize BGAppRefreshTask to pull delta change-sets when devices are connected to unmetered Wi-Fi.',
-    subtasks: [],
-    blockedBy: [],
-    blocks: [],
     relations: [],
+    documentLinks: [],
     createdAt: '2026-09-17T13:10:00Z',
     commentsCount: 1
   },
@@ -424,15 +382,11 @@ export const INITIAL_WORK_ITEMS = [
     projectId: 'proj-2',
     cycleId: null,
     dueDate: null,
-    specDocId: null,
-    documentLinks: [],
     parentId: null,
     labels: ['network', 'websockets', 'infra'],
     description: 'Inject ping/pong frames every 25 seconds to keep AWS CloudFront connections warm.',
-    subtasks: [],
-    blockedBy: [],
-    blocks: [],
     relations: [],
+    documentLinks: [],
     createdAt: '2026-09-18T15:20:00Z',
     commentsCount: 0
   },
@@ -450,15 +404,11 @@ export const INITIAL_WORK_ITEMS = [
     projectId: 'proj-1',
     cycleId: 'cycle-43',
     dueDate: '2026-10-08',
-    specDocId: null,
-    documentLinks: [],
     parentId: null,
     labels: ['workflows', 'governance'],
     description: 'Allow team leads to enforce required fields before an item can be moved to specific workflow states.',
-    subtasks: [],
-    blockedBy: [],
-    blocks: [],
     relations: [],
+    documentLinks: [],
     createdAt: '2026-09-19T09:45:00Z',
     commentsCount: 2
   },
@@ -476,21 +426,128 @@ export const INITIAL_WORK_ITEMS = [
     projectId: 'proj-3',
     cycleId: 'cycle-42',
     dueDate: '2026-09-27',
-    specDocId: 'doc-1',
-    documentLinks: [{ documentId: 'doc-1', type: 'source_spec', title: 'PRD: Offline-First Synchronization & CRDT Substrate' }],
     parentId: null,
     labels: ['living-spec', 'editor', 'sync'],
     description: 'Ensure any sentence or table row in a PRD can be linked directly to a WorkItem, displaying live status pills and assignee avatars.',
-    subtasks: [
-      { id: 'sub-15', title: 'Block parser for `/work-item` slash command', done: true },
-      { id: 'sub-16', title: 'Live property mutation listener on embedded pills', done: true },
-      { id: 'sub-17', title: 'Bi-directional text title sync between spec and ticket', done: false }
-    ],
-    blockedBy: [],
-    blocks: [],
     relations: [],
+    documentLinks: [
+      { documentId: 'doc-1', type: 'source_spec', title: 'PRD: Offline-First Synchronization & CRDT Substrate' }
+    ],
     createdAt: '2026-09-12T11:00:00Z',
     commentsCount: 11
+  },
+  // Canonical Sub-items (Hierarchical children resolved via parentId)
+  {
+    id: 'sub-1',
+    identifier: 'ENG-1041-A',
+    workspaceId: 'wks-core',
+    teamId: 'team-core',
+    title: 'Implement DFS adjacency list validator in TypeScript',
+    type: 'task',
+    status: 'done',
+    priority: 'medium',
+    parentId: 'item-101',
+    relations: [],
+    documentLinks: [],
+    createdAt: '2026-09-14T10:00:00Z'
+  },
+  {
+    id: 'sub-2',
+    identifier: 'ENG-1041-B',
+    workspaceId: 'wks-core',
+    teamId: 'team-core',
+    title: 'Write property-based fuzz tests with random cyclic graphs',
+    type: 'task',
+    status: 'done',
+    priority: 'medium',
+    parentId: 'item-101',
+    relations: [],
+    documentLinks: [],
+    createdAt: '2026-09-14T11:00:00Z'
+  },
+  {
+    id: 'sub-3',
+    identifier: 'ENG-1041-C',
+    workspaceId: 'wks-core',
+    teamId: 'team-core',
+    title: 'Connect conflict rejection callback to client toast system',
+    type: 'task',
+    status: 'todo',
+    priority: 'medium',
+    parentId: 'item-101',
+    relations: [],
+    documentLinks: [],
+    createdAt: '2026-09-14T12:00:00Z'
+  },
+  {
+    id: 'sub-4',
+    identifier: 'ENG-1042-A',
+    workspaceId: 'wks-core',
+    teamId: 'team-core',
+    title: 'Patch assertion consumer service endpoint',
+    type: 'task',
+    status: 'done',
+    priority: 'medium',
+    parentId: 'item-102',
+    relations: [],
+    documentLinks: [],
+    createdAt: '2026-09-15T12:00:00Z'
+  },
+  {
+    id: 'sub-5',
+    identifier: 'ENG-1042-B',
+    workspaceId: 'wks-core',
+    teamId: 'team-core',
+    title: 'Add regression tests against captured malicious replay payloads',
+    type: 'task',
+    status: 'done',
+    priority: 'medium',
+    parentId: 'item-102',
+    relations: [],
+    documentLinks: [],
+    createdAt: '2026-09-15T13:00:00Z'
+  },
+  {
+    id: 'sub-6',
+    identifier: 'WEB-402-A',
+    workspaceId: 'wks-core',
+    teamId: 'team-web',
+    title: 'Calculate fixed row offset matrix with dynamic overscan',
+    type: 'task',
+    status: 'done',
+    priority: 'medium',
+    parentId: 'item-103',
+    relations: [],
+    documentLinks: [],
+    createdAt: '2026-09-13T15:00:00Z'
+  },
+  {
+    id: 'sub-7',
+    identifier: 'WEB-402-B',
+    workspaceId: 'wks-core',
+    teamId: 'team-web',
+    title: 'Implement keyboard arrow key continuous scrolling',
+    type: 'task',
+    status: 'todo',
+    priority: 'medium',
+    parentId: 'item-103',
+    relations: [],
+    documentLinks: [],
+    createdAt: '2026-09-13T16:00:00Z'
+  },
+  {
+    id: 'sub-8',
+    identifier: 'WEB-402-C',
+    workspaceId: 'wks-core',
+    teamId: 'team-web',
+    title: 'Support multi-row selection with Shift + ArrowDown',
+    type: 'task',
+    status: 'todo',
+    priority: 'medium',
+    parentId: 'item-103',
+    relations: [],
+    documentLinks: [],
+    createdAt: '2026-09-13T17:00:00Z'
   }
 ];
 

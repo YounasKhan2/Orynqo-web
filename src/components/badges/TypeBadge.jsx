@@ -1,5 +1,5 @@
 import React from 'react';
-import { ITEM_TYPE_DEFINITIONS } from '../../constants/workItems';
+import { ITEM_TYPE_DEFINITIONS, normalizeWorkItemType } from '../../constants/workItems';
 import {
   Sparkles,
   Bug,
@@ -18,10 +18,11 @@ const TYPE_ICONS = {
 
 /**
  * TypeBadge Product Component
- * Displays issue/work-item type (Bug, Feature, Task, Milestone, Chore)
+ * Displays issue/work-item type (Bug, Issue, Task)
  */
 export function TypeBadge({ typeId, showLabel = true, className = '' }) {
-  const type = ITEM_TYPE_DEFINITIONS[typeId] || ITEM_TYPE_DEFINITIONS.task;
+  const normalizedId = normalizeWorkItemType(typeId);
+  const type = ITEM_TYPE_DEFINITIONS[normalizedId] || ITEM_TYPE_DEFINITIONS.task;
   const IconComponent = TYPE_ICONS[type.icon] || CheckSquare;
 
   return (

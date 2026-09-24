@@ -245,9 +245,29 @@ function OrynqoWorkspace() {
       inspector={
         <WorkItemInspector
           item={selectedItem}
+          subItems={items.filter((it) => it.parentId === selectedItem?.id)}
           isOpen={isInspectorOpen}
           onClose={() => setIsInspectorOpen(false)}
           onUpdateItem={updateItem}
+          onToggleSubItem={(subId, nextStatus) => updateItem(subId, { status: nextStatus })}
+          onCreateSubItem={(title) => {
+            if (!selectedItem) return;
+            createItem({
+              id: `sub-${Date.now()}`,
+              identifier: `${selectedItem.identifier}-S${Math.floor(10 + Math.random() * 90)}`,
+              workspaceId: selectedItem.workspaceId || 'wks-core',
+              teamId: selectedItem.teamId || 'team-core',
+              projectId: selectedItem.projectId || null,
+              title,
+              type: 'task',
+              status: 'todo',
+              priority: 'medium',
+              parentId: selectedItem.id,
+              relations: [],
+              documentLinks: [],
+              createdAt: new Date().toISOString()
+            });
+          }}
           onOpenSpec={() => setActiveView('living-spec')}
         />
       }

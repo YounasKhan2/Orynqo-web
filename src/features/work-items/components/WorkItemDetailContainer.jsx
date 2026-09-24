@@ -18,7 +18,10 @@ import { USERS, TEAMS, PROJECTS, CYCLES } from '../../../data/mockData';
  */
 export function WorkItemDetailContainer({
   item,
+  subItems = [],
   onUpdateItem,
+  onToggleSubItem,
+  onCreateSubItem,
   onOpenSpec,
   onClose,
   isExpanded = false,
@@ -131,20 +134,34 @@ export function WorkItemDetailContainer({
     ]);
   };
 
-  const handleToggleSubtask = (subId) => {
-    const updated = (item.subtasks || []).map((s) =>
-      s.id === subId ? { ...s, done: !s.done } : s
-    );
-    onUpdateItem?.(item.id, { subtasks: updated });
+  const handleToggleSubItem = (subId, nextStatus) => {
+    if (onToggleSubItem) {
+      onToggleSubItem(subId, nextStatus);
+    } else {
+      onUpdateItem?.(subId, { status: nextStatus });
+    }
   };
 
-  const handleAddSubtask = (title) => {
-    const newSub = {
-      id: `sub-${Date.now()}`,
-      title,
-      done: false
-    };
-    onUpdateItem?.(item.id, { subtasks: [...(item.subtasks || []), newSub] });
+  const handleAddSubItem = (title) => {
+    if (onCreateSubItem) {
+      onCreateSubItem(title);
+    } else {
+      const newSub = {
+        id: `sub-${Date.now()}`,
+        identifier: `${item?.identifier || 'ITEM'}-${Math.floor(100 + Math.random() * 900)}`,
+        workspaceId: item?.workspaceId || 'wks-core',
+        teamId: item?.teamId || 'team-core',
+        title,
+        type: 'task',
+        status: 'todo',
+        priority: 'medium',
+        parentId: item?.id,
+        relations: [],
+        documentLinks: [],
+        createdAt: new Date().toISOString()
+      };
+      onUpdateItem?.(newSub.id, newSub);
+    }
   };
 
   return (
@@ -203,9 +220,9 @@ export function WorkItemDetailContainer({
 
       {/* 6. Sub-Items Checklist */}
       <WorkItemSubItems
-        subtasks={item.subtasks || []}
-        onToggleSubtask={handleToggleSubtask}
-        onAddSubtask={handleAddSubtask}
+        subItems={subItems}
+        onToggleSubtask={handleToggleSubItem}
+        onAddSubtask={handleAddSubItem}
         isReadOnly={isReadOnly}
       />
 

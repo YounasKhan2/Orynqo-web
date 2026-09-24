@@ -10,9 +10,8 @@ export function WorkItemLinkedDocs({
   onOpenSpec,
   className = ''
 }) {
-  // Check canonical documentLinks or fallback specDocId
-  const specLink = (item.documentLinks || []).find((l) => l.type === 'source_spec') ||
-    (item.specDocId ? { documentId: item.specDocId, title: 'PRD: Living Specification' } : null);
+  // Resolve canonical living spec relationship
+  const specLink = (item.documentLinks || []).find((l) => l.type === 'source_spec');
 
   if (!specLink) return null;
 

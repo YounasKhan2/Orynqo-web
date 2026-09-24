@@ -111,11 +111,20 @@ export const isValidWorkItemType = (type) => {
 export const ITEM_TYPE_DEFINITIONS = {
   task: { id: 'task', label: 'Task', color: '#3b82f6', icon: 'CheckSquare' },
   issue: { id: 'issue', label: 'Issue', color: '#8b5cf6', icon: 'AlertCircle' },
-  bug: { id: 'bug', label: 'Bug', color: '#ef4444', icon: 'Bug' },
-  // Backward-compatibility aliases for prototype data
-  feature: { id: 'issue', label: 'Issue', color: '#8b5cf6', icon: 'AlertCircle' },
-  chore: { id: 'task', label: 'Task', color: '#3b82f6', icon: 'CheckSquare' }
+  bug: { id: 'bug', label: 'Bug', color: '#ef4444', icon: 'Bug' }
 };
+
+/**
+ * Isolated normalizer for legacy external payloads.
+ * Strictly translates non-canonical types (e.g. 'feature', 'chore') to canonical CORE types.
+ */
+export const normalizeWorkItemType = (type) => {
+  if (type === 'feature') return 'issue';
+  if (type === 'chore') return 'task';
+  if (CORE_WORK_ITEM_TYPES.includes(type)) return type;
+  return 'task';
+};
+
 
 export const SHORTCUTS = {
   search: { key: 'k', meta: true, label: '⌘K', description: 'Command Palette' },

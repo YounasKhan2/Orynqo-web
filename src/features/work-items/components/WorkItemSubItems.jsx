@@ -7,17 +7,20 @@ import { Checkbox } from '../../../design-system';
  * Canonical Sub-item hierarchy checklist with completion counter and progress bar
  */
 export function WorkItemSubItems({
-  subtasks = [],
+  subItems = [],
+  subtasks,
   onToggleSubtask,
   onAddSubtask,
   isReadOnly = false,
   className = ''
 }) {
+  const items = (subItems && subItems.length > 0) ? subItems : (subtasks || []);
   const [isAdding, setIsAdding] = useState(false);
   const [newTitle, setNewTitle] = useState('');
 
-  const completedCount = subtasks.filter((s) => s.done).length;
-  const totalCount = subtasks.length;
+  const isItemDone = (s) => s.status === 'done' || s.done === true;
+  const completedCount = items.filter(isItemDone).length;
+  const totalCount = items.length;
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   const handleCreate = (e) => {
@@ -100,34 +103,37 @@ export function WorkItemSubItems({
 
       {/* Sub-item List */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        {subtasks.map((sub) => (
-          <div
-            key={sub.id}
-            onClick={() => !isReadOnly && onToggleSubtask?.(sub.id)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '5px 8px',
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-xs)',
-              cursor: isReadOnly ? 'default' : 'pointer',
-              fontSize: 'var(--text-xs)',
-              color: sub.done ? 'var(--text-muted)' : 'var(--text-primary)',
-              textDecoration: sub.done ? 'line-through' : 'none',
-              userSelect: 'none',
-              transition: 'background-color var(--duration-fast)'
-            }}
-          >
-            <Checkbox
-              checked={sub.done}
-              disabled={isReadOnly}
-              onChange={() => !isReadOnly && onToggleSubtask?.(sub.id)}
-            />
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub.title}</span>
-          </div>
-        ))}
+        {items.map((sub) => {
+          const done = isItemDone(sub);
+          return (
+            <div
+              key={sub.id}
+              onClick={() => !isReadOnly && onToggleSubtask?.(sub.id, done ? 'todo' : 'done')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '5px 8px',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-xs)',
+                cursor: isReadOnly ? 'default' : 'pointer',
+                fontSize: 'var(--text-xs)',
+                color: done ? 'var(--text-muted)' : 'var(--text-primary)',
+                textDecoration: done ? 'line-through' : 'none',
+                userSelect: 'none',
+                transition: 'background-color var(--duration-fast)'
+              }}
+            >
+              <Checkbox
+                checked={done}
+                disabled={isReadOnly}
+                onChange={() => !isReadOnly && onToggleSubtask?.(sub.id, done ? 'todo' : 'done')}
+              />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub.title}</span>
+            </div>
+          );
+        })}
 
         {/* Empty State */}
         {totalCount === 0 && !isAdding && (

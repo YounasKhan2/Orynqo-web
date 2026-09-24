@@ -9,9 +9,12 @@ import { WorkItemDetailContainer } from './WorkItemDetailContainer';
  */
 export function WorkItemInspector({
   item,
+  subItems = [],
   isOpen,
   onClose,
   onUpdateItem,
+  onToggleSubItem,
+  onCreateSubItem,
   onOpenSpec,
   returnFocusRef,
   isReadOnly = false,
@@ -50,7 +53,10 @@ export function WorkItemInspector({
     >
       <WorkItemDetailContainer
         item={item}
+        subItems={subItems}
         onUpdateItem={onUpdateItem}
+        onToggleSubItem={onToggleSubItem}
+        onCreateSubItem={onCreateSubItem}
         onOpenSpec={onOpenSpec}
         onClose={handleClose}
         isExpanded={isExpanded}

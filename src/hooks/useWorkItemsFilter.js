@@ -14,6 +14,11 @@ export function useWorkItemsFilter({
 }) {
   return useMemo(() => {
     return items.filter((item) => {
+      // Exclude sub-items from top-level views (sub-items are resolved via parentId hierarchy)
+      if (item.parentId) {
+        return false;
+      }
+
       // Team filter (unless special views like my-issues or inbox)
       if (activeView !== 'my-issues' && item.teamId !== activeTeamId) {
         return false;

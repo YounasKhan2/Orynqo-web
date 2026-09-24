@@ -90,8 +90,8 @@ export function TimelineView({
         {items.map((item, idx) => {
           const isSelected = selectedItemId === item.id;
           const assignee = USERS.find((u) => u.id === item.assigneeId);
-          const hasBlocker = item.blockedBy && item.blockedBy.length > 0;
-          const blocksOthers = item.blocks && item.blocks.length > 0;
+          const hasBlocker = (item.relations || []).some((r) => r.type === 'blocked_by');
+          const blocksOthers = (item.relations || []).some((r) => r.type === 'blocks');
 
           const startCol = (idx % 7) + 2;
           const spanCols = Math.min((item.estimate || 3), 4);

@@ -132,7 +132,7 @@ export function KanbanBoard({
               {colItems.map((item) => {
                 const isSelected = selectedItemId === item.id;
                 const assignee = USERS.find((u) => u.id === item.assigneeId);
-                const hasBlocker = item.blockedBy && item.blockedBy.length > 0;
+                const hasBlocker = (item.relations || []).some((r) => r.type === 'blocked_by');
 
                 return (
                   <div

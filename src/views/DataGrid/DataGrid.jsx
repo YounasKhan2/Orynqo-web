@@ -161,7 +161,10 @@ export function DataGrid({
           const isKeyboardActive = activeRowIndex === index;
           const assignee = USERS.find((u) => u.id === item.assigneeId);
           const project = PROJECTS.find((p) => p.id === item.projectId);
-          const hasBlocker = item.blockedBy && item.blockedBy.length > 0;
+          const blockedByRelations = (item.relations || []).filter((r) => r.type === 'blocked_by');
+          const hasBlocker = blockedByRelations.length > 0;
+          const blockerKeys = blockedByRelations.map((r) => r.targetKey).filter(Boolean).join(', ');
+          const hasSpecDoc = (item.documentLinks || []).some((d) => d.type === 'source_spec');
 
           return (
             <div
@@ -263,7 +266,7 @@ export function DataGrid({
 
                 {hasBlocker && (
                   <span
-                    title={`Blocked by ${item.blockedBy.join(', ')}`}
+                    title={blockerKeys ? `Blocked by ${blockerKeys}` : 'Blocked by dependency'}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -281,7 +284,7 @@ export function DataGrid({
                   </span>
                 )}
 
-                {item.specDocId && (
+                {hasSpecDoc && (
                   <span
                     title="Linked to Living PRD Spec"
                     style={{

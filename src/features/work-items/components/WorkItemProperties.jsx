@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Clock,
   AlertTriangle,
@@ -6,7 +6,8 @@ import {
   Layers,
   Calendar,
   Tag,
-  Flag
+  Flag,
+  ChevronDown
 } from 'lucide-react';
 import { PropertyRow } from '../../../design-system';
 import { StatusBadge, PriorityBadge } from '../../../components/badges';
@@ -16,6 +17,7 @@ import { STATUS_DEFINITIONS, PRIORITY_DEFINITIONS } from '../../../constants/wor
 /**
  * WorkItemProperties Component
  * High-density key-value property matrix for canonical WorkItems
+ * Provides UI-01C compatible property trigger dropdowns (eliminates cycle-on-click)
  */
 export function WorkItemProperties({
   item,
@@ -30,19 +32,26 @@ export function WorkItemProperties({
   const statusKeys = Object.keys(STATUS_DEFINITIONS);
   const priorityKeys = ['none', 'low', 'medium', 'high', 'urgent'];
 
-  const handleNextStatus = () => {
-    if (isReadOnly) return;
-    const currentIdx = statusKeys.indexOf(item.status);
-    const nextIdx = (currentIdx + 1) % statusKeys.length;
-    onUpdateItem?.({ status: statusKeys[nextIdx] });
-  };
+  const [openDropdown, setOpenDropdown] = useState(null); // 'status' | 'priority' | null
+  const statusMenuRef = useRef(null);
+  const priorityMenuRef = useRef(null);
 
-  const handleNextPriority = () => {
-    if (isReadOnly) return;
-    const currentIdx = priorityKeys.indexOf(item.priority);
-    const nextIdx = (currentIdx + 1) % priorityKeys.length;
-    onUpdateItem?.({ priority: priorityKeys[nextIdx] });
-  };
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (
+        statusMenuRef.current && !statusMenuRef.current.contains(e.target) &&
+        priorityMenuRef.current && !priorityMenuRef.current.contains(e.target)
+      ) {
+        setOpenDropdown(null);
+      }
+    };
+    if (openDropdown) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [openDropdown]);
 
   return (
     <div
@@ -57,20 +66,160 @@ export function WorkItemProperties({
     >
       {/* Status */}
       <PropertyRow label="Status" icon={Clock}>
-        <StatusBadge
-          statusId={item.status}
-          interactive={!isReadOnly}
-          onClick={handleNextStatus}
-        />
+        <div ref={statusMenuRef} style={{ position: 'relative', display: 'inline-block' }}>
+          <button
+            type="button"
+            aria-haspopup="listbox"
+            aria-expanded={openDropdown === 'status'}
+            aria-label="Change status"
+            disabled={isReadOnly}
+            onClick={() => !isReadOnly && setOpenDropdown((prev) => (prev === 'status' ? null : 'status'))}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              background: 'transparent',
+              border: 'none',
+              padding: 0,
+              cursor: isReadOnly ? 'default' : 'pointer'
+            }}
+          >
+            <StatusBadge statusId={item.status} interactive={false} />
+            {!isReadOnly && <ChevronDown size={11} style={{ color: 'var(--text-muted)' }} />}
+          </button>
+
+          {openDropdown === 'status' && !isReadOnly && (
+            <div
+              role="listbox"
+              aria-label="Select status"
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                left: 0,
+                zIndex: 100,
+                minWidth: '150px',
+                backgroundColor: 'var(--bg-overlay, var(--bg-surface))',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-sm)',
+                boxShadow: 'var(--shadow-md, 0 4px 12px rgba(0,0,0,0.2))',
+                padding: '4px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '2px'
+              }}
+            >
+              {statusKeys.map((statusId) => {
+                const isSelected = item.status === statusId;
+                return (
+                  <button
+                    key={statusId}
+                    role="option"
+                    aria-selected={isSelected}
+                    type="button"
+                    onClick={() => {
+                      onUpdateItem?.({ status: statusId });
+                      setOpenDropdown(null);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      width: '100%',
+                      padding: '4px 8px',
+                      backgroundColor: isSelected ? 'var(--bg-surface-selected, rgba(59, 130, 246, 0.1))' : 'transparent',
+                      border: 'none',
+                      borderRadius: 'var(--radius-xs)',
+                      cursor: 'pointer',
+                      textAlign: 'left'
+                    }}
+                  >
+                    <StatusBadge statusId={statusId} interactive={false} />
+                    {isSelected && <span style={{ color: 'var(--primary-base)', fontSize: '11px', fontWeight: 'bold' }}>✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </PropertyRow>
 
       {/* Priority */}
       <PropertyRow label="Priority" icon={AlertTriangle}>
-        <PriorityBadge
-          priorityId={item.priority}
-          interactive={!isReadOnly}
-          onClick={handleNextPriority}
-        />
+        <div ref={priorityMenuRef} style={{ position: 'relative', display: 'inline-block' }}>
+          <button
+            type="button"
+            aria-haspopup="listbox"
+            aria-expanded={openDropdown === 'priority'}
+            aria-label="Change priority"
+            disabled={isReadOnly}
+            onClick={() => !isReadOnly && setOpenDropdown((prev) => (prev === 'priority' ? null : 'priority'))}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              background: 'transparent',
+              border: 'none',
+              padding: 0,
+              cursor: isReadOnly ? 'default' : 'pointer'
+            }}
+          >
+            <PriorityBadge priorityId={item.priority} interactive={false} />
+            {!isReadOnly && <ChevronDown size={11} style={{ color: 'var(--text-muted)' }} />}
+          </button>
+
+          {openDropdown === 'priority' && !isReadOnly && (
+            <div
+              role="listbox"
+              aria-label="Select priority"
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                left: 0,
+                zIndex: 100,
+                minWidth: '140px',
+                backgroundColor: 'var(--bg-overlay, var(--bg-surface))',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-sm)',
+                boxShadow: 'var(--shadow-md, 0 4px 12px rgba(0,0,0,0.2))',
+                padding: '4px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '2px'
+              }}
+            >
+              {priorityKeys.map((priorityId) => {
+                const isSelected = item.priority === priorityId;
+                return (
+                  <button
+                    key={priorityId}
+                    role="option"
+                    aria-selected={isSelected}
+                    type="button"
+                    onClick={() => {
+                      onUpdateItem?.({ priority: priorityId });
+                      setOpenDropdown(null);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      width: '100%',
+                      padding: '4px 8px',
+                      backgroundColor: isSelected ? 'var(--bg-surface-selected, rgba(59, 130, 246, 0.1))' : 'transparent',
+                      border: 'none',
+                      borderRadius: 'var(--radius-xs)',
+                      cursor: 'pointer',
+                      textAlign: 'left'
+                    }}
+                  >
+                    <PriorityBadge priorityId={priorityId} interactive={false} />
+                    {isSelected && <span style={{ color: 'var(--primary-base)', fontSize: '11px', fontWeight: 'bold' }}>✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </PropertyRow>
 
       {/* Assignee */}
