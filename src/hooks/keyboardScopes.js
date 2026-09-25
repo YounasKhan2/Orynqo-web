@@ -39,6 +39,29 @@ export const KEYBOARD_SCOPES = {
 };
 
 /**
+ * Registry of active PAGE / VIEW level keyboard handlers.
+ * Allows pages/views (such as Personal Inbox) to participate cleanly in the
+ * centralized keyboard architecture without creating competing window listeners.
+ */
+let activeViewHandler = null;
+
+export function registerViewKeyboardHandler(handler) {
+  activeViewHandler = handler;
+  return () => {
+    if (activeViewHandler === handler) {
+      activeViewHandler = null;
+    }
+  };
+}
+
+export function dispatchViewKeyboardEvent(e) {
+  if (activeViewHandler && typeof activeViewHandler === 'function') {
+    return activeViewHandler(e);
+  }
+  return false;
+}
+
+/**
  * Checks whether an event target is an active text entry or editable surface.
  * Handles standard form controls and rich text contenteditable containers.
  */
@@ -57,3 +80,4 @@ export function isEditableElement(element) {
   }
   return false;
 }
+

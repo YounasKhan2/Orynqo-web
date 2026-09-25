@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, renderHook, act } from '@testing-library/react';
 import { App } from '../App';
 import {
+  InboxCockpit,
   deriveInboxQuery,
   useInboxPreferences,
   useInboxMutations,
@@ -645,53 +646,104 @@ describe('UI-04B: Personal Triage Inbox implementation', () => {
     expect(q.totalActiveCount).toBe(2);
   });
 
-  // 21. Real-time Inflow Stability Queue Adapter (Correction Pass Item 5)
+  // 21. Real-time Inflow Stability Queue Adapter (Correction Pass 01B Item 2)
   it('21. New notifications buffer into pendingQueue without displacing active triage until explicitly flushed', () => {
-    let state = [
-      {
-        id: 'initial-1',
-        workspaceId: 'wks-core',
-        recipientUserId: 'usr-1',
-        eventType: NOTIFICATION_EVENT_TYPES.COMMENT_ADDED,
-        readAt: null,
-        archivedAt: null,
-        snoozedUntil: null,
-        importance: 'normal',
-        createdAt: '2026-09-24T10:00:00Z'
+    const initialItem = {
+      id: 'initial-1',
+      workspaceId: 'wks-core',
+      recipientUserId: 'usr-1',
+      eventType: NOTIFICATION_EVENT_TYPES.COMMENT_ADDED,
+      sourceEntityType: 'work_item',
+      sourceEntityId: 'item-1',
+      readAt: null,
+      archivedAt: null,
+      snoozedUntil: null,
+      importance: 'focus',
+      createdAt: '2026-09-24T10:00:00Z',
+      renderPayload: {
+        title: 'Initial Active Discussion',
+        bodySnippet: 'Discussing the initial specifications.'
       }
-    ];
-
-    const setState = (next) => {
-      state = typeof next === 'function' ? next(state) : next;
     };
 
-    const { result } = renderHook(() =>
-      useInboxMutations({
-        notifications: state,
-        setNotifications: setState
-      })
-    );
-
-    // Inflow arrives
     const newIncoming = {
       id: 'incoming-1',
       workspaceId: 'wks-core',
       recipientUserId: 'usr-1',
       eventType: NOTIFICATION_EVENT_TYPES.MENTION,
+      sourceEntityType: 'work_item',
+      sourceEntityId: 'item-2',
       readAt: null,
       archivedAt: null,
       snoozedUntil: null,
       importance: 'focus',
-      createdAt: '2026-09-24T12:00:00Z'
+      createdAt: '2026-09-24T12:00:00Z',
+      renderPayload: {
+        title: 'Urgent Inbound Mention',
+        bodySnippet: 'Please review this security update.'
+      }
     };
 
-    // Ingest into notifications state via adapter
+    function TestInboxHarness({ enqueueRef }) {
+      const [notifications, setNotifications] = React.useState([initialItem]);
+      const query = deriveInboxQuery({
+        notifications,
+        workspaceId: 'wks-core',
+        recipientId: 'usr-1',
+        tab: 'focus'
+      });
+      const mutations = useInboxMutations({
+        notifications,
+        setNotifications
+      });
+
+      return (
+        <InboxCockpit
+          tab="focus"
+          query={query}
+          mutations={mutations}
+          onEnqueuePendingRef={enqueueRef}
+        />
+      );
+    }
+
+    const enqueuePendingRef = { current: null };
+    render(<TestInboxHarness enqueueRef={enqueuePendingRef} />);
+
+    // 1. Initial State: Initial notification is rendered and visible in stream
+    expect(screen.getAllByText('Initial Active Discussion').length).toBeGreaterThanOrEqual(1);
+    // No pending notification pill
+    expect(screen.queryByText(/new notification/i)).toBeNull();
+
+    // 2. Incoming event: Inject through the Inbox pending-arrival boundary adapter
     act(() => {
-      result.current.ingestNewEvents([newIncoming]);
+      enqueuePendingRef.current(newIncoming);
     });
 
-    expect(state.length).toBe(2);
-    expect(state[0].id).toBe('incoming-1');
+    // 3. Before flush assertions:
+    // - Event is NOT yet inserted into the visible/canonical active stream
+    expect(screen.queryByText('Urgent Inbound Mention')).toBeNull();
+    // - Existing selection/stream row remains visible and stable
+    expect(screen.getAllByText('Initial Active Discussion').length).toBeGreaterThanOrEqual(1);
+    // - Pending arrival indicator appears
+    const pendingPill = screen.getByRole('button', { name: /↑ 1 new notification/i });
+    expect(pendingPill).toBeDefined();
+
+    // 4. Explicit flush: Activate the pending indicator
+    fireEvent.click(pendingPill);
+
+    // 5. After flush assertions:
+    // - Pending indicator disappears (returns to 0)
+    expect(screen.queryByRole('button', { name: /↑ \d+ new notification/i })).toBeNull();
+    // - Incoming event enters the visible stream
+    expect(screen.getByText('Urgent Inbound Mention')).toBeDefined();
+    // - Deterministic ordering: incoming-1 has later timestamp (12:00 vs 10:00), both present
+    const streamFeed = screen.getByRole('feed');
+    expect(streamFeed.textContent).toContain('Urgent Inbound Mention');
+    expect(streamFeed.textContent).toContain('Initial Active Discussion');
+    // - No duplicate items created (exact count is 2)
+    const articles = screen.getAllByRole('article');
+    expect(articles.length).toBe(2);
   });
 
   // 22. Canonical WorkItem mutation updates source entity, not an Inbox clone (Correction Pass Item 11)

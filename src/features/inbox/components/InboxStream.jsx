@@ -83,7 +83,7 @@ export function InboxStream({
               cursor: 'pointer'
             }}
           >
-            <span>↑ {pendingCount} new notifications</span>
+            <span>↑ {pendingCount} new {pendingCount === 1 ? 'notification' : 'notifications'}</span>
           </button>
         </div>
       )}

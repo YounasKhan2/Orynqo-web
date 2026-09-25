@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, render } from '@testing-library/react';
-import { isEditableElement } from '../hooks/keyboardScopes';
+import { isEditableElement, registerViewKeyboardHandler } from '../hooks/keyboardScopes';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
 describe('Keyboard Scopes & Precedence', () => {
@@ -121,6 +121,76 @@ describe('Keyboard Scopes & Precedence', () => {
 
       document.body.removeChild(input);
       document.body.removeChild(editableDiv);
+    });
+
+    it('PAGE/VIEW scoped handler executes and prevents double-fire of global shortcuts', () => {
+      const onOpenCreateModal = vi.fn();
+      const pageViewHandler = vi.fn((e) => {
+        if (e.key === 'e') {
+          return true; // handled
+        }
+        return false;
+      });
+
+      const { unmount: unmountShortcuts } = renderHook(() =>
+        useKeyboardShortcuts({
+          isOverlayActive: false,
+          onOpenCreateModal
+        })
+      );
+
+      // Register PAGE/VIEW handler (e.g. useInboxKeyboard)
+      const unregisterView = registerViewKeyboardHandler(pageViewHandler);
+
+      // Press 'e' (Inbox archive command) -> should invoke pageViewHandler
+      const eventE = new KeyboardEvent('keydown', { key: 'e', bubbles: true });
+      window.dispatchEvent(eventE);
+      expect(pageViewHandler).toHaveBeenCalledTimes(1);
+
+      // Press 'c' -> not handled by pageViewHandler, should fall through to onOpenCreateModal
+      const eventC = new KeyboardEvent('keydown', { key: 'c', bubbles: true });
+      window.dispatchEvent(eventC);
+      expect(onOpenCreateModal).toHaveBeenCalledTimes(1);
+
+      // Cleanup
+      unregisterView();
+      unmountShortcuts();
+    });
+
+    it('PAGE/VIEW scoped handler is suppressed when OVERLAY or EDITABLE is active', () => {
+      const pageViewHandler = vi.fn((e) => true);
+      const unregisterView = registerViewKeyboardHandler(pageViewHandler);
+
+      // 1. Overlay active
+      const { unmount: unmountOverlay } = renderHook(() =>
+        useKeyboardShortcuts({
+          isOverlayActive: true
+        })
+      );
+
+      const event1 = new KeyboardEvent('keydown', { key: 'j', bubbles: true });
+      window.dispatchEvent(event1);
+      expect(pageViewHandler).not.toHaveBeenCalled();
+      unmountOverlay();
+
+      // 2. Editable control active
+      const { unmount: unmountShortcuts } = renderHook(() =>
+        useKeyboardShortcuts({
+          isOverlayActive: false
+        })
+      );
+
+      const input = document.createElement('input');
+      document.body.appendChild(input);
+
+      const event2 = new KeyboardEvent('keydown', { key: 'j', bubbles: true });
+      Object.defineProperty(event2, 'target', { value: input });
+      window.dispatchEvent(event2);
+      expect(pageViewHandler).not.toHaveBeenCalled();
+
+      document.body.removeChild(input);
+      unregisterView();
+      unmountShortcuts();
     });
   });
 });

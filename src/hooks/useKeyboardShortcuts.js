@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
-import { isEditableElement } from './keyboardScopes';
+import { isEditableElement, dispatchViewKeyboardEvent } from './keyboardScopes';
 
-export { isEditableElement, KEYBOARD_SCOPES } from './keyboardScopes';
+export { isEditableElement, KEYBOARD_SCOPES, registerViewKeyboardHandler } from './keyboardScopes';
 
 /**
  * useKeyboardShortcuts Hook
@@ -48,7 +48,13 @@ export function useKeyboardShortcuts({
         return;
       }
 
-      // 5. GLOBAL SCOPE SHORTCUTS (Only when no overlay and not typing in editable control)
+      // 5. PAGE / VIEW SCOPE: Allow active contextual page/view to handle keys first
+      const handledByView = dispatchViewKeyboardEvent(e);
+      if (handledByView) {
+        return;
+      }
+
+      // 6. GLOBAL SCOPE SHORTCUTS (Only when no overlay, no active view handling, and not typing in editable control)
 
       // Command + [: Toggle Sidebar Collapse
       if ((e.metaKey || e.ctrlKey) && e.key === '[') {

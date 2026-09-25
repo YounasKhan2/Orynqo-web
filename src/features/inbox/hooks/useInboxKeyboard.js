@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from 'react';
-import { isEditableElement } from '../../../hooks/keyboardScopes';
+import { isEditableElement, registerViewKeyboardHandler } from '../../../hooks/keyboardScopes';
 
 /**
  * useInboxKeyboard Hook (UI-04A / UI-04B)
@@ -17,7 +17,7 @@ import { isEditableElement } from '../../../hooks/keyboardScopes';
  *
  * Scope Invariant:
  * Strictly respects GLOBAL -> PAGE/VIEW -> OVERLAY -> EDITABLE CONTROL.
- * Suppressed if active element is an editable control or overlay is active.
+ * Registers centrally into the PAGE/VIEW scope without competing global listeners.
  */
 
 export function useInboxKeyboard({
@@ -35,20 +35,21 @@ export function useInboxKeyboard({
 }) {
   const handleKeyDown = useCallback(
     (e) => {
-      if (!isActive) return;
+      if (!isActive) return false;
 
       // 1. Highest Isolation: Suppress shortcuts inside editable controls
       if (isEditableElement(e.target)) {
         if (e.key === 'Escape') {
           e.target.blur?.();
           onCloseDetail?.();
+          return true;
         }
-        return;
+        return false;
       }
 
       // Check if any modal/overlay is open
       if (document.querySelector('[data-keyboard-scope="OVERLAY"]')) {
-        return;
+        return false;
       }
 
       const activeItem = items[selectedIndex];
@@ -59,7 +60,7 @@ export function useInboxKeyboard({
         if (items.length > 0) {
           onSelectIndex?.(Math.min(selectedIndex + 1, items.length - 1));
         }
-        return;
+        return true;
       }
 
       // Navigation: K or ArrowUp
@@ -68,7 +69,7 @@ export function useInboxKeyboard({
         if (items.length > 0) {
           onSelectIndex?.(Math.max(selectedIndex - 1, 0));
         }
-        return;
+        return true;
       }
 
       // Open / Inspect: Enter or Space
@@ -77,7 +78,7 @@ export function useInboxKeyboard({
         if (activeItem) {
           onOpenItem?.(activeItem);
         }
-        return;
+        return true;
       }
 
       // Archive: E
@@ -86,7 +87,7 @@ export function useInboxKeyboard({
         if (activeItem) {
           onArchiveItem?.(activeItem);
         }
-        return;
+        return true;
       }
 
       // Toggle Read: U
@@ -95,7 +96,7 @@ export function useInboxKeyboard({
         if (activeItem) {
           onToggleRead?.(activeItem);
         }
-        return;
+        return true;
       }
 
       // Snooze: Z
@@ -104,7 +105,7 @@ export function useInboxKeyboard({
         if (activeItem) {
           onOpenSnooze?.(activeItem);
         }
-        return;
+        return true;
       }
 
       // Reply: R
@@ -113,7 +114,7 @@ export function useInboxKeyboard({
         if (activeItem) {
           onReply?.(activeItem);
         }
-        return;
+        return true;
       }
 
       // Open Source: O
@@ -122,14 +123,16 @@ export function useInboxKeyboard({
         if (activeItem) {
           onOpenSource?.(activeItem);
         }
-        return;
+        return true;
       }
 
       // Escape: Close detail / clear selection
       if (e.key === 'Escape') {
         onCloseDetail?.();
-        return;
+        return true;
       }
+
+      return false;
     },
     [
       isActive,
@@ -146,8 +149,10 @@ export function useInboxKeyboard({
     ]
   );
 
+  // Centralized PAGE/VIEW registration
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
+    if (!isActive) return;
+    return registerViewKeyboardHandler(handleKeyDown);
+  }, [isActive, handleKeyDown]);
 }
+
