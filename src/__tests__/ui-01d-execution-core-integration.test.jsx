@@ -399,9 +399,9 @@ describe('UI-01D: Execution Core Integration & Final QA', () => {
   // =========================================================================
   describe('3. Property Picker Integration & Mutation Boundary', () => {
     it('verified rollback: rejected mutation reverts rendered UI to canonical state and shows error', async () => {
+      // 1. Initial State: item-core-1 has canonical status 'in_progress' ('In Progress')
       const mockFailingUpdate = vi.fn().mockImplementation(() => {
-        // Simulating failed mutation
-        return Promise.reject(new Error('Optimistic conflict'));
+        return Promise.reject(new Error('Optimistic conflict: storage engine locked'));
       });
 
       render(
@@ -414,14 +414,67 @@ describe('UI-01D: Execution Core Integration & Final QA', () => {
       );
 
       const inspectorRegion = screen.getByRole('complementary', { name: /Detail panel/i });
-      const statusTrigger = within(inspectorRegion).getByRole('button', { name: /Change status/i });
+      const gridRow0 = screen.getByRole('row', { name: /Distributed Log Consensus/i });
 
-      // Click to change status to Canceled
-      fireEvent.click(statusTrigger);
+      // Pre-condition: Both Inspector and Grid render canonical 'In Progress'
+      expect(within(inspectorRegion).getByText('In Progress')).toBeDefined();
+      expect(within(gridRow0).getByText('In Progress')).toBeDefined();
+
+      // --- SCENARIO A: Mutation initiated from Inspector ---
+      const inspectorStatusTrigger = within(inspectorRegion).getByRole('button', { name: /Change status/i });
+      fireEvent.click(inspectorStatusTrigger);
+
+      // Select 'Canceled'
       const canceledOpt = screen.getByRole('option', { name: /Canceled/i });
       fireEvent.click(canceledOpt);
 
-      expect(mockFailingUpdate).toHaveBeenCalled();
+      // 1. Mutation attempt was made
+      expect(mockFailingUpdate).toHaveBeenCalledWith('item-core-1', { status: 'canceled' });
+
+      // 2. Failure feedback is rendered and accessibly announced
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeDefined();
+        expect(screen.getByText(/Optimistic conflict: storage engine locked/i)).toBeDefined();
+      });
+
+      // 3. Rendered Status in Inspector trigger returns/remains at canonical 'In Progress'
+      expect(inspectorStatusTrigger.textContent).toContain('In Progress');
+
+      // 4. Failed 'Canceled' state is NOT permanently retained on the trigger
+      expect(inspectorStatusTrigger.textContent).not.toContain('Canceled');
+
+      // 5. Grid remains at canonical 'In Progress' (zero divergence)
+      expect(gridRow0.querySelector('[data-property-trigger="status"]').textContent).toContain('In Progress');
+      expect(gridRow0.querySelector('[data-property-trigger="status"]').textContent).not.toContain('Canceled');
+
+      // 6. Picker remains usable after failure (options list accessible)
+      expect(screen.getByRole('listbox', { name: /Select status/i })).toBeDefined();
+
+      // --- SCENARIO B: Mutation initiated from DataGrid cell ---
+      // Close the inspector status picker via Escape
+      fireEvent.keyDown(window, { key: 'Escape' });
+
+      const gridStatusTrigger = within(gridRow0).getByRole('button', { name: /Change status/i });
+      fireEvent.click(gridStatusTrigger);
+
+      const gridDoneOpt = screen.getByRole('option', { name: /Done/i });
+      fireEvent.click(gridDoneOpt);
+
+      // Mutation attempt for Done was made
+      expect(mockFailingUpdate).toHaveBeenCalledWith('item-core-1', { status: 'done' });
+
+      // Error alert displayed
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeDefined();
+      });
+
+      // Rendered status in Grid remains canonical 'In Progress'
+      expect(gridStatusTrigger.textContent).toContain('In Progress');
+      expect(gridStatusTrigger.textContent).not.toContain('Done');
+
+      // Inspector remains canonical 'In Progress' (zero divergence)
+      expect(inspectorStatusTrigger.textContent).toContain('In Progress');
+      expect(inspectorStatusTrigger.textContent).not.toContain('Done');
     });
 
     it('Universal Property Pickers are used across Grid, Inspector, and Quick Create without legacy cycling', () => {

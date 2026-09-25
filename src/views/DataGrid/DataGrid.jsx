@@ -302,7 +302,15 @@ export function DataGrid({
           delete next[itemId];
           return next;
         });
-        onUpdateItem?.(itemId, originalItem);
+        try {
+          const rollbackResult = onUpdateItem?.(itemId, originalItem);
+          if (rollbackResult && typeof rollbackResult.catch === 'function') {
+            rollbackResult.catch(() => {});
+          }
+        } catch {
+          // ignore synchronous rollback call errors
+        }
+        throw err;
       }
     },
     [effectiveItems, activeFilterGroup, onUpdateItem]
@@ -312,7 +320,11 @@ export function DataGrid({
     async (itemId, newTitle) => {
       setIsEditingTitle(false);
       if (newTitle.trim()) {
-        await handleUpdateItem(itemId, { title: newTitle.trim() });
+        try {
+          await handleUpdateItem(itemId, { title: newTitle.trim() });
+        } catch {
+          // Handled via optimistic rollback
+        }
       }
       focusRowElement(focusedRowIndex);
     },
