@@ -542,6 +542,61 @@ describe('UI-02B: Production Application Shell & Sidebar Implementation', () => 
       const teamTrigger = within(dialog).getByRole('button', { name: /Change Team/i });
       expect(teamTrigger.textContent).toContain('Core Platform');
     });
+
+    it('Project with single team pre-fills teamId in Quick Create', () => {
+      // proj-1 has single teamId: 'team-core'
+      render(<App />);
+
+      // Navigate to Projects Directory via Command Palette or browse
+      const searchBtn = screen.getByRole('button', { name: /Search and commands/i });
+      fireEvent.click(searchBtn);
+
+      const palette = screen.getByRole('dialog', { name: /Command palette/i });
+      const browseProjects = within(palette).getByText(/Browse projects/i);
+      fireEvent.click(browseProjects);
+
+      // Projects directory is loaded
+      const projRegion = screen.getByRole('region', { name: /Projects Directory/i });
+      expect(projRegion).toBeDefined();
+
+      // Click on single-team project "Auth API V2 & SCIM Engine"
+      const projCard = within(projRegion).getByText('Auth API V2 & SCIM Engine');
+      fireEvent.click(projCard);
+
+      // Open Quick Create
+      const newBtn = screen.getByRole('button', { name: /New Item/i });
+      fireEvent.click(newBtn);
+
+      const dialog = screen.getByRole('dialog', { name: /New Work Item/i });
+      const teamTrigger = within(dialog).getByRole('button', { name: /Change Team/i });
+      expect(teamTrigger.textContent).toContain('Core Platform');
+    });
+
+    it('Project with multiple teams leaves teamId unresolved (user must choose explicitly)', () => {
+      // proj-5 has multiple teamIds: ['team-core', 'team-web', 'team-mobile']
+      render(<App />);
+
+      // Navigate to Projects Directory
+      const searchBtn = screen.getByRole('button', { name: /Search and commands/i });
+      fireEvent.click(searchBtn);
+
+      const palette = screen.getByRole('dialog', { name: /Command palette/i });
+      const browseProjects = within(palette).getByText(/Browse projects/i);
+      fireEvent.click(browseProjects);
+
+      // Click on multi-team project "Universal Workspace Sync & Pickers"
+      const multiProjCard = screen.getByText('Universal Workspace Sync & Pickers');
+      fireEvent.click(multiProjCard);
+
+      // Open Quick Create
+      const newBtn = screen.getByRole('button', { name: /New Item/i });
+      fireEvent.click(newBtn);
+
+      const dialog = screen.getByRole('dialog', { name: /New Work Item/i });
+      const teamTrigger = within(dialog).getByRole('button', { name: /Change Team/i });
+      // In unresolved state, does NOT invent or default to a lead team!
+      expect(teamTrigger.textContent).toContain('Select Team *');
+    });
   });
 
   // =========================================================================

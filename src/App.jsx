@@ -152,7 +152,7 @@ function MainView({
                 </span>
               </div>
               <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                Teams: {proj.teamIds.join(', ')} • Target: {proj.targetDate}
+                Teams: {(proj.teamIds || (proj.teamId ? [proj.teamId] : [])).join(', ')} • Target: {proj.targetDate}
               </p>
             </div>
           ))}
@@ -615,8 +615,9 @@ function OrynqoWorkspace() {
     }
     if (activeScope === 'projects' && activeProjectId) {
       const proj = PROJECTS.find((p) => p.id === activeProjectId);
-      if (proj && proj.teamIds.length === 1) {
-        return { projectId: activeProjectId, teamId: proj.teamIds[0] };
+      const teamIds = proj?.teamIds || (proj?.teamId ? [proj.teamId] : []);
+      if (teamIds.length === 1) {
+        return { projectId: activeProjectId, teamId: teamIds[0] };
       }
       // Ambiguous multi-team project: Team remains unresolved, user chooses explicitly
       return { projectId: activeProjectId, teamId: null };
