@@ -18,6 +18,7 @@ export function useQuickCreate({
   const initialProjectId = invocationContext?.projectId || null;
   const initialTeamId = invocationContext?.teamId || null;
   const initialCycleId = invocationContext?.cycleId || null;
+  const initialAssigneeId = invocationContext?.assigneeId || null;
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -29,7 +30,7 @@ export function useQuickCreate({
     initialTeamId ? getTeamDefaultStatus(initialTeamId, 'unstarted') : 'todo'
   );
   const [priority, setPriority] = useState('medium');
-  const [assigneeId, setAssigneeId] = useState(null);
+  const [assigneeId, setAssigneeId] = useState(() => initialAssigneeId);
   const [labels, setLabels] = useState([]);
   const [dueDate, setDueDate] = useState(null);
 
@@ -97,12 +98,12 @@ export function useQuickCreate({
 
     setType('task');
     setPriority('medium');
-    setAssigneeId(null);
+    setAssigneeId(initialAssigneeId);
     setLabels([]);
     setDueDate(null);
     setTitle('');
     setDescription('');
-  }, [isOpen, initialProjectId, initialTeamId, initialCycleId]);
+  }, [isOpen, initialProjectId, initialTeamId, initialCycleId, initialAssigneeId]);
 
   // Handle Team change inside draft
   const handleTeamChange = useCallback((newTeamId) => {

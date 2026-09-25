@@ -17,6 +17,7 @@ export function ContextBar({
   onToggleDensity,
   onOpenCreateModal,
   totalItemsCount = 0,
+  summarySlot = null,
   // Tier 2: Resource Navigation & Projections
   tabs = [],
   activeTab = 'work',
@@ -73,6 +74,7 @@ export function ContextBar({
               {totalItemsCount} items
             </span>
           )}
+          {summarySlot}
         </div>
 
         {/* Right Controls: Density Switcher & "+ New Item" CTA */}
