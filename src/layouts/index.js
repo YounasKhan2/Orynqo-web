@@ -1,3 +1,4 @@
 export * from './AppShell';
-export * from './Sidebar/Sidebar';
+export * from './Sidebar';
 export * from './ActionStrip/ActionStrip';
+export * from './ContextBar';
