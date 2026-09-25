@@ -24,7 +24,11 @@
   --control-height-compact: 28px;
   --control-height-default: 32px;
   --sidebar-item-height: 28px;
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 52px;
+  --inspector-width: 440px;
   --header-height: 44px;
+  --resource-nav-height: 36px;
   --action-strip-height: 38px;
 
   /* Typography Scale */

@@ -59,27 +59,114 @@ export const USERS = [
   }
 ];
 
+export const CURRENT_ORGANIZATION = {
+  id: 'org-orynqo',
+  name: 'Orynqo Corp',
+  plan: 'Enterprise'
+};
+
+export const WORKSPACES = [
+  {
+    id: 'wks-core',
+    organizationId: 'org-orynqo',
+    name: 'Product & Engineering',
+    slug: 'engineering',
+    role: 'Owner',
+    icon: '⚡'
+  },
+  {
+    id: 'wks-design',
+    organizationId: 'org-orynqo',
+    name: 'Design & Research Studio',
+    slug: 'design',
+    role: 'Member',
+    icon: '🎨'
+  },
+  {
+    id: 'wks-infra',
+    organizationId: 'org-orynqo',
+    name: 'Cloud & Infrastructure',
+    slug: 'infrastructure',
+    role: 'Admin',
+    icon: '☁️'
+  }
+];
+
+export const INITIAL_FAVORITES = [
+  {
+    id: 'fav-1',
+    userId: 'usr-1',
+    workspaceId: 'wks-core',
+    targetType: 'team',
+    targetId: 'team-core',
+    title: 'Core Platform',
+    icon: 'Layers',
+    position: 1
+  },
+  {
+    id: 'fav-2',
+    userId: 'usr-1',
+    workspaceId: 'wks-core',
+    targetType: 'project',
+    targetId: 'proj-1',
+    title: 'Auth API V2 & SCIM',
+    icon: 'Shield',
+    position: 2
+  },
+  {
+    id: 'fav-3',
+    userId: 'usr-1',
+    workspaceId: 'wks-core',
+    targetType: 'doc',
+    targetId: 'doc-1',
+    title: 'PRD: Offline Sync Protocol',
+    icon: 'FileText',
+    position: 3
+  }
+];
+
 export const TEAMS = [
   {
     id: 'team-core',
     name: 'Core Platform',
     key: 'ENG',
     icon: 'Layers',
-    description: 'Distributed synchronization engine, replication protocols, and storage primitives.'
+    description: 'Distributed synchronization engine, replication protocols, and storage primitives.',
+    capabilities: {
+      cycles: true,
+      triage: true,
+      projects: true,
+      docs: true,
+      automations: true
+    }
   },
   {
     id: 'team-mobile',
     name: 'Mobile Client',
     key: 'MOB',
     icon: 'Smartphone',
-    description: 'Native iOS & Android offline client runtimes and background delta sync.'
+    description: 'Native iOS & Android offline client runtimes and background delta sync.',
+    capabilities: {
+      cycles: false,
+      triage: false,
+      projects: true,
+      docs: true,
+      automations: false
+    }
   },
   {
     id: 'team-web',
     name: 'Web Studio',
     key: 'WEB',
     icon: 'Globe',
-    description: 'High-density web application shell, Canvas projection, and keyboard engine.'
+    description: 'High-density web application shell, Canvas projection, and keyboard engine.',
+    capabilities: {
+      cycles: false,
+      triage: true,
+      projects: true,
+      docs: true,
+      automations: false
+    }
   }
 ];
 
