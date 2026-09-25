@@ -1,15 +1,28 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useSidebarPreferences } from '../../hooks/useSidebarPreferences';
 
 const UIContext = createContext(null);
 
 export function UIProvider({ children }) {
   const [theme, setTheme] = useState('dark');
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
   const [activeView, setActiveView] = useState('data-grid');
-  const [density, setDensity] = useState('compact');
 
-  // Modals state
+  // Presentation preferences backed by useSidebarPreferences
+  const {
+    isSidebarCollapsed,
+    setIsSidebarCollapsed,
+    toggleSidebar,
+    density,
+    setDensity,
+    toggleDensity,
+    expandedSections,
+    toggleSection,
+    setProjectionPreference,
+    getProjectionPreference
+  } = useSidebarPreferences();
+
+  // Modals / Overlays state (ephemeral)
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
@@ -32,16 +45,8 @@ export function UIProvider({ children }) {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
-  const toggleSidebar = () => {
-    setIsSidebarCollapsed((prev) => !prev);
-  };
-
   const toggleInspector = () => {
     setIsInspectorOpen((prev) => !prev);
-  };
-
-  const toggleDensity = () => {
-    setDensity((prev) => (prev === 'compact' ? 'default' : 'compact'));
   };
 
   const updateFilter = (key, val) => {
@@ -62,13 +67,18 @@ export function UIProvider({ children }) {
     isSidebarCollapsed,
     toggleSidebar,
     setIsSidebarCollapsed,
+    density,
+    setDensity,
+    toggleDensity,
+    expandedSections,
+    toggleSection,
+    setProjectionPreference,
+    getProjectionPreference,
     isInspectorOpen,
     toggleInspector,
     setIsInspectorOpen,
     activeView,
     setActiveView,
-    density,
-    toggleDensity,
     isOverlayActive,
     isCommandPaletteOpen,
     setIsCommandPaletteOpen,
@@ -83,11 +93,7 @@ export function UIProvider({ children }) {
     resetFilters
   };
 
-  return (
-    <UIContext.Provider value={value}>
-      {children}
-    </UIContext.Provider>
-  );
+  return <UIContext.Provider value={value}>{children}</UIContext.Provider>;
 }
 
 export function useUI() {

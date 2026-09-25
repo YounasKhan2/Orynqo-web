@@ -1,45 +1,98 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Search,
   Inbox,
   CheckCircle2,
-  Layers,
-  Smartphone,
-  Globe,
-  PanelLeftClose,
-  Sun,
-  Moon,
-  Keyboard,
-  FileText
+  Compass,
+  FileText,
+  Bookmark
 } from 'lucide-react';
-import { CURRENT_USER } from '../../data/mockData';
-import { UserAvatar } from '../../components/avatars/UserAvatar';
 import { Kbd } from '../../design-system';
+import { TEAMS } from '../../data/mockData';
+import { SidebarHeader } from './SidebarHeader';
+import { SidebarSection } from './SidebarSection';
+import { SidebarItem } from './SidebarItem';
+import { SidebarFooter } from './SidebarFooter';
+import {
+  WorkspaceSwitcherPopover,
+  FavoritesList,
+  TeamSidebarGroup,
+  BrowseTeamsTrigger
+} from '../../components/navigation';
 
 /**
- * Sidebar Layout Component
- * Collapsible left rail preserving orientation and high density
+ * Production Sidebar Component
+ * High-density, keyboard-first navigation rail strictly enforcing:
+ * - SIDEBAR = WHERE
+ * - Progressive disclosure for Teams & Favorites
+ * - Zero projections in the sidebar
+ * - Semantic layout modes: Expanded (--sidebar-width) and Collapsed (--sidebar-collapsed-width)
  */
 export function Sidebar({
-  isCollapsed,
+  isCollapsed = false,
   onToggleCollapse,
-  activeView,
-  onSelectView,
-  activeTeamId,
-  onSelectTeam,
-  theme,
-  onToggleTheme,
+  activeScope = 'teams',
+  activeTeamId = 'team-core',
+  activeTargetId = null,
+  currentWorkspace,
+  onSelectWorkspace,
+  onOpenWorkspaceSettings,
+  onCreateWorkspace,
+  onNavigate,
   onOpenCommandPalette,
   onOpenShortcutsModal,
-  unreadInboxCount = 2
+  theme = 'dark',
+  onToggleTheme,
+  unreadInboxCount = 2,
+  favorites = [],
+  resolveTarget,
+  onSelectFavorite,
+  onRemoveFavorite,
+  expandedSections = { personal: true, favorites: true, workspace: true, teams: true },
+  onToggleSection,
+  // Backward compatibility props
+  activeView,
+  onSelectView,
+  onSelectTeam
 }) {
+  const [isWorkspaceSwitcherOpen, setIsWorkspaceSwitcherOpen] = useState(false);
+
+  // Progressive team disclosure: render joined/pinned teams
+  const joinedTeams = TEAMS;
+
+  // Resolve effective active scope
+  const effectiveScope = (() => {
+    if (activeView === 'inbox') return 'inbox';
+    if (activeView === 'my-issues') return 'my-work';
+    return activeScope;
+  })();
+
+  const handleNavigate = (dest) => {
+    if (typeof dest === 'string') {
+      if (dest === 'inbox') {
+        onSelectView?.('inbox');
+        onNavigate?.('inbox');
+      } else if (dest === 'my-work') {
+        onSelectView?.('my-issues');
+        onNavigate?.('my-work');
+      } else {
+        onNavigate?.(dest);
+      }
+    } else if (typeof dest === 'object' && dest !== null) {
+      if (dest.scope === 'teams' && dest.teamId) {
+        onSelectTeam?.(dest.teamId);
+        onSelectView?.('data-grid');
+      }
+      onNavigate?.(dest);
+    }
+  };
+
   return (
-    <aside
-      role="navigation"
+    <nav
       aria-label="Workspace navigation"
       style={{
-        width: isCollapsed ? '52px' : '230px',
-        minWidth: isCollapsed ? '52px' : '230px',
+        width: isCollapsed ? 'var(--sidebar-collapsed-width)' : 'var(--sidebar-width)',
+        minWidth: isCollapsed ? 'var(--sidebar-collapsed-width)' : 'var(--sidebar-width)',
         height: '100%',
         backgroundColor: 'var(--bg-sidebar)',
         borderRight: '1px solid var(--border-default)',
@@ -48,92 +101,54 @@ export function Sidebar({
         justifyContent: 'space-between',
         transition: 'width var(--duration-normal) var(--ease-out)',
         userSelect: 'none',
-        zIndex: 20
+        zIndex: 20,
+        position: 'relative'
       }}
     >
-      {/* Top Section */}
-      <div style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+      {/* Scrollable Navigation Body */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          flex: 1
+        }}
+      >
         {/* Workspace Switcher Header */}
+        <SidebarHeader
+          currentWorkspace={currentWorkspace}
+          isCollapsed={isCollapsed}
+          onToggleCollapse={onToggleCollapse}
+          onOpenWorkspaceSwitcher={() => setIsWorkspaceSwitcherOpen((prev) => !prev)}
+        />
+
+        {/* Workspace Switcher Popover */}
+        <WorkspaceSwitcherPopover
+          isOpen={isWorkspaceSwitcherOpen}
+          onClose={() => setIsWorkspaceSwitcherOpen(false)}
+          currentWorkspaceId={currentWorkspace?.id}
+          onSelectWorkspace={(w) => {
+            onSelectWorkspace?.(w);
+            setIsWorkspaceSwitcherOpen(false);
+          }}
+          onOpenWorkspaceSettings={onOpenWorkspaceSettings}
+          onCreateWorkspace={onCreateWorkspace}
+        />
+
+        {/* Search & Command Trigger */}
         <div
           style={{
+            padding: isCollapsed ? '6px 4px' : '6px 10px',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: isCollapsed ? 'center' : 'space-between',
-            height: 'var(--header-height)',
-            padding: isCollapsed ? '0' : '0 var(--space-3)',
-            borderBottom: '1px solid var(--border-subtle)'
+            flexDirection: 'column'
           }}
         >
-          {!isCollapsed ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: 'var(--radius-xs)',
-                  backgroundColor: 'var(--primary-base)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#ffffff',
-                  fontWeight: 'var(--font-bold)',
-                  fontSize: '11px'
-                }}
-              >
-                O
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-                  Orynqo Corp
-                </span>
-                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                  Product & Engineering
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div
-              style={{
-                width: '24px',
-                height: '24px',
-                borderRadius: 'var(--radius-xs)',
-                backgroundColor: 'var(--primary-base)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#ffffff',
-                fontWeight: 'var(--font-bold)',
-                fontSize: '12px'
-              }}
-            >
-              O
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={onToggleCollapse}
-            title={isCollapsed ? 'Expand sidebar (⌘[)' : 'Collapse sidebar (⌘[)'}
-            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              display: isCollapsed ? 'none' : 'flex',
-              padding: '4px'
-            }}
-          >
-            <PanelLeftClose size={14} />
-          </button>
-        </div>
-
-        {/* Global Nav Links */}
-        <div style={{ padding: 'var(--space-2) var(--space-1-5)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          {/* Search Trigger */}
           <button
             type="button"
             onClick={onOpenCommandPalette}
+            title={isCollapsed ? 'Search & Commands (⌘K)' : undefined}
+            aria-label="Search and commands"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -145,7 +160,8 @@ export function Sidebar({
               borderRadius: 'var(--radius-xs)',
               color: 'var(--text-secondary)',
               fontSize: 'var(--text-xs)',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              userSelect: 'none'
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -154,249 +170,140 @@ export function Sidebar({
             </div>
             {!isCollapsed && <Kbd>⌘K</Kbd>}
           </button>
-
-          {/* Inbox Link */}
-          <button
-            type="button"
-            onClick={() => onSelectView?.('inbox')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: isCollapsed ? 'center' : 'space-between',
-              height: 'var(--sidebar-item-height)',
-              padding: isCollapsed ? '0' : '0 8px',
-              backgroundColor: activeView === 'inbox' ? 'var(--bg-surface-selected)' : 'transparent',
-              border: 'none',
-              borderRadius: 'var(--radius-xs)',
-              color: activeView === 'inbox' ? 'var(--text-primary)' : 'var(--text-secondary)',
-              fontSize: 'var(--text-xs)',
-              cursor: 'pointer'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Inbox size={13} color={activeView === 'inbox' ? 'var(--primary-base)' : 'var(--text-muted)'} />
-              {!isCollapsed && <span>Inbox</span>}
-            </div>
-            {!isCollapsed && unreadInboxCount > 0 && (
-              <span
-                style={{
-                  fontSize: '10px',
-                  backgroundColor: 'var(--primary-base)',
-                  color: '#ffffff',
-                  padding: '1px 5px',
-                  borderRadius: '10px',
-                  fontWeight: 'var(--font-semibold)'
-                }}
-              >
-                {unreadInboxCount}
-              </span>
-            )}
-          </button>
-
-          {/* My Issues */}
-          <button
-            type="button"
-            onClick={() => onSelectView?.('my-issues')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: isCollapsed ? 'center' : 'space-between',
-              height: 'var(--sidebar-item-height)',
-              padding: isCollapsed ? '0' : '0 8px',
-              backgroundColor: activeView === 'my-issues' ? 'var(--bg-surface-selected)' : 'transparent',
-              border: 'none',
-              borderRadius: 'var(--radius-xs)',
-              color: activeView === 'my-issues' ? 'var(--text-primary)' : 'var(--text-secondary)',
-              fontSize: 'var(--text-xs)',
-              cursor: 'pointer'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <CheckCircle2 size={13} color={activeView === 'my-issues' ? 'var(--primary-base)' : 'var(--text-muted)'} />
-              {!isCollapsed && <span>My Issues</span>}
-            </div>
-          </button>
         </div>
 
-        {/* Teams & Spaces Section */}
-        {!isCollapsed && (
-          <div style={{ padding: 'var(--space-2) var(--space-2)' }}>
-            <div
-              style={{
-                fontSize: '10px',
-                fontWeight: 'var(--font-bold)',
-                color: 'var(--text-subtle)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                marginBottom: '4px',
-                paddingLeft: '4px'
+        {/* Navigation Sections */}
+        <div
+          style={{
+            padding: isCollapsed ? '0 4px' : '0 8px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2px'
+          }}
+        >
+          {/* PERSONAL SECTION */}
+          <SidebarSection
+            title="Personal"
+            isExpanded={expandedSections.personal !== false}
+            onToggle={() => onToggleSection?.('personal')}
+            isCollapsed={isCollapsed}
+          >
+            <SidebarItem
+              icon={Inbox}
+              label="Inbox"
+              badge={unreadInboxCount}
+              shortcut="G I"
+              isActive={effectiveScope === 'inbox'}
+              isCollapsed={isCollapsed}
+              onClick={() => handleNavigate('inbox')}
+            />
+            <SidebarItem
+              icon={CheckCircle2}
+              label="My Work"
+              shortcut="G M"
+              isActive={effectiveScope === 'my-work'}
+              isCollapsed={isCollapsed}
+              onClick={() => handleNavigate('my-work')}
+            />
+          </SidebarSection>
+
+          {/* FAVORITES SECTION */}
+          <SidebarSection
+            title="Favorites"
+            count={favorites.length}
+            isExpanded={expandedSections.favorites !== false}
+            onToggle={() => onToggleSection?.('favorites')}
+            isCollapsed={isCollapsed}
+          >
+            <FavoritesList
+              favorites={favorites}
+              resolveTarget={resolveTarget}
+              activeTargetId={activeTargetId}
+              isCollapsed={isCollapsed}
+              onSelectFavorite={(fav) => {
+                if (fav.targetType === 'team') {
+                  handleNavigate({ scope: 'teams', teamId: fav.targetId, tab: 'work' });
+                } else if (fav.targetType === 'project') {
+                  handleNavigate({ scope: 'projects', projectId: fav.targetId, tab: 'work' });
+                } else {
+                  handleNavigate(fav.targetType);
+                }
+                onSelectFavorite?.(fav);
               }}
-            >
-              Teams
-            </div>
+              onRemoveFavorite={onRemoveFavorite}
+            />
+          </SidebarSection>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <div
-                onClick={() => { onSelectTeam?.('team-core'); onSelectView?.('data-grid'); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  height: 'var(--sidebar-item-height)',
-                  padding: '0 8px',
-                  backgroundColor: activeTeamId === 'team-core' ? 'var(--bg-surface-raised)' : 'transparent',
-                  borderRadius: 'var(--radius-xs)',
-                  fontSize: 'var(--text-xs)',
-                  color: activeTeamId === 'team-core' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  cursor: 'pointer'
-                }}
-              >
-                <Layers size={13} color="var(--primary-base)" />
-                <span className="truncate">Core Platform</span>
-              </div>
+          {/* WORKSPACE SECTION */}
+          <SidebarSection
+            title="Workspace"
+            isExpanded={expandedSections.workspace !== false}
+            onToggle={() => onToggleSection?.('workspace')}
+            isCollapsed={isCollapsed}
+          >
+            <SidebarItem
+              icon={Compass}
+              label="Initiatives"
+              isActive={effectiveScope === 'initiatives'}
+              isCollapsed={isCollapsed}
+              onClick={() => handleNavigate('initiatives')}
+            />
+            <SidebarItem
+              icon={FileText}
+              label="Docs"
+              isActive={effectiveScope === 'docs'}
+              isCollapsed={isCollapsed}
+              onClick={() => handleNavigate('docs')}
+            />
+            <SidebarItem
+              icon={Bookmark}
+              label="Views"
+              isActive={effectiveScope === 'views'}
+              isCollapsed={isCollapsed}
+              onClick={() => handleNavigate('views')}
+            />
+          </SidebarSection>
 
-              <div
-                onClick={() => { onSelectTeam?.('team-mobile'); onSelectView?.('data-grid'); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  height: 'var(--sidebar-item-height)',
-                  padding: '0 8px',
-                  backgroundColor: activeTeamId === 'team-mobile' ? 'var(--bg-surface-raised)' : 'transparent',
-                  borderRadius: 'var(--radius-xs)',
-                  fontSize: 'var(--text-xs)',
-                  color: activeTeamId === 'team-mobile' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  cursor: 'pointer'
-                }}
-              >
-                <Smartphone size={13} color="#a855f7" />
-                <span className="truncate">Mobile Client</span>
-              </div>
+          {/* TEAMS SECTION (Progressive Disclosure) */}
+          <SidebarSection
+            title="Teams"
+            count={joinedTeams.length}
+            isExpanded={expandedSections.teams !== false}
+            onToggle={() => onToggleSection?.('teams')}
+            isCollapsed={isCollapsed}
+          >
+            {joinedTeams.map((team) => (
+              <TeamSidebarGroup
+                key={team.id}
+                team={team}
+                isActive={effectiveScope === 'teams' && activeTeamId === team.id}
+                isCollapsed={isCollapsed}
+                onSelectTeam={(t) =>
+                  handleNavigate({ scope: 'teams', teamId: t.id, tab: 'work' })
+                }
+                onSelectCycle={(t, cycle) =>
+                  handleNavigate({ scope: 'teams', teamId: t.id, cycleId: cycle.id, tab: 'cycles' })
+                }
+              />
+            ))}
 
-              <div
-                onClick={() => { onSelectTeam?.('team-web'); onSelectView?.('data-grid'); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  height: 'var(--sidebar-item-height)',
-                  padding: '0 8px',
-                  backgroundColor: activeTeamId === 'team-web' ? 'var(--bg-surface-raised)' : 'transparent',
-                  borderRadius: 'var(--radius-xs)',
-                  fontSize: 'var(--text-xs)',
-                  color: activeTeamId === 'team-web' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  cursor: 'pointer'
-                }}
-              >
-                <Globe size={13} color="#10b981" />
-                <span className="truncate">Web Studio</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Living Documents / Specs Section */}
-        {!isCollapsed && (
-          <div style={{ padding: 'var(--space-2) var(--space-2)' }}>
-            <div
-              style={{
-                fontSize: '10px',
-                fontWeight: 'var(--font-bold)',
-                color: 'var(--text-subtle)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                marginBottom: '4px',
-                paddingLeft: '4px'
-              }}
-            >
-              Living Specs
-            </div>
-
-            <div
-              onClick={() => onSelectView?.('living-spec')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                height: 'var(--sidebar-item-height)',
-                padding: '0 8px',
-                backgroundColor: activeView === 'living-spec' ? 'var(--bg-surface-raised)' : 'transparent',
-                borderRadius: 'var(--radius-xs)',
-                fontSize: 'var(--text-xs)',
-                color: activeView === 'living-spec' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                cursor: 'pointer'
-              }}
-            >
-              <FileText size={13} color="var(--primary-text)" />
-              <span className="truncate">PRD: Offline Sync</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Bottom Controls: User, Theme, Shortcuts */}
-      <div
-        style={{
-          borderTop: '1px solid var(--border-subtle)',
-          padding: 'var(--space-2) var(--space-2)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '4px'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <UserAvatar user={CURRENT_USER} size="sm" />
-            {!isCollapsed && (
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span className="truncate" style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-medium)', color: 'var(--text-primary)' }}>
-                  {CURRENT_USER.name}
-                </span>
-                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                  Online
-                </span>
-              </div>
-            )}
-          </div>
-
-          {!isCollapsed && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-              <button
-                type="button"
-                onClick={onToggleTheme}
-                title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} theme`}
-                aria-label="Toggle theme"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  padding: '4px'
-                }}
-              >
-                {theme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
-              </button>
-
-              <button
-                type="button"
-                onClick={onOpenShortcutsModal}
-                title="Keyboard shortcuts (?)"
-                aria-label="Keyboard shortcuts"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  padding: '4px'
-                }}
-              >
-                <Keyboard size={13} />
-              </button>
-            </div>
-          )}
+            {/* Canonical Browse Teams Directory Trigger (TEM-001) */}
+            <BrowseTeamsTrigger
+              isCollapsed={isCollapsed}
+              onClick={() => handleNavigate('teams')}
+            />
+          </SidebarSection>
         </div>
       </div>
-    </aside>
+
+      {/* Bottom Utility Area */}
+      <SidebarFooter
+        isCollapsed={isCollapsed}
+        theme={theme}
+        onToggleTheme={onToggleTheme}
+        onOpenShortcutsModal={onOpenShortcutsModal}
+        onNavigate={onNavigate}
+      />
+    </nav>
   );
 }

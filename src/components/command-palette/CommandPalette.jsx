@@ -24,6 +24,9 @@ export function CommandPalette({
   onSelectItem,
   onOpenCreateModal,
   onSelectView,
+  onNavigate,
+  onToggleSidebar,
+  onOpenWorkspaceSwitcher,
   onToggleTheme,
   theme
 }) {
@@ -50,6 +53,83 @@ export function CommandPalette({
       run: () => { onClose?.(); onOpenCreateModal?.(); }
     },
     {
+      id: 'act-inbox',
+      type: 'action',
+      title: 'Go to Inbox',
+      category: 'Navigation',
+      shortcut: 'G I',
+      icon: CheckCircle2,
+      run: () => { onClose?.(); if (onNavigate) onNavigate('inbox'); else onSelectView?.('inbox'); }
+    },
+    {
+      id: 'act-my-work',
+      type: 'action',
+      title: 'Go to My Work',
+      category: 'Navigation',
+      shortcut: 'G M',
+      icon: CheckCircle2,
+      run: () => { onClose?.(); if (onNavigate) onNavigate('my-work'); else onSelectView?.('my-issues'); }
+    },
+    {
+      id: 'act-browse-teams',
+      type: 'action',
+      title: 'Browse all teams...',
+      category: 'Navigation',
+      shortcut: 'G T',
+      icon: Layers,
+      run: () => { onClose?.(); if (onNavigate) onNavigate('teams'); }
+    },
+    {
+      id: 'act-browse-projects',
+      type: 'action',
+      title: 'Browse projects...',
+      category: 'Navigation',
+      icon: Layers,
+      run: () => { onClose?.(); if (onNavigate) onNavigate('projects'); }
+    },
+    {
+      id: 'act-initiatives',
+      type: 'action',
+      title: 'Go to Initiatives',
+      category: 'Navigation',
+      icon: Layers,
+      run: () => { onClose?.(); if (onNavigate) onNavigate('initiatives'); }
+    },
+    {
+      id: 'act-docs',
+      type: 'action',
+      title: 'Go to Docs',
+      category: 'Navigation',
+      icon: FileText,
+      run: () => { onClose?.(); if (onNavigate) onNavigate('docs'); else onSelectView?.('living-spec'); }
+    },
+    {
+      id: 'act-views',
+      type: 'action',
+      title: 'Go to Saved Views',
+      category: 'Navigation',
+      icon: Layers,
+      run: () => { onClose?.(); if (onNavigate) onNavigate('views'); }
+    },
+    {
+      id: 'act-toggle-sidebar',
+      type: 'action',
+      title: 'Toggle Sidebar',
+      category: 'Navigation',
+      shortcut: '⌘[',
+      icon: Layers,
+      run: () => { onClose?.(); onToggleSidebar?.(); }
+    },
+    {
+      id: 'act-switch-workspace',
+      type: 'action',
+      title: 'Switch Workspace...',
+      category: 'Navigation',
+      shortcut: '⌃⌥W',
+      icon: Layers,
+      run: () => { onClose?.(); onOpenWorkspaceSwitcher?.(); }
+    },
+    {
       id: 'act-view-table',
       type: 'action',
       title: 'Switch to Table View',
@@ -72,14 +152,6 @@ export function CommandPalette({
       category: 'Navigation',
       icon: Calendar,
       run: () => { onClose?.(); onSelectView?.('timeline'); }
-    },
-    {
-      id: 'act-view-spec',
-      type: 'action',
-      title: 'Open Living PRD: Offline Sync Spec',
-      category: 'Documents',
-      icon: FileText,
-      run: () => { onClose?.(); onSelectView?.('living-spec'); }
     },
     {
       id: 'act-toggle-theme',
