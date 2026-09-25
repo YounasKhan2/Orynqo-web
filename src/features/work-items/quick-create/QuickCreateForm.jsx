@@ -50,10 +50,10 @@ export function QuickCreateForm({
   const titleInputRef = useRef(null);
 
   useEffect(() => {
-    if (titleInputRef.current) {
+    if (titleInputRef.current && title === '') {
       titleInputRef.current.focus();
     }
-  }, []);
+  }, [title]);
 
   const handleKeyDown = (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -95,7 +95,7 @@ export function QuickCreateForm({
         />
         {isTeamMissing && (
           <span style={{ fontSize: '10px', color: 'var(--priority-urgent, #ef4444)', fontWeight: 'var(--font-medium)' }}>
-            Select execution team *
+            Select Team *
           </span>
         )}
       </div>

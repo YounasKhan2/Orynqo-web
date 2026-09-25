@@ -9,3 +9,4 @@ export * from './LabelsPicker';
 export * from './DatePicker';
 export * from './teamWorkflows';
 export * from './teamConsequenceResolver';
+export * from './TeamChangeConfirmation';

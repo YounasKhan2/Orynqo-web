@@ -17,9 +17,9 @@ import {
   ProjectPicker,
   CyclePicker,
   LabelsPicker,
-  DatePicker
+  DatePicker,
+  TeamChangeConfirmation
 } from '../property-pickers';
-import { TeamChangeConfirmation } from '../quick-create/TeamChangeConfirmation';
 
 /**
  * WorkItemProperties Component

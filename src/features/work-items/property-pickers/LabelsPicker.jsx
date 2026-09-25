@@ -16,6 +16,7 @@ const DEFAULT_LABELS = [
   'auth',
   'soc2',
   'ui',
+  'frontend',
   'data-grid',
   'performance',
   'mobile',
@@ -46,8 +47,12 @@ export function LabelsPicker({
   const [allLabels, setAllLabels] = useState(availableLabels);
   const triggerRef = useRef(null);
 
+  const [optimisticLabels, setOptimisticLabels] = useState(null);
   const rawValue = selectedLabels !== undefined ? selectedLabels : value;
-  const activeLabels = useMemo(() => (Array.isArray(rawValue) ? rawValue : []), [rawValue]);
+  const activeLabels = useMemo(() => {
+    if (optimisticLabels !== null) return optimisticLabels;
+    return Array.isArray(rawValue) ? rawValue : [];
+  }, [optimisticLabels, rawValue]);
 
   const filteredLabels = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -61,19 +66,23 @@ export function LabelsPicker({
 
   const handleToggleLabel = async (label) => {
     setMutationError(null);
-    const exists = activeLabels.includes(label);
+    const currentList = optimisticLabels !== null ? optimisticLabels : (Array.isArray(rawValue) ? rawValue : []);
+    const exists = currentList.includes(label);
     const next = exists
-      ? activeLabels.filter((l) => l !== label)
-      : [...activeLabels, label];
+      ? currentList.filter((l) => l !== label)
+      : [...currentList, label];
+
+    setOptimisticLabels(next);
 
     try {
       const res = onSelect?.(next);
       if (res && typeof res.then === 'function') {
         await res;
       }
+      setOptimisticLabels(null);
     } catch (err) {
+      setOptimisticLabels(null);
       setMutationError(`Failed to update label '${label}'`);
-      // Revert is handled because state was not committed externally
     }
   };
 
@@ -128,14 +137,26 @@ export function LabelsPicker({
 
         <PropertyPickerList
           label="Select labels"
-          isError={!!mutationError}
-          errorMessage={mutationError}
-          onRetry={() => setMutationError(null)}
           isEmpty={filteredLabels.length === 0 && !canCreate}
           emptyMessage="No matching labels"
           emptyActionLabel={canCreate ? `Create "${searchQuery.trim()}"` : null}
           onEmptyAction={handleCreateLabel}
         >
+          {mutationError && (
+            <div
+              role="alert"
+              style={{
+                padding: '6px 8px',
+                fontSize: '11px',
+                color: 'var(--priority-urgent, #ef4444)',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                borderRadius: 'var(--radius-xs, 4px)',
+                marginBottom: '4px'
+              }}
+            >
+              {mutationError}
+            </div>
+          )}
           {canCreate && (
             <PropertyPickerOption
               label={`Create "${searchQuery.trim()}"`}

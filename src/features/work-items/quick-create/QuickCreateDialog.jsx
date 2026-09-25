@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { Dialog } from '../../../design-system';
 import { QuickCreateForm } from './QuickCreateForm';
 import { useQuickCreate } from './useQuickCreate';
@@ -19,6 +19,38 @@ export function QuickCreateDialog({
   invocationContext = null,
   initialContext = null
 }) {
+  const invocationElementRef = useRef(null);
+  const skipRestoreRef = useRef(false);
+  const prevIsOpenRef = useRef(false);
+
+  // Capture invocation element before dialog takes focus
+  if (isOpen && !prevIsOpenRef.current) {
+    invocationElementRef.current = document.activeElement;
+    skipRestoreRef.current = false;
+  }
+  prevIsOpenRef.current = Boolean(isOpen);
+
+  const restoreFocus = useCallback(() => {
+    if (!skipRestoreRef.current && invocationElementRef.current) {
+      const el = invocationElementRef.current;
+      invocationElementRef.current = null;
+      if (typeof el.focus === 'function') {
+        el.focus();
+      }
+    }
+  }, []);
+
+  const handleClose = useCallback(() => {
+    restoreFocus();
+    onClose?.();
+  }, [onClose, restoreFocus]);
+
+  useEffect(() => {
+    return () => {
+      restoreFocus();
+    };
+  }, [restoreFocus]);
+
   const context = invocationContext || initialContext || {
     teamId: activeTeamId,
     projectId: activeProjectId,
@@ -58,11 +90,14 @@ export function QuickCreateDialog({
     invocationContext: context,
     onCreate,
     onSuccess: (createdItem, mode) => {
-      if (mode === 'open' && onOpenItem) {
-        onOpenItem(createdItem);
+      if (mode === 'open') {
+        skipRestoreRef.current = true;
+        if (onOpenItem) {
+          onOpenItem(createdItem);
+        }
       }
     },
-    onClose
+    onClose: handleClose
   });
 
   if (!isOpen) return null;
@@ -70,7 +105,7 @@ export function QuickCreateDialog({
   return (
     <Dialog
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title="New Work Item"
       width="560px" // tunable default desktop token
     >
@@ -102,7 +137,7 @@ export function QuickCreateDialog({
         isSubmitting={isSubmitting}
         error={error}
         onSubmit={submit}
-        onClose={onClose}
+        onClose={handleClose}
       />
     </Dialog>
   );

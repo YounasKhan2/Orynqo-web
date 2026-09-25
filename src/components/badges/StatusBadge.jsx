@@ -1,13 +1,15 @@
 import React from 'react';
 import { Badge } from '../../design-system';
 import { STATUS_DEFINITIONS } from '../../constants/workItems';
+import { EXTENDED_STATUS_DEFINITIONS } from '../../features/work-items/property-pickers/teamWorkflows';
 import {
   CircleDashed,
   Circle,
   Clock,
   GitPullRequest,
   CheckCircle2,
-  XCircle
+  XCircle,
+  AlertCircle
 } from 'lucide-react';
 
 const STATUS_ICONS = {
@@ -16,7 +18,8 @@ const STATUS_ICONS = {
   Clock,
   GitPullRequest,
   CheckCircle2,
-  XCircle
+  XCircle,
+  AlertCircle
 };
 
 /**
@@ -29,7 +32,8 @@ export function StatusBadge({
   interactive = false,
   className = ''
 }) {
-  const status = STATUS_DEFINITIONS[statusId] || STATUS_DEFINITIONS.todo;
+  const definitions = EXTENDED_STATUS_DEFINITIONS || STATUS_DEFINITIONS;
+  const status = definitions[statusId] || definitions.todo;
   const IconComponent = STATUS_ICONS[status.icon] || Circle;
 
   return (

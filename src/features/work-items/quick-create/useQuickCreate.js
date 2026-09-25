@@ -15,13 +15,19 @@ export function useQuickCreate({
   onSuccess,
   onClose
 }) {
+  const initialProjectId = invocationContext?.projectId || null;
+  const initialTeamId = invocationContext?.teamId || null;
+  const initialCycleId = invocationContext?.cycleId || null;
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [teamId, setTeamId] = useState('');
-  const [projectId, setProjectId] = useState(null);
-  const [cycleId, setCycleId] = useState(null);
+  const [teamId, setTeamId] = useState(() => initialTeamId || '');
+  const [projectId, setProjectId] = useState(() => initialProjectId);
+  const [cycleId, setCycleId] = useState(() => initialCycleId);
   const [type, setType] = useState('task');
-  const [status, setStatus] = useState('todo');
+  const [status, setStatus] = useState(() =>
+    initialTeamId ? getTeamDefaultStatus(initialTeamId, 'unstarted') : 'todo'
+  );
   const [priority, setPriority] = useState('medium');
   const [assigneeId, setAssigneeId] = useState(null);
   const [labels, setLabels] = useState([]);
@@ -43,7 +49,6 @@ export function useQuickCreate({
     isSubmittingRef.current = false;
 
     // 1. Resolve Project Context
-    const initialProjectId = invocationContext.projectId || null;
     setProjectId(initialProjectId);
 
     // 2. Resolve Team Context with Multi-Team Project Rules
@@ -52,28 +57,28 @@ export function useQuickCreate({
       const proj = PROJECTS.find((p) => p.id === initialProjectId);
       if (proj && proj.teamIds && proj.teamIds.length > 1) {
         // Multi-team project
-        if (invocationContext.teamId && proj.teamIds.includes(invocationContext.teamId)) {
-          resolvedTeamId = invocationContext.teamId;
+        if (initialTeamId && proj.teamIds.includes(initialTeamId)) {
+          resolvedTeamId = initialTeamId;
         } else {
           // Ambiguous: DO NOT GUESS. Render "Select Team *"
           resolvedTeamId = '';
         }
       } else if (proj && proj.teamId) {
         resolvedTeamId = proj.teamId;
-      } else if (invocationContext.teamId) {
-        resolvedTeamId = invocationContext.teamId;
+      } else if (initialTeamId) {
+        resolvedTeamId = initialTeamId;
       }
-    } else if (invocationContext.teamId !== undefined) {
-      resolvedTeamId = invocationContext.teamId || '';
+    } else if (initialTeamId) {
+      resolvedTeamId = initialTeamId;
     } else {
-      // Default to first accessible team if available in session
-      resolvedTeamId = TEAMS[0]?.id || '';
+      // Do NOT guess TEAMS[0]. Leave unselected to require explicit choice.
+      resolvedTeamId = '';
     }
     setTeamId(resolvedTeamId);
 
     // 3. Resolve Cycle Context
-    if (invocationContext.cycleId && resolvedTeamId) {
-      const cycle = CYCLES.find((c) => c.id === invocationContext.cycleId);
+    if (initialCycleId && resolvedTeamId) {
+      const cycle = CYCLES.find((c) => c.id === initialCycleId);
       if (cycle && cycle.teamId === resolvedTeamId) {
         setCycleId(cycle.id);
       } else {
@@ -97,7 +102,7 @@ export function useQuickCreate({
     setDueDate(null);
     setTitle('');
     setDescription('');
-  }, [isOpen, invocationContext]);
+  }, [isOpen, initialProjectId, initialTeamId, initialCycleId]);
 
   // Handle Team change inside draft
   const handleTeamChange = useCallback((newTeamId) => {
@@ -137,12 +142,7 @@ export function useQuickCreate({
       setIsSubmitting(true);
       setError(null);
 
-      const team = TEAMS.find((t) => t.id === teamId) || TEAMS[0];
-      const randomNum = Math.floor(1000 + Math.random() * 9000);
-
-      const newItemPayload = {
-        id: `item-${Date.now()}`,
-        identifier: `${team?.key || 'TASK'}-${randomNum}`,
+      const creationInput = {
         title: trimmedTitle,
         description: description.trim(),
         teamId,
@@ -157,14 +157,12 @@ export function useQuickCreate({
         workspaceId: 'wks-core',
         parentId: null,
         relations: [],
-        documentLinks: [],
-        createdAt: new Date().toISOString(),
-        commentsCount: 0
+        documentLinks: []
       };
 
       try {
-        const result = onCreate?.(newItemPayload);
-        const resolvedItem = result && typeof result.then === 'function' ? await result : (result || newItemPayload);
+        const result = onCreate?.(creationInput);
+        const resolvedItem = result && typeof result.then === 'function' ? await result : (result || creationInput);
 
         isSubmittingRef.current = false;
         setIsSubmitting(false);

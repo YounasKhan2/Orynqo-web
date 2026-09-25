@@ -44,7 +44,7 @@ export function useKeyboardShortcuts({
       }
 
       // 4. OVERLAY SCOPE: If an overlay is active, suppress all remaining global/view shortcuts
-      if (isOverlayActive) {
+      if (isOverlayActive || Boolean(document.querySelector('[data-keyboard-scope="OVERLAY"]'))) {
         return;
       }
 

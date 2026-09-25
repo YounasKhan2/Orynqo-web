@@ -2,12 +2,28 @@ import { resolveTeamStatusIncompatibility, EXTENDED_STATUS_DEFINITIONS } from '.
 import { CYCLES, TEAMS, PROJECTS } from '../../../data/mockData';
 
 /**
+ * Resolves the valid execution teams for a Project.
+ * Canonical representation is project.teamIds (array of team IDs).
+ * Legacy fallback normalizes singular project.teamId to an array.
+ */
+export function getProjectTeamIds(project) {
+  if (!project) return [];
+  if (Array.isArray(project.teamIds) && project.teamIds.length > 0) {
+    return project.teamIds;
+  }
+  if (project.teamId) {
+    return [project.teamId];
+  }
+  return [];
+}
+
+/**
  * Evaluates cascading consequences when an existing WorkItem changes its execution team.
  *
  * Rules:
  * 1. Status: If current status is not available in target team, flag consequence and propose replacement.
  * 2. Cycle: Cycles are strictly Team-owned. If current cycle does not belong to target team, must be cleared to null (Backlog).
- * 3. Project: If item is assigned to a project that belongs exclusively to another team, flag context warning.
+ * 3. Project: If item is assigned to a project that does not include target team, flag context warning.
  *
  * @returns {object} { hasConsequences, consequences: Array<{ property, current, proposed, reason }>, proposedPatch }
  */
@@ -58,20 +74,23 @@ export function checkTeamChangeConsequences(item, targetTeamId) {
     }
   }
 
-  // 3. Evaluate Project Context
+  // 3. Evaluate Project Context with Multi-Team Support
   let projectChange = null;
   if (item.projectId) {
     const project = PROJECTS.find((p) => p.id === item.projectId);
-    if (project && project.teamId && project.teamId !== targetTeamId) {
-      projectChange = {
-        property: 'Project',
-        current: project.id,
-        currentLabel: project.name,
-        proposed: project.id,
-        proposedLabel: project.name,
-        reason: `Project is primarily affiliated with ${currentTeam?.name || 'previous team'}.`
-      };
-      consequences.push(projectChange);
+    if (project) {
+      const validProjectTeamIds = getProjectTeamIds(project);
+      if (validProjectTeamIds.length > 0 && !validProjectTeamIds.includes(targetTeamId)) {
+        projectChange = {
+          property: 'Project',
+          current: project.id,
+          currentLabel: project.name,
+          proposed: project.id,
+          proposedLabel: project.name,
+          reason: `Project '${project.name}' is only affiliated with ${validProjectTeamIds.map((tId) => TEAMS.find((t) => t.id === tId)?.name || tId).join(', ')}.`
+        };
+        consequences.push(projectChange);
+      }
     }
   }
 

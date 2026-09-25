@@ -55,10 +55,35 @@ export function WorkspaceProvider({ children }) {
     );
   }, []);
 
-  // Create work item
-  const createItem = useCallback((newItem) => {
-    setItems((prev) => [newItem, ...prev]);
-    setSelectedItemId(newItem.id);
+  // Create work item (Canonical Creation Boundary)
+  const createItem = useCallback((createInput) => {
+    const team = TEAMS.find((t) => t.id === createInput.teamId) || TEAMS[0];
+    const timestamp = Date.now();
+    const count = Math.floor(1000 + Math.random() * 9000);
+    const canonicalItem = {
+      id: createInput.id || `item-${timestamp}`,
+      identifier: createInput.identifier || `${team?.key || 'TASK'}-${count}`,
+      title: createInput.title,
+      description: createInput.description || '',
+      teamId: createInput.teamId,
+      projectId: createInput.projectId || null,
+      cycleId: createInput.cycleId || null,
+      type: createInput.type || 'task',
+      status: createInput.status || 'todo',
+      priority: createInput.priority || 'medium',
+      assigneeId: createInput.assigneeId || null,
+      labels: createInput.labels || [],
+      dueDate: createInput.dueDate || null,
+      workspaceId: createInput.workspaceId || 'wks-core',
+      parentId: createInput.parentId || null,
+      relations: createInput.relations || [],
+      documentLinks: createInput.documentLinks || [],
+      createdAt: createInput.createdAt || new Date().toISOString(),
+      commentsCount: createInput.commentsCount || 0
+    };
+    setItems((prev) => [canonicalItem, ...prev]);
+    setSelectedItemId(canonicalItem.id);
+    return canonicalItem;
   }, []);
 
   // Delete single item

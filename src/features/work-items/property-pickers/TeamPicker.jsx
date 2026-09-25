@@ -14,7 +14,7 @@ import { checkTeamChangeConsequences } from './teamConsequenceResolver';
  * Execution ownership root. Supports consequence checking for existing WorkItems.
  */
 export function TeamPicker({
-  value = 'team-core',
+  value = null,
   item = null, // If provided, evaluates consequences before committing
   onSelect,
   onRequestTeamChange, // (consequenceData) => void for existing items
@@ -55,7 +55,7 @@ export function TeamPicker({
       <PropertyTrigger
         ref={triggerRef}
         label="Team"
-        valueLabel={currentTeam ? currentTeam.name : 'Select Team...'}
+        valueLabel={currentTeam ? currentTeam.name : 'Select Team *'}
         icon={Layers}
         isOpen={isOpen}
         isReadOnly={isReadOnly}

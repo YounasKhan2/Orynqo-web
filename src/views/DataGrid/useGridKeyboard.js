@@ -71,6 +71,11 @@ export function useGridKeyboard({
       return;
     }
 
+    // Suppress view-level hotkeys if an OVERLAY is active (picker, dialog, command palette)
+    if (document.querySelector('[data-keyboard-scope="OVERLAY"]')) {
+      return;
+    }
+
     if (!isKeyboardActive) return;
 
     const currentItem = items[focusedRowIndex];

@@ -63,6 +63,7 @@ export function getTeamWorkflowStatuses(teamId) {
  */
 export function getTeamDefaultStatus(teamId, preferredCategory = 'unstarted') {
   const statuses = getTeamWorkflowStatuses(teamId);
+  if (statuses[0]?.id === 'triage') return 'triage';
   const match = statuses.find((s) => s.category === preferredCategory);
   if (match) return match.id;
   return statuses[0]?.id || 'todo';

@@ -20,8 +20,8 @@ const TYPE_ICONS = {
  * TypeBadge Product Component
  * Displays issue/work-item type (Bug, Issue, Task)
  */
-export function TypeBadge({ typeId, showLabel = true, className = '' }) {
-  const normalizedId = normalizeWorkItemType(typeId);
+export function TypeBadge({ typeId, type: propType, showLabel = true, className = '' }) {
+  const normalizedId = normalizeWorkItemType(typeId || propType);
   const type = ITEM_TYPE_DEFINITIONS[normalizedId] || ITEM_TYPE_DEFINITIONS.task;
   const IconComponent = TYPE_ICONS[type.icon] || CheckSquare;
 
