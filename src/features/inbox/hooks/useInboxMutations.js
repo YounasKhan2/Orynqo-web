@@ -124,13 +124,49 @@ export function useInboxMutations({
   );
 
   const archiveAllRead = useCallback(
-    (simulatedFailure = false) => {
-      const readActiveIds = notifications
-        .filter((n) => Boolean(n.readAt) && !n.archivedAt)
-        .map((n) => n.id);
-      return archiveEvents(readActiveIds, simulatedFailure);
+    (explicitIdsOrScope = null, simulatedFailure = false) => {
+      let targetIds = [];
+
+      if (Array.isArray(explicitIdsOrScope)) {
+        targetIds = explicitIdsOrScope;
+      } else if (explicitIdsOrScope && typeof explicitIdsOrScope === 'object') {
+        const { workspaceId, recipientUserId } = explicitIdsOrScope;
+        targetIds = notifications
+          .filter((n) => {
+            if (workspaceId && n.workspaceId !== workspaceId) return false;
+            if (recipientUserId && n.recipientUserId !== recipientUserId) return false;
+            // Must be read, not archived, and not currently snoozed
+            const isSnoozed = n.snoozedUntil && new Date(n.snoozedUntil).getTime() > Date.now();
+            return Boolean(n.readAt) && !n.archivedAt && !isSnoozed;
+          })
+          .map((n) => n.id);
+      } else {
+        // Fallback default: only unarchived, unsnoozed read events
+        targetIds = notifications
+          .filter((n) => {
+            const isSnoozed = n.snoozedUntil && new Date(n.snoozedUntil).getTime() > Date.now();
+            return Boolean(n.readAt) && !n.archivedAt && !isSnoozed;
+          })
+          .map((n) => n.id);
+      }
+
+      return archiveEvents(targetIds, simulatedFailure);
     },
     [notifications, archiveEvents]
+  );
+
+  const ingestNewEvents = useCallback(
+    (newEvents) => {
+      if (!newEvents) return;
+      const list = Array.isArray(newEvents) ? newEvents : [newEvents];
+      if (list.length === 0) return;
+      setNotifications((prev) => {
+        const existingIds = new Set(prev.map((e) => e.id));
+        const nonDuplicates = list.filter((e) => !existingIds.has(e.id));
+        return [...nonDuplicates, ...prev];
+      });
+    },
+    [setNotifications]
   );
 
   return {
@@ -141,6 +177,7 @@ export function useInboxMutations({
     unarchiveEvents,
     snoozeEvents,
     unsnoozeEvents,
-    archiveAllRead
+    archiveAllRead,
+    ingestNewEvents
   };
 }

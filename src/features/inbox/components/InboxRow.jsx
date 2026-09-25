@@ -82,6 +82,7 @@ export function InboxRow({
     return (
       <div
         role="article"
+        data-notification-id={event.id}
         aria-label="Inaccessible notification"
         tabIndex={0}
         onClick={onSelect}
@@ -129,6 +130,7 @@ export function InboxRow({
   return (
     <div
       role="article"
+      data-notification-id={event.id}
       aria-label={`${isUnread ? 'Unread: ' : ''}${event.importance === 'focus' ? 'Focus: ' : ''}${identifier || ''} ${title || ''} ${summary || ''}`}
       aria-selected={isSelected}
       tabIndex={0}
@@ -154,6 +156,23 @@ export function InboxRow({
     >
       {/* Top Header Line */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+        {/* Selection Checkbox */}
+        <input
+          type="checkbox"
+          checked={isChecked}
+          aria-label={`Select ${identifier || title || 'notification'}`}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => {
+            e.stopPropagation();
+            onToggleCheck?.(event);
+          }}
+          style={{
+            marginRight: '2px',
+            cursor: 'pointer',
+            accentColor: 'var(--primary-base)'
+          }}
+        />
+
         {/* Unread indicator dot */}
         <div style={{ width: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           {isUnread && (

@@ -248,7 +248,7 @@ describe('UI-03B: My Work implementation', () => {
     // Both the Grid row and the open Inspector reflect the canonical update
     expect(within(contentRow).getByRole('button', { name: /Change priority/i }).textContent).toContain('Urgent');
     expect(within(inspector).getByRole('button', { name: /Change priority/i }).textContent).toContain('Urgent');
-  }, 20000);
+  }, 10000);
 
   // 9. Navigation, tabs, summary, and projection switching outside overview
   it('renders My Work overview from the sidebar with tabs, summary, and projection switching only outside overview', () => {

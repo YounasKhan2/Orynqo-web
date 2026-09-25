@@ -15,11 +15,14 @@ import { InboxRow } from './InboxRow';
 export function InboxBundle({
   bundle,
   isSelected = false,
+  isChecked = false,
   onSelect,
+  onToggleCheck,
   onSelectChild,
   onMarkRead,
   onArchive,
-  onSnooze
+  onSnooze,
+  multiSelectedIds = []
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -39,6 +42,9 @@ export function InboxBundle({
     setIsExpanded((prev) => !prev);
   };
 
+  const allChildrenSelected = childIds.length > 0 && childIds.every((id) => multiSelectedIds.includes(id));
+  const someChildrenSelected = childIds.some((id) => multiSelectedIds.includes(id)) && !allChildrenSelected;
+
   return (
     <div
       role="group"
@@ -51,6 +57,7 @@ export function InboxBundle({
       {/* Bundle Header Row */}
       <div
         role="article"
+        data-notification-id={latestEvent?.id || bundle.id}
         tabIndex={0}
         onClick={onSelect}
         style={{
@@ -64,6 +71,26 @@ export function InboxBundle({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+          {/* Bundle Selection Checkbox */}
+          <input
+            type="checkbox"
+            checked={isChecked || allChildrenSelected}
+            ref={(el) => {
+              if (el) el.indeterminate = someChildrenSelected;
+            }}
+            aria-label={`Select bundle ${identifier || title || 'updates'}`}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => {
+              e.stopPropagation();
+              onToggleCheck?.(bundle);
+            }}
+            style={{
+              marginRight: '2px',
+              cursor: 'pointer',
+              accentColor: 'var(--primary-base)'
+            }}
+          />
+
           {/* Unread indicator */}
           <div style={{ width: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             {isUnread && (
@@ -170,7 +197,9 @@ export function InboxBundle({
               key={childEvent.id}
               event={childEvent}
               isSelected={false}
+              isChecked={multiSelectedIds.includes(childEvent.id)}
               onSelect={() => onSelectChild?.(childEvent)}
+              onToggleCheck={() => onToggleCheck?.(childEvent)}
               onMarkRead={onMarkRead}
               onArchive={onArchive}
               onSnooze={onSnooze}

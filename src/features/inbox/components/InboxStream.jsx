@@ -16,6 +16,8 @@ export function InboxStream({
   items = [],
   tab = 'focus',
   selectedId = null,
+  multiSelectedIds = [],
+  onToggleCheck,
   pendingCount = 0,
   onFlushPending,
   onSelectItem,
@@ -90,12 +92,16 @@ export function InboxStream({
       {items.map((item) => {
         if (item.isBundle) {
           const isSelected = selectedId === item.id || selectedId === item.latestEvent?.id;
+          const isChecked = item.childIds?.length > 0 && item.childIds.every((id) => multiSelectedIds.includes(id));
           return (
             <InboxBundle
               key={item.id}
               bundle={item}
               isSelected={isSelected}
+              isChecked={isChecked}
+              multiSelectedIds={multiSelectedIds}
               onSelect={() => onSelectItem?.(item.latestEvent || item)}
+              onToggleCheck={onToggleCheck}
               onSelectChild={(child) => onSelectChildItem?.(child)}
               onMarkRead={onMarkRead}
               onArchive={onArchive}
@@ -105,12 +111,15 @@ export function InboxStream({
         }
 
         const isSelected = selectedId === item.id;
+        const isChecked = multiSelectedIds.includes(item.id);
         return (
           <InboxRow
             key={item.id}
             event={item}
             isSelected={isSelected}
+            isChecked={isChecked}
             onSelect={() => onSelectItem?.(item)}
+            onToggleCheck={onToggleCheck}
             onMarkRead={onMarkRead}
             onArchive={onArchive}
             onSnooze={onSnooze}

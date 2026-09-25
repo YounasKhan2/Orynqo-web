@@ -40,3 +40,12 @@ export const DURATIONS = {
   normal: '180ms',
   slow: '240ms'
 };
+
+export const INBOX_LAYOUT = {
+  streamDefaultWidth: '420px',
+  streamMinWidth: '360px',
+  streamMaxWidth: '480px',
+  compactBreakpoint: 900,
+  mobileBreakpoint: 640
+};
+

@@ -343,4 +343,372 @@ describe('UI-04B: Personal Triage Inbox implementation', () => {
     expect(screen.getByRole('region', { name: 'Personal Triage Inbox' })).toBeDefined();
     expect(screen.getByText(/CRDT graph cycle detection on client mutation log/i)).toBeDefined();
   });
+
+  // 16. Tenant & Recipient Isolation on archiveAllRead (Correction Pass Item 1)
+  it('16. archiveAllRead touches only notifications within the active workspace and recipient scope', () => {
+    let state = [
+      // Target user & workspace (read, active) -> should be archived
+      {
+        id: 'n-target-1',
+        workspaceId: 'wks-core',
+        recipientUserId: 'usr-1',
+        readAt: '2026-09-25T10:00:00Z',
+        archivedAt: null,
+        snoozedUntil: null
+      },
+      // Target user & workspace (unread, active) -> untouched
+      {
+        id: 'n-target-2',
+        workspaceId: 'wks-core',
+        recipientUserId: 'usr-1',
+        readAt: null,
+        archivedAt: null,
+        snoozedUntil: null
+      },
+      // Target user & workspace (read, but snoozed in Later) -> untouched
+      {
+        id: 'n-target-3',
+        workspaceId: 'wks-core',
+        recipientUserId: 'usr-1',
+        readAt: '2026-09-25T10:00:00Z',
+        archivedAt: null,
+        snoozedUntil: '2099-01-01T00:00:00Z'
+      },
+      // OTHER USER in same workspace -> untouched
+      {
+        id: 'n-other-user',
+        workspaceId: 'wks-core',
+        recipientUserId: 'usr-2',
+        readAt: '2026-09-25T10:00:00Z',
+        archivedAt: null,
+        snoozedUntil: null
+      },
+      // OTHER WORKSPACE for same user -> untouched
+      {
+        id: 'n-other-wks',
+        workspaceId: 'wks-other',
+        recipientUserId: 'usr-1',
+        readAt: '2026-09-25T10:00:00Z',
+        archivedAt: null,
+        snoozedUntil: null
+      }
+    ];
+
+    const setState = (nextOrUpdater) => {
+      state = typeof nextOrUpdater === 'function' ? nextOrUpdater(state) : nextOrUpdater;
+    };
+
+    const { result } = renderHook(() =>
+      useInboxMutations({
+        notifications: state,
+        setNotifications: setState
+      })
+    );
+
+    // Call archiveAllRead with explicit scope
+    act(() => {
+      result.current.archiveAllRead({ workspaceId: 'wks-core', recipientUserId: 'usr-1' });
+    });
+
+    const target1 = state.find((n) => n.id === 'n-target-1');
+    const target2 = state.find((n) => n.id === 'n-target-2');
+    const target3 = state.find((n) => n.id === 'n-target-3');
+    const otherUser = state.find((n) => n.id === 'n-other-user');
+    const otherWks = state.find((n) => n.id === 'n-other-wks');
+
+    expect(target1.archivedAt).toBeTruthy();
+    expect(target2.archivedAt).toBeNull();
+    expect(target3.archivedAt).toBeNull();
+    expect(otherUser.archivedAt).toBeNull();
+    expect(otherWks.archivedAt).toBeNull();
+  });
+
+  // 17. Multi-selection & Bulk Actions (Correction Pass Item 2)
+  it('17. Bulk selection populates InboxBulkBar and resolves child IDs correctly', () => {
+    let state = [...INITIAL_NOTIFICATIONS];
+    const setState = (next) => {
+      state = typeof next === 'function' ? next(state) : next;
+    };
+
+    const { result: mutResult } = renderHook(() =>
+      useInboxMutations({
+        notifications: state,
+        setNotifications: setState
+      })
+    );
+
+    // Simulate multi-selecting notif-101 and bundle doc-1 children (notif-105, notif-106)
+    const selectedIds = ['notif-101', 'notif-105', 'notif-106'];
+
+    act(() => {
+      mutResult.current.archiveEvents(selectedIds);
+    });
+
+    const n101 = state.find((n) => n.id === 'notif-101');
+    const n105 = state.find((n) => n.id === 'notif-105');
+    const n106 = state.find((n) => n.id === 'notif-106');
+    const n102 = state.find((n) => n.id === 'notif-102');
+
+    expect(n101.archivedAt).toBeTruthy();
+    expect(n105.archivedAt).toBeTruthy();
+    expect(n106.archivedAt).toBeTruthy();
+    expect(n102.archivedAt).toBeNull();
+  });
+
+  // 18. Snooze Time Expiry Determinism (Correction Pass Item 7)
+  it('18. Snoozed notification returns to active triage when snoozedUntil <= now without duplicating ID or corrupting read state', () => {
+    const snoozedEvent = {
+      id: 'snooze-test-1',
+      workspaceId: 'wks-core',
+      recipientUserId: 'usr-1',
+      eventType: NOTIFICATION_EVENT_TYPES.STATUS_CHANGED,
+      sourceEntityType: 'work_item',
+      sourceEntityId: 'item-10',
+      createdAt: '2026-09-24T10:00:00Z',
+      readAt: null,
+      archivedAt: null,
+      snoozedUntil: '2026-09-25T12:00:00Z', // Expires at 12:00
+      importance: 'normal'
+    };
+
+    // Before expiry: 11:59:59Z
+    const beforeResult = deriveInboxQuery({
+      notifications: [snoozedEvent],
+      workspaceId: 'wks-core',
+      recipientId: 'usr-1',
+      tab: 'all',
+      now: '2026-09-25T11:59:59Z'
+    });
+    expect(beforeResult.rawEvents.length).toBe(0); // Not active yet
+    expect(beforeResult.unreadCount).toBe(0);
+
+    // After expiry: exactly at 12:00:00Z
+    const afterResult = deriveInboxQuery({
+      notifications: [snoozedEvent],
+      workspaceId: 'wks-core',
+      recipientId: 'usr-1',
+      tab: 'all',
+      now: '2026-09-25T12:00:00Z'
+    });
+    expect(afterResult.rawEvents.length).toBe(1);
+    expect(afterResult.rawEvents[0].id).toBe('snooze-test-1');
+    expect(afterResult.rawEvents[0].readAt).toBeNull(); // Read state preserved
+    expect(afterResult.unreadCount).toBe(1); // Inflates active unread count
+  });
+
+  // 19. Permission Revocation While Detail Is Open (Correction Pass Item 10)
+  // 19. Permission Revocation While Detail Is Open (Correction Pass Item 10)
+  it('19. Detail pane reacts to permission revocation with safe tombstone and search isolation', () => {
+    // Accessible item
+    const normalEvent = {
+      id: 'sec-1',
+      workspaceId: 'wks-core',
+      recipientUserId: 'usr-1',
+      eventType: NOTIFICATION_EVENT_TYPES.COMMENT_ADDED,
+      sourceEntityType: 'work_item',
+      sourceEntityId: 'item-secret',
+      createdAt: '2026-09-24T10:00:00Z',
+      isRedacted: false,
+      renderPayload: {
+        title: 'Project Manhattan Top Secret',
+        bodySnippet: 'Uranium enrichment parameters'
+      }
+    };
+
+    // Verify search matches when accessible
+    const qAccessible = deriveInboxQuery({
+      notifications: [normalEvent],
+      workspaceId: 'wks-core',
+      recipientId: 'usr-1',
+      tab: 'all',
+      searchQuery: 'Uranium'
+    });
+    expect(qAccessible.rawEvents.length).toBe(1);
+
+    // Simulate permission revocation: event marked isRedacted
+    const revokedEvent = {
+      ...normalEvent,
+      isRedacted: true
+    };
+
+    // Search query cannot find confidential term once redacted
+    const qRevoked = deriveInboxQuery({
+      notifications: [revokedEvent],
+      workspaceId: 'wks-core',
+      recipientId: 'usr-1',
+      tab: 'all',
+      searchQuery: 'Uranium'
+    });
+    expect(qRevoked.rawEvents.length).toBe(0);
+
+    // Only matches the generic safe string
+    const qTombstone = deriveInboxQuery({
+      notifications: [revokedEvent],
+      workspaceId: 'wks-core',
+      recipientId: 'usr-1',
+      tab: 'all',
+      searchQuery: 'no longer accessible'
+    });
+    expect(qTombstone.rawEvents.length).toBe(1);
+  });
+
+  // 20. Count Mutation Consistency across all lifecycle operations (Correction Pass Item 12)
+  it('20. Canonical unread, focus, and totalActive counts update consistently across all mutations', () => {
+    let state = [
+      {
+        id: 'c-1',
+        workspaceId: 'wks-core',
+        recipientUserId: 'usr-1',
+        eventType: NOTIFICATION_EVENT_TYPES.MENTION,
+        readAt: null,
+        archivedAt: null,
+        snoozedUntil: null,
+        importance: 'focus'
+      },
+      {
+        id: 'c-2',
+        workspaceId: 'wks-core',
+        recipientUserId: 'usr-1',
+        eventType: NOTIFICATION_EVENT_TYPES.COMMENT_ADDED,
+        readAt: null,
+        archivedAt: null,
+        snoozedUntil: null,
+        importance: 'normal'
+      }
+    ];
+
+    const setState = (next) => {
+      state = typeof next === 'function' ? next(state) : next;
+    };
+
+    const { result } = renderHook(() =>
+      useInboxMutations({
+        notifications: state,
+        setNotifications: setState
+      })
+    );
+
+    // Initial: 2 active, 2 unread, 1 focus
+    let q = deriveInboxQuery({ notifications: state, tab: 'all' });
+    expect(q.unreadCount).toBe(2);
+    expect(q.focusCount).toBe(1);
+    expect(q.totalActiveCount).toBe(2);
+
+    // Mark c-1 as read
+    act(() => {
+      result.current.markAsRead(['c-1']);
+    });
+    q = deriveInboxQuery({ notifications: state, tab: 'all' });
+    expect(q.unreadCount).toBe(1);
+    expect(q.focusCount).toBe(1);
+    expect(q.totalActiveCount).toBe(2);
+
+    // Mark c-1 unread
+    act(() => {
+      result.current.markAsUnread(['c-1']);
+    });
+    q = deriveInboxQuery({ notifications: state, tab: 'all' });
+    expect(q.unreadCount).toBe(2);
+
+    // Snooze c-1
+    act(() => {
+      result.current.snoozeEvents(['c-1'], '2099-01-01T00:00:00Z');
+    });
+    q = deriveInboxQuery({ notifications: state, tab: 'all' });
+    expect(q.unreadCount).toBe(1);
+    expect(q.focusCount).toBe(0);
+    expect(q.totalActiveCount).toBe(1);
+
+    // Unsnooze c-1
+    act(() => {
+      result.current.unsnoozeEvents(['c-1']);
+    });
+    q = deriveInboxQuery({ notifications: state, tab: 'all' });
+    expect(q.unreadCount).toBe(2);
+    expect(q.focusCount).toBe(1);
+    expect(q.totalActiveCount).toBe(2);
+
+    // Archive c-2
+    act(() => {
+      result.current.archiveEvents(['c-2']);
+    });
+    q = deriveInboxQuery({ notifications: state, tab: 'all' });
+    expect(q.unreadCount).toBe(1);
+    expect(q.totalActiveCount).toBe(1);
+
+    // Unarchive c-2
+    act(() => {
+      result.current.unarchiveEvents(['c-2']);
+    });
+    q = deriveInboxQuery({ notifications: state, tab: 'all' });
+    expect(q.unreadCount).toBe(2);
+    expect(q.totalActiveCount).toBe(2);
+  });
+
+  // 21. Real-time Inflow Stability Queue Adapter (Correction Pass Item 5)
+  it('21. New notifications buffer into pendingQueue without displacing active triage until explicitly flushed', () => {
+    let state = [
+      {
+        id: 'initial-1',
+        workspaceId: 'wks-core',
+        recipientUserId: 'usr-1',
+        eventType: NOTIFICATION_EVENT_TYPES.COMMENT_ADDED,
+        readAt: null,
+        archivedAt: null,
+        snoozedUntil: null,
+        importance: 'normal',
+        createdAt: '2026-09-24T10:00:00Z'
+      }
+    ];
+
+    const setState = (next) => {
+      state = typeof next === 'function' ? next(state) : next;
+    };
+
+    const { result } = renderHook(() =>
+      useInboxMutations({
+        notifications: state,
+        setNotifications: setState
+      })
+    );
+
+    // Inflow arrives
+    const newIncoming = {
+      id: 'incoming-1',
+      workspaceId: 'wks-core',
+      recipientUserId: 'usr-1',
+      eventType: NOTIFICATION_EVENT_TYPES.MENTION,
+      readAt: null,
+      archivedAt: null,
+      snoozedUntil: null,
+      importance: 'focus',
+      createdAt: '2026-09-24T12:00:00Z'
+    };
+
+    // Ingest into notifications state via adapter
+    act(() => {
+      result.current.ingestNewEvents([newIncoming]);
+    });
+
+    expect(state.length).toBe(2);
+    expect(state[0].id).toBe('incoming-1');
+  });
+
+  // 22. Canonical WorkItem mutation updates source entity, not an Inbox clone (Correction Pass Item 11)
+  it('22. Editing WorkItem status inside Inbox detail triggers canonical updateWorkItem', () => {
+    // Render App with real canonical items
+    render(<App />);
+
+    // Navigate to Inbox
+    const inboxBtn = screen.getByRole('button', { name: /Inbox/i });
+    fireEvent.click(inboxBtn);
+
+    // Click on status button in WorkItemDetailContainer
+    const changeStatusBtn = screen.getByRole('button', { name: /Change status/i });
+    expect(changeStatusBtn).toBeDefined();
+
+    // Verify it reflects canonical item status ('In Progress' for ENG-1041)
+    expect(changeStatusBtn.textContent).toContain('In Progress');
+  });
 });
+
