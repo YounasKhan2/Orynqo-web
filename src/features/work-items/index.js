@@ -11,7 +11,11 @@ export * from './components/WorkItemRelationships';
 export * from './components/WorkItemLinkedDocs';
 export * from './components/WorkItemDiscussion';
 export * from './components/WorkItemActivity';
-export * from './components/CreateItemModal';
+export * from './property-pickers';
+export * from './quick-create';
+
+// Re-export QuickCreateDialog as CreateItemModal for backwards compatibility
+export { QuickCreateDialog as CreateItemModal } from './quick-create';
 
 // Re-export InspectorDrawer alias for backwards compatibility
 export { WorkItemInspector as InspectorDrawer } from './components/WorkItemInspector';

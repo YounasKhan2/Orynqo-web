@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { WorkspaceProvider, useWorkspace, UIProvider, useUI } from './app/providers';
 import { AppShell, Sidebar, ActionStrip } from './layouts';
 import { DataGrid, KanbanBoard, TimelineView, WorkloadView } from './views';
-import { WorkItemInspector, CreateItemModal } from './features/work-items';
+import { WorkItemInspector, QuickCreateDialog } from './features/work-items';
 import { LivingSpecEditor } from './features/living-specs';
 import { TriageInbox } from './features/triage';
 import { BulkActionBar, ShortcutsModal, CommandPalette } from './components';
@@ -322,11 +322,15 @@ function OrynqoWorkspace() {
             theme={theme}
           />
 
-          <CreateItemModal
+          <QuickCreateDialog
             isOpen={isCreateModalOpen}
             onClose={() => setIsCreateModalOpen(false)}
             onCreate={createItem}
-            activeTeamId={activeTeamId}
+            onOpenItem={(item) => {
+              selectItem(item.id);
+              setIsInspectorOpen(true);
+            }}
+            initialContext={{ teamId: activeTeamId }}
           />
 
           <ShortcutsModal

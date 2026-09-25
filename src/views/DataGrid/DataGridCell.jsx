@@ -3,15 +3,16 @@ import {
   AlertTriangle,
   Lock,
   MessageSquare,
-  FileText,
-  ChevronDown,
-  Check
+  FileText
 } from 'lucide-react';
-import { StatusBadge, PriorityBadge, TypeBadge } from '../../components/badges';
-import { UserAvatar } from '../../components/avatars/UserAvatar';
+import { TypeBadge } from '../../components/badges';
 import { Checkbox } from '../../design-system';
-import { STATUS_DEFINITIONS, PRIORITY_DEFINITIONS } from '../../constants/workItems';
-import { USERS, PROJECTS } from '../../data/mockData';
+import { PROJECTS } from '../../data/mockData';
+import {
+  StatusPicker,
+  PriorityPicker,
+  AssigneePicker
+} from '../../features/work-items/property-pickers';
 
 /**
  * DataGridCell Component
@@ -64,7 +65,6 @@ export function DataGridCell({
   const hasBlocker = blockedRelations.length > 0;
   const hasRestrictedRelation = (item.relations || []).some((r) => r.restricted);
   const hasSpecDoc = (item.documentLinks || []).some((d) => d.type === 'source_spec');
-  const assignee = USERS.find((u) => u.id === item.assigneeId);
   const project = PROJECTS.find((p) => p.id === item.projectId);
 
   // Render cell contents by column id
@@ -113,90 +113,16 @@ export function DataGridCell({
       content = <TypeBadge typeId={item.type} showLabel={false} />;
       break;
 
-    case 'priority': {
-      const isDropdownOpen = activeDropdown === `priority-${item.id}`;
+    case 'priority':
       content = (
-        <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-          <button
-            type="button"
-            aria-haspopup="listbox"
-            aria-expanded={isDropdownOpen}
-            aria-label="Change priority"
-            disabled={isReadOnly}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (isReadOnly) return;
-              setActiveDropdown?.(isDropdownOpen ? null : `priority-${item.id}`);
-            }}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              background: 'transparent',
-              border: 'none',
-              padding: 0,
-              cursor: isReadOnly ? 'default' : 'pointer'
-            }}
-          >
-            <PriorityBadge priorityId={item.priority} interactive={false} />
-          </button>
-
-          {isDropdownOpen && !isReadOnly && (
-            <div
-              role="listbox"
-              aria-label="Select priority"
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                position: 'absolute',
-                top: 'calc(100% + 4px)',
-                left: 0,
-                zIndex: 100,
-                width: '130px',
-                backgroundColor: 'var(--bg-modal)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-sm)',
-                boxShadow: 'var(--shadow-md)',
-                padding: '4px 0'
-              }}
-            >
-              {['urgent', 'high', 'medium', 'low', 'none'].map((pKey) => {
-                const def = PRIORITY_DEFINITIONS[pKey];
-                const isActive = item.priority === pKey;
-                return (
-                  <button
-                    key={pKey}
-                    type="button"
-                    role="option"
-                    aria-selected={isActive}
-                    onClick={() => {
-                      onUpdateItem?.(item.id, { priority: pKey });
-                      setActiveDropdown?.(null);
-                    }}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '4px 8px',
-                      background: isActive ? 'var(--bg-surface-selected)' : 'transparent',
-                      border: 'none',
-                      color: isActive ? 'var(--primary-text)' : 'var(--text-primary)',
-                      fontSize: '11px',
-                      cursor: 'pointer',
-                      textAlign: 'left'
-                    }}
-                  >
-                    <PriorityBadge priorityId={pKey} interactive={false} />
-                    <span style={{ flex: 1 }}>{def.label}</span>
-                    {isActive && <Check size={11} />}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        <PriorityPicker
+          value={item.priority}
+          isReadOnly={isReadOnly}
+          size="compact"
+          onSelect={(priority) => onUpdateItem?.(item.id, { priority })}
+        />
       );
       break;
-    }
 
     case 'title':
       content = isEditingTitle ? (
@@ -333,91 +259,17 @@ export function DataGridCell({
       );
       break;
 
-    case 'status': {
-      const isDropdownOpen = activeDropdown === `status-${item.id}`;
+    case 'status':
       content = (
-        <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-          <button
-            type="button"
-            aria-haspopup="listbox"
-            aria-expanded={isDropdownOpen}
-            aria-label="Change status"
-            disabled={isReadOnly}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (isReadOnly) return;
-              setActiveDropdown?.(isDropdownOpen ? null : `status-${item.id}`);
-            }}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              background: 'transparent',
-              border: 'none',
-              padding: 0,
-              cursor: isReadOnly ? 'default' : 'pointer'
-            }}
-          >
-            <StatusBadge statusId={item.status} interactive={false} />
-            {!isReadOnly && <ChevronDown size={10} style={{ color: 'var(--text-muted)' }} />}
-          </button>
-
-          {isDropdownOpen && !isReadOnly && (
-            <div
-              role="listbox"
-              aria-label="Select status"
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                position: 'absolute',
-                top: 'calc(100% + 4px)',
-                left: 0,
-                zIndex: 100,
-                width: '150px',
-                backgroundColor: 'var(--bg-modal)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-sm)',
-                boxShadow: 'var(--shadow-md)',
-                padding: '4px 0'
-              }}
-            >
-              {Object.entries(STATUS_DEFINITIONS).map(([sKey, def]) => {
-                const isActive = item.status === sKey;
-                return (
-                  <button
-                    key={sKey}
-                    type="button"
-                    role="option"
-                    aria-selected={isActive}
-                    onClick={() => {
-                      onUpdateItem?.(item.id, { status: sKey });
-                      setActiveDropdown?.(null);
-                    }}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '4px 8px',
-                      background: isActive ? 'var(--bg-surface-selected)' : 'transparent',
-                      border: 'none',
-                      color: isActive ? 'var(--primary-text)' : 'var(--text-primary)',
-                      fontSize: '11px',
-                      cursor: 'pointer',
-                      textAlign: 'left'
-                    }}
-                  >
-                    <StatusBadge statusId={sKey} interactive={false} />
-                    <span style={{ flex: 1 }}>{def.label}</span>
-                    {isActive && <Check size={11} />}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        <StatusPicker
+          value={item.status}
+          teamId={item.teamId || 'team-core'}
+          isReadOnly={isReadOnly}
+          size="compact"
+          onSelect={(status) => onUpdateItem?.(item.id, { status })}
+        />
       );
       break;
-    }
 
     case 'estimate':
       content = isEditingEstimate && !isReadOnly ? (
@@ -478,113 +330,16 @@ export function DataGridCell({
       );
       break;
 
-    case 'assignee': {
-      const isDropdownOpen = activeDropdown === `assignee-${item.id}`;
+    case 'assignee':
       content = (
-        <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-          <button
-            type="button"
-            aria-haspopup="listbox"
-            aria-expanded={isDropdownOpen}
-            aria-label="Assign to team member"
-            disabled={isReadOnly}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (isReadOnly) return;
-              setActiveDropdown?.(isDropdownOpen ? null : `assignee-${item.id}`);
-            }}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: 'transparent',
-              border: 'none',
-              padding: 0,
-              cursor: isReadOnly ? 'default' : 'pointer'
-            }}
-          >
-            <UserAvatar user={assignee} size="xs" showName />
-          </button>
-
-          {isDropdownOpen && !isReadOnly && (
-            <div
-              role="listbox"
-              aria-label="Select assignee"
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                position: 'absolute',
-                top: 'calc(100% + 4px)',
-                left: 0,
-                zIndex: 100,
-                width: '160px',
-                backgroundColor: 'var(--bg-modal)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-sm)',
-                boxShadow: 'var(--shadow-md)',
-                padding: '4px 0'
-              }}
-            >
-              <button
-                type="button"
-                role="option"
-                aria-selected={!item.assigneeId}
-                onClick={() => {
-                  onUpdateItem?.(item.id, { assigneeId: null });
-                  setActiveDropdown?.(null);
-                }}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '4px 8px',
-                  background: !item.assigneeId ? 'var(--bg-surface-selected)' : 'transparent',
-                  border: 'none',
-                  color: !item.assigneeId ? 'var(--primary-text)' : 'var(--text-muted)',
-                  fontSize: '11px',
-                  cursor: 'pointer'
-                }}
-              >
-                <span>Unassigned</span>
-                {!item.assigneeId && <Check size={11} />}
-              </button>
-
-              {USERS.map((user) => {
-                const isActive = item.assigneeId === user.id;
-                return (
-                  <button
-                    key={user.id}
-                    type="button"
-                    role="option"
-                    aria-selected={isActive}
-                    onClick={() => {
-                      onUpdateItem?.(item.id, { assigneeId: user.id });
-                      setActiveDropdown?.(null);
-                    }}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '4px 8px',
-                      background: isActive ? 'var(--bg-surface-selected)' : 'transparent',
-                      border: 'none',
-                      color: isActive ? 'var(--primary-text)' : 'var(--text-primary)',
-                      fontSize: '11px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <UserAvatar user={user} size="xs" showName />
-                    {isActive && <Check size={11} style={{ marginLeft: 'auto' }} />}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        <AssigneePicker
+          value={item.assigneeId}
+          isReadOnly={isReadOnly}
+          size="compact"
+          onSelect={(assigneeId) => onUpdateItem?.(item.id, { assigneeId })}
+        />
       );
       break;
-    }
 
     case 'project':
       content = (

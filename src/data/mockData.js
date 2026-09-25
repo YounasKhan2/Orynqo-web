@@ -161,6 +161,18 @@ export const PROJECTS = [
     targetDate: '2026-11-20',
     progress: 20,
     health: 'on_track'
+  },
+  {
+    id: 'proj-5',
+    name: 'Universal Workspace Sync & Pickers',
+    key: 'WKS-SYNC',
+    teamIds: ['team-core', 'team-web', 'team-mobile'],
+    initiativeId: 'init-1',
+    leadId: 'usr-1',
+    status: 'in_progress',
+    targetDate: '2026-12-01',
+    progress: 30,
+    health: 'on_track'
   }
 ];
 

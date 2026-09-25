@@ -142,29 +142,35 @@ export function useGridKeyboard({
       return;
     }
 
-    // s: Open Status Trigger
+    // s: Open Status Picker
     if (e.key === 's') {
       e.preventDefault();
-      if (currentItem && !currentItem.isReadOnly) {
-        setActiveDropdown((prev) => (prev === 'status' ? null : 'status'));
+      if (currentItem && !currentItem.isReadOnly && tableContainerRef?.current) {
+        const rowEl = tableContainerRef.current.querySelector(`[data-row-index="${focusedRowIndex}"]`);
+        const statusBtn = rowEl?.querySelector('[aria-label="Change status"]');
+        statusBtn?.click();
       }
       return;
     }
 
-    // p: Open Priority Trigger
+    // p: Open Priority Picker
     if (e.key === 'p') {
       e.preventDefault();
-      if (currentItem && !currentItem.isReadOnly) {
-        setActiveDropdown((prev) => (prev === 'priority' ? null : 'priority'));
+      if (currentItem && !currentItem.isReadOnly && tableContainerRef?.current) {
+        const rowEl = tableContainerRef.current.querySelector(`[data-row-index="${focusedRowIndex}"]`);
+        const priorityBtn = rowEl?.querySelector('[aria-label="Change priority"]');
+        priorityBtn?.click();
       }
       return;
     }
 
-    // a: Open Assignee Trigger
+    // a: Open Assignee Picker
     if (e.key === 'a') {
       e.preventDefault();
-      if (currentItem && !currentItem.isReadOnly) {
-        setActiveDropdown((prev) => (prev === 'assignee' ? null : 'assignee'));
+      if (currentItem && !currentItem.isReadOnly && tableContainerRef?.current) {
+        const rowEl = tableContainerRef.current.querySelector(`[data-row-index="${focusedRowIndex}"]`);
+        const assigneeBtn = rowEl?.querySelector('[aria-label="Change assignee"]');
+        assigneeBtn?.click();
       }
       return;
     }

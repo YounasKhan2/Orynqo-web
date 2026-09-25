@@ -8,3 +8,4 @@ export * from './filters/FilterBuilder';
 export * from './command-palette/CommandPalette';
 export * from './common/RestrictedPlaceholder';
 export * from './common/EntityReference';
+export * from './property-picker';

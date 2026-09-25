@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Clock,
   AlertTriangle,
@@ -6,18 +6,25 @@ import {
   Layers,
   Calendar,
   Tag,
-  Flag,
-  ChevronDown
+  Flag
 } from 'lucide-react';
 import { PropertyRow } from '../../../design-system';
-import { StatusBadge, PriorityBadge } from '../../../components/badges';
-import { UserAvatar } from '../../../components/avatars/UserAvatar';
-import { STATUS_DEFINITIONS, PRIORITY_DEFINITIONS } from '../../../constants/workItems';
+import {
+  StatusPicker,
+  PriorityPicker,
+  AssigneePicker,
+  TeamPicker,
+  ProjectPicker,
+  CyclePicker,
+  LabelsPicker,
+  DatePicker
+} from '../property-pickers';
+import { TeamChangeConfirmation } from '../quick-create/TeamChangeConfirmation';
 
 /**
  * WorkItemProperties Component
- * High-density key-value property matrix for canonical WorkItems
- * Provides UI-01C compatible property trigger dropdowns (eliminates cycle-on-click)
+ * High-density key-value property matrix for canonical WorkItems.
+ * Migrated to Universal Property Pickers (UI-01C).
  */
 export function WorkItemProperties({
   item,
@@ -29,29 +36,17 @@ export function WorkItemProperties({
   isReadOnly = false,
   className = ''
 }) {
-  const statusKeys = Object.keys(STATUS_DEFINITIONS);
-  const priorityKeys = ['none', 'low', 'medium', 'high', 'urgent'];
+  const [consequenceData, setConsequenceData] = useState(null);
 
-  const [openDropdown, setOpenDropdown] = useState(null); // 'status' | 'priority' | null
-  const statusMenuRef = useRef(null);
-  const priorityMenuRef = useRef(null);
+  if (!item) return null;
 
-  useEffect(() => {
-    const handleOutsideClick = (e) => {
-      if (
-        statusMenuRef.current && !statusMenuRef.current.contains(e.target) &&
-        priorityMenuRef.current && !priorityMenuRef.current.contains(e.target)
-      ) {
-        setOpenDropdown(null);
-      }
-    };
-    if (openDropdown) {
-      document.addEventListener('mousedown', handleOutsideClick);
+  const handleTeamSelect = (newTeamId, proposedPatch) => {
+    if (proposedPatch) {
+      onUpdateItem?.(proposedPatch);
+    } else {
+      onUpdateItem?.({ teamId: newTeamId });
     }
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-    };
-  }, [openDropdown]);
+  };
 
   return (
     <div
@@ -64,194 +59,62 @@ export function WorkItemProperties({
         borderBottom: '1px solid var(--border-subtle)'
       }}
     >
-      {/* Status */}
+      {/* Status Picker */}
       <PropertyRow label="Status" icon={Clock}>
-        <div ref={statusMenuRef} style={{ position: 'relative', display: 'inline-block' }}>
-          <button
-            type="button"
-            aria-haspopup="listbox"
-            aria-expanded={openDropdown === 'status'}
-            aria-label="Change status"
-            disabled={isReadOnly}
-            onClick={() => !isReadOnly && setOpenDropdown((prev) => (prev === 'status' ? null : 'status'))}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              background: 'transparent',
-              border: 'none',
-              padding: 0,
-              cursor: isReadOnly ? 'default' : 'pointer'
-            }}
-          >
-            <StatusBadge statusId={item.status} interactive={false} />
-            {!isReadOnly && <ChevronDown size={11} style={{ color: 'var(--text-muted)' }} />}
-          </button>
-
-          {openDropdown === 'status' && !isReadOnly && (
-            <div
-              role="listbox"
-              aria-label="Select status"
-              style={{
-                position: 'absolute',
-                top: 'calc(100% + 4px)',
-                left: 0,
-                zIndex: 100,
-                minWidth: '150px',
-                backgroundColor: 'var(--bg-overlay, var(--bg-surface))',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-sm)',
-                boxShadow: 'var(--shadow-md, 0 4px 12px rgba(0,0,0,0.2))',
-                padding: '4px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '2px'
-              }}
-            >
-              {statusKeys.map((statusId) => {
-                const isSelected = item.status === statusId;
-                return (
-                  <button
-                    key={statusId}
-                    role="option"
-                    aria-selected={isSelected}
-                    type="button"
-                    onClick={() => {
-                      onUpdateItem?.({ status: statusId });
-                      setOpenDropdown(null);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      width: '100%',
-                      padding: '4px 8px',
-                      backgroundColor: isSelected ? 'var(--bg-surface-selected, rgba(59, 130, 246, 0.1))' : 'transparent',
-                      border: 'none',
-                      borderRadius: 'var(--radius-xs)',
-                      cursor: 'pointer',
-                      textAlign: 'left'
-                    }}
-                  >
-                    <StatusBadge statusId={statusId} interactive={false} />
-                    {isSelected && <span style={{ color: 'var(--primary-base)', fontSize: '11px', fontWeight: 'bold' }}>✓</span>}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        <StatusPicker
+          value={item.status}
+          teamId={item.teamId || 'team-core'}
+          isReadOnly={isReadOnly}
+          onSelect={(status) => onUpdateItem?.({ status })}
+        />
       </PropertyRow>
 
-      {/* Priority */}
+      {/* Priority Picker */}
       <PropertyRow label="Priority" icon={AlertTriangle}>
-        <div ref={priorityMenuRef} style={{ position: 'relative', display: 'inline-block' }}>
-          <button
-            type="button"
-            aria-haspopup="listbox"
-            aria-expanded={openDropdown === 'priority'}
-            aria-label="Change priority"
-            disabled={isReadOnly}
-            onClick={() => !isReadOnly && setOpenDropdown((prev) => (prev === 'priority' ? null : 'priority'))}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              background: 'transparent',
-              border: 'none',
-              padding: 0,
-              cursor: isReadOnly ? 'default' : 'pointer'
-            }}
-          >
-            <PriorityBadge priorityId={item.priority} interactive={false} />
-            {!isReadOnly && <ChevronDown size={11} style={{ color: 'var(--text-muted)' }} />}
-          </button>
-
-          {openDropdown === 'priority' && !isReadOnly && (
-            <div
-              role="listbox"
-              aria-label="Select priority"
-              style={{
-                position: 'absolute',
-                top: 'calc(100% + 4px)',
-                left: 0,
-                zIndex: 100,
-                minWidth: '140px',
-                backgroundColor: 'var(--bg-overlay, var(--bg-surface))',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-sm)',
-                boxShadow: 'var(--shadow-md, 0 4px 12px rgba(0,0,0,0.2))',
-                padding: '4px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '2px'
-              }}
-            >
-              {priorityKeys.map((priorityId) => {
-                const isSelected = item.priority === priorityId;
-                return (
-                  <button
-                    key={priorityId}
-                    role="option"
-                    aria-selected={isSelected}
-                    type="button"
-                    onClick={() => {
-                      onUpdateItem?.({ priority: priorityId });
-                      setOpenDropdown(null);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      width: '100%',
-                      padding: '4px 8px',
-                      backgroundColor: isSelected ? 'var(--bg-surface-selected, rgba(59, 130, 246, 0.1))' : 'transparent',
-                      border: 'none',
-                      borderRadius: 'var(--radius-xs)',
-                      cursor: 'pointer',
-                      textAlign: 'left'
-                    }}
-                  >
-                    <PriorityBadge priorityId={priorityId} interactive={false} />
-                    {isSelected && <span style={{ color: 'var(--primary-base)', fontSize: '11px', fontWeight: 'bold' }}>✓</span>}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        <PriorityPicker
+          value={item.priority}
+          isReadOnly={isReadOnly}
+          onSelect={(priority) => onUpdateItem?.({ priority })}
+        />
       </PropertyRow>
 
-      {/* Assignee */}
+      {/* Assignee Picker */}
       <PropertyRow label="Assignee" icon={User}>
-        {assignee ? (
-          <UserAvatar user={assignee} size="xs" showName />
-        ) : (
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Unassigned</span>
-        )}
+        <AssigneePicker
+          value={item.assigneeId}
+          isReadOnly={isReadOnly}
+          onSelect={(assigneeId) => onUpdateItem?.({ assigneeId })}
+        />
       </PropertyRow>
 
-      {/* Team */}
-      {team && (
-        <PropertyRow label="Team" icon={Layers}>
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
-            {team.name}
-          </span>
-        </PropertyRow>
-      )}
+      {/* Team Picker with Consequence Detection */}
+      <PropertyRow label="Team" icon={Layers}>
+        <TeamPicker
+          value={item.teamId}
+          item={item}
+          isReadOnly={isReadOnly}
+          onRequestTeamChange={setConsequenceData}
+          onSelect={handleTeamSelect}
+        />
+      </PropertyRow>
 
-      {/* Project */}
+      {/* Project Picker */}
       <PropertyRow label="Project" icon={Calendar}>
-        <span style={{ fontSize: 'var(--text-xs)', color: project ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-          {project ? project.name : 'None'}
-        </span>
+        <ProjectPicker
+          value={item.projectId}
+          isReadOnly={isReadOnly}
+          onSelect={(projectId) => onUpdateItem?.({ projectId })}
+        />
       </PropertyRow>
 
-      {/* Cycle */}
+      {/* Cycle Picker (Strictly Team-Owned) */}
       <PropertyRow label="Cycle" icon={Clock}>
-        <span style={{ fontSize: 'var(--text-xs)', color: cycle ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-          {cycle ? cycle.name : 'Backlog'}
-        </span>
+        <CyclePicker
+          value={item.cycleId}
+          teamId={item.teamId || 'team-core'}
+          isReadOnly={isReadOnly}
+          onSelect={(cycleId) => onUpdateItem?.({ cycleId })}
+        />
       </PropertyRow>
 
       {/* Milestone (Checkpoint entity - not WorkItem subtype) */}
@@ -289,41 +152,42 @@ export function WorkItemProperties({
                 outline: 'none'
               }}
             />
-            <span className="font-mono" style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>pts</span>
+            <span className="font-mono" style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>
+              pts
+            </span>
           </div>
         )}
       </PropertyRow>
 
-      {/* Due Date */}
-      {item.dueDate && (
-        <PropertyRow label="Due Date" icon={Calendar}>
-          <span className="font-mono" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
-            {item.dueDate}
-          </span>
-        </PropertyRow>
-      )}
+      {/* Due Date Picker */}
+      <PropertyRow label="Due Date" icon={Calendar}>
+        <DatePicker
+          value={item.dueDate}
+          isReadOnly={isReadOnly}
+          onSelect={(dueDate) => onUpdateItem?.({ dueDate })}
+        />
+      </PropertyRow>
 
-      {/* Labels */}
-      {item.labels && item.labels.length > 0 && (
-        <PropertyRow label="Labels" icon={Tag}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-            {item.labels.map((lbl) => (
-              <span
-                key={lbl}
-                style={{
-                  fontSize: '10px',
-                  padding: '1px 5px',
-                  backgroundColor: 'var(--bg-surface)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-xs)',
-                  color: 'var(--text-secondary)'
-                }}
-              >
-                {lbl}
-              </span>
-            ))}
-          </div>
-        </PropertyRow>
+      {/* Labels Multi-Select Picker */}
+      <PropertyRow label="Labels" icon={Tag}>
+        <LabelsPicker
+          value={item.labels || []}
+          isReadOnly={isReadOnly}
+          onSelect={(labels) => onUpdateItem?.({ labels })}
+        />
+      </PropertyRow>
+
+      {/* Team Change Consequence Confirmation Modal */}
+      {consequenceData && (
+        <TeamChangeConfirmation
+          isOpen={true}
+          onClose={() => setConsequenceData(null)}
+          consequenceData={consequenceData}
+          onConfirm={(patch) => {
+            onUpdateItem?.(patch);
+            setConsequenceData(null);
+          }}
+        />
       )}
     </div>
   );
