@@ -1,10 +1,11 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { KEYBOARD_SCOPES } from '../../hooks/keyboardScopes';
 
 /**
  * PropertyPicker Component
  * Presentation shell for Universal Property Pickers.
- * Supports Anchored Popover mode (desktop) and Bottom Sheet mode (mobile).
+ * Renders as a true overlay via React Portal with dynamic collision positioning.
  * Enforces OVERLAY keyboard scope and deterministic focus restoration to trigger.
  */
 export function PropertyPicker({
@@ -21,6 +22,68 @@ export function PropertyPicker({
   style = {}
 }) {
   const popoverRef = useRef(null);
+  const [coords, setCoords] = useState({ top: 0, left: 0, placement: 'bottom' });
+
+  // Dynamic collision & viewport positioning
+  const updatePosition = useCallback(() => {
+    if (!triggerRef?.current) return;
+    const triggerRect = triggerRef.current.getBoundingClientRect();
+
+    const popoverWidth = typeof width === 'number' ? width : 240;
+    const popoverHeight = maxHeight || 300;
+    const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+
+    // Non-layout test environments where dimensions are not computed
+    if (triggerRect.width === 0 && triggerRect.height === 0 && triggerRect.top === 0 && triggerRect.left === 0) {
+      setCoords({ top: 0, left: 0, placement: 'bottom' });
+      return;
+    }
+
+    const spaceBelow = viewportHeight - triggerRect.bottom;
+    const spaceAbove = triggerRect.top;
+
+    let placement = 'bottom';
+    let top = triggerRect.bottom + 4;
+
+    // Viewport collision: flip above if insufficient space below
+    if (spaceBelow < 200 && spaceAbove > spaceBelow) {
+      placement = 'top';
+      const actualHeight = popoverRef.current?.offsetHeight || popoverHeight;
+      top = Math.max(8, triggerRect.top - 4 - actualHeight);
+    }
+
+    let left = align === 'end' ? triggerRect.right - popoverWidth : triggerRect.left;
+
+    // Horizontal collision prevention
+    if (left + popoverWidth > viewportWidth - 8) {
+      left = Math.max(8, viewportWidth - popoverWidth - 8);
+    }
+    if (left < 8) {
+      left = 8;
+    }
+
+    setCoords({ top: Math.round(top), left: Math.round(left), placement });
+  }, [triggerRef, width, maxHeight, align]);
+
+  useLayoutEffect(() => {
+    if (isOpen) {
+      updatePosition();
+    }
+  }, [isOpen, updatePosition]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    updatePosition();
+
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [isOpen, updatePosition]);
 
   // Focus trap & Outside click detection
   useEffect(() => {
@@ -71,7 +134,6 @@ export function PropertyPicker({
   // Keyboard navigation interception (OVERLAY scope)
   const handleKeyDown = useCallback(
     (e) => {
-      // Escape closes picker
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
@@ -79,7 +141,7 @@ export function PropertyPicker({
         return;
       }
 
-      // Suppress background single-key navigation (j, k, x, c, space) from leaking
+      // Suppress background single-key navigation from leaking
       if (['j', 'k', 'x', 'c', 'g'].includes(e.key.toLowerCase()) && e.target.tagName !== 'INPUT') {
         e.stopPropagation();
       }
@@ -89,7 +151,7 @@ export function PropertyPicker({
 
   if (!isOpen) return null;
 
-  return (
+  const popoverContent = (
     <div
       ref={popoverRef}
       role="dialog"
@@ -99,10 +161,10 @@ export function PropertyPicker({
       onKeyDown={handleKeyDown}
       className={`property-picker-popover ${className}`}
       style={{
-        position: 'absolute',
-        top: 'calc(100% + 4px)',
-        [align === 'end' ? 'right' : 'left']: 0,
-        zIndex: 1000,
+        position: 'fixed',
+        top: `${coords.top}px`,
+        left: `${coords.left}px`,
+        zIndex: 2000,
         width: typeof width === 'number' ? `${width}px` : width,
         maxHeight: `${maxHeight}px`,
         backgroundColor: 'var(--bg-modal, #18181b)',
@@ -155,4 +217,8 @@ export function PropertyPicker({
       )}
     </div>
   );
+
+  return typeof document !== 'undefined' && document.body
+    ? createPortal(popoverContent, document.body)
+    : popoverContent;
 }

@@ -70,7 +70,9 @@ export function DataGridRow({
         userSelect: 'none',
         transition: 'background-color var(--duration-instant) ease',
         boxSizing: 'border-box',
-        position: 'relative'
+        position: 'relative',
+        minWidth: '100%',
+        width: 'max-content'
       }}
       onMouseEnter={(e) => {
         if (!isInspectorActive && !isMultiSelected) {

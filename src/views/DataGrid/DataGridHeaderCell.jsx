@@ -56,7 +56,8 @@ export function DataGridHeaderCell({
             : column.alignment === 'center'
             ? 'center'
             : 'flex-start',
-        width: `${width}px`,
+        width: column.flex ? undefined : `${width}px`,
+        flex: column.flex ? `${column.flex} 1 ${width}px` : undefined,
         minWidth: `${column.minWidth}px`,
         height: '100%',
         padding: '0 8px',

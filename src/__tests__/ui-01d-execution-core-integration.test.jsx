@@ -780,5 +780,176 @@ describe('UI-01D: Execution Core Integration & Final QA', () => {
       // DataGrid is visible with canonical rows
       expect(screen.getByRole('grid')).toBeDefined();
     });
+
+    it('initial application arrival has Inspector closed by default and Grid occupying available canvas', () => {
+      render(<App />);
+
+      // 1. Initial State: Inspector is closed on normal workspace arrival
+      expect(screen.queryByRole('complementary', { name: /Detail panel/i })).toBeNull();
+
+      // 2. Grid occupies the canvas
+      const grid = screen.getByRole('grid');
+      expect(grid).toBeDefined();
+      expect(grid.style.flex).toBe('1 1 0%');
+      expect(grid.style.width).toBe('100%');
+    });
+
+    it('opening WorkItem enters detail/split state; closing removes split reservation and restores full Grid width; reopening restores cleanly', () => {
+      render(<App />);
+
+      // Initial: Inspector closed
+      expect(screen.queryByRole('complementary', { name: /Detail panel/i })).toBeNull();
+      const grid = screen.getByRole('grid');
+
+      // 1. Open WorkItem from Grid via double click
+      const firstRow = screen.getAllByRole('row')[1]; // row 0 is header
+      fireEvent.doubleClick(firstRow);
+
+      // Inspector drawer is visible
+      const inspector = screen.getByRole('complementary', { name: /Detail panel/i });
+      expect(inspector).toBeDefined();
+
+      // 2. Close Inspector via close button
+      const closeBtn = within(inspector).getByRole('button', { name: /Close panel/i });
+      fireEvent.click(closeBtn);
+
+      // Inspector is absent / closed
+      expect(screen.queryByRole('complementary', { name: /Detail panel/i })).toBeNull();
+
+      // Grid container retains full available width / layout state
+      expect(grid.style.flex).toBe('1 1 0%');
+      expect(grid.style.width).toBe('100%');
+
+      // 3. Reopen another WorkItem
+      const secondRow = screen.getAllByRole('row')[2];
+      fireEvent.doubleClick(secondRow);
+
+      // Inspector works normally again without stale layout corruption
+      expect(screen.getByRole('complementary', { name: /Detail panel/i })).toBeDefined();
+    });
+  });
+
+  // =========================================================================
+  // 10. Property Picker Option Surface & Overlay Verification
+  // =========================================================================
+  describe('10. Property Picker Option Surface & Overlay Verification', () => {
+    it('Grid property pickers render visible option surfaces without clipping', async () => {
+      render(
+        <ExecutionCoreHarness
+          initialItems={baseSampleItems}
+          initialSelectedId="item-core-1"
+          initialInspectorOpen={false}
+        />
+      );
+
+      const gridRow0 = screen.getByRole('row', { name: /Distributed Log Consensus/i });
+
+      // 1. Status Picker in Grid
+      const statusTrigger = within(gridRow0).getByRole('button', { name: /Change status/i });
+      fireEvent.click(statusTrigger);
+
+      // Options visible, no search input inside picker
+      const statusListbox = screen.getByRole('listbox', { name: /Select status/i });
+      expect(statusListbox).toBeDefined();
+      expect(within(statusListbox).getByRole('option', { name: /In Progress/i })).toBeDefined();
+      expect(within(statusListbox).getByRole('option', { name: /Done/i })).toBeDefined();
+      expect(within(statusListbox).queryByRole('textbox')).toBeNull();
+
+      // Close status picker via Escape
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(screen.queryByRole('listbox', { name: /Select status/i })).toBeNull();
+
+      // 2. Priority Picker in Grid
+      const priorityTrigger = within(gridRow0).getByRole('button', { name: /Change priority/i });
+      fireEvent.click(priorityTrigger);
+
+      const priorityListbox = screen.getByRole('listbox', { name: /Select priority/i });
+      expect(priorityListbox).toBeDefined();
+      expect(within(priorityListbox).getByRole('option', { name: /Urgent/i })).toBeDefined();
+      expect(within(priorityListbox).getByRole('option', { name: /High/i })).toBeDefined();
+      expect(within(priorityListbox).getByRole('option', { name: /Medium/i })).toBeDefined();
+      expect(within(priorityListbox).getByRole('option', { name: /Low/i })).toBeDefined();
+      expect(within(priorityListbox).getByRole('option', { name: /No priority|None/i })).toBeDefined();
+      expect(within(priorityListbox).queryByRole('textbox')).toBeNull();
+
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(screen.queryByRole('listbox', { name: /Select priority/i })).toBeNull();
+
+      // 3. Assignee Picker in Grid
+      const assigneeTrigger = within(gridRow0).getByRole('button', { name: /Change assignee/i });
+      fireEvent.click(assigneeTrigger);
+
+      expect(screen.getByRole('listbox', { name: /Select assignee/i })).toBeDefined();
+      // Search visible and candidates visible before typing
+      expect(screen.getByPlaceholderText(/Filter members|Search members/i)).toBeDefined();
+      expect(screen.getByRole('option', { name: /Alex Chen/i })).toBeDefined();
+
+      // Typing in search filters candidates
+      fireEvent.change(screen.getByPlaceholderText(/Filter members|Search members/i), { target: { value: 'Sarah' } });
+      expect(screen.getByRole('option', { name: /Sarah Jenkins/i })).toBeDefined();
+      expect(screen.queryByRole('option', { name: /Alex Chen/i })).toBeNull();
+
+      fireEvent.keyDown(window, { key: 'Escape' });
+    });
+
+    it('Quick Create pickers render candidate surfaces portaled above modal without clipping', () => {
+      render(
+        <ExecutionCoreHarness
+          initialItems={baseSampleItems}
+          initialInspectorOpen={false}
+          initialCreateOpen={true}
+        />
+      );
+
+      const dialog = screen.getByRole('dialog', { name: /New Work Item/i });
+      expect(dialog).toBeDefined();
+
+      // Priority Picker inside Quick Create
+      const priorityTrigger = within(dialog).getByRole('button', { name: /Change priority/i });
+      fireEvent.click(priorityTrigger);
+
+      // Popover is rendered in document.body via Portal
+      const priorityListbox = screen.getByRole('listbox', { name: /Select priority/i });
+      expect(priorityListbox).toBeDefined();
+      expect(screen.getByRole('option', { name: /Urgent/i })).toBeDefined();
+      expect(screen.getByRole('option', { name: /High/i })).toBeDefined();
+      expect(screen.getByRole('option', { name: /Medium/i })).toBeDefined();
+      expect(screen.getByRole('option', { name: /Low/i })).toBeDefined();
+      expect(screen.getByRole('option', { name: /No priority|None/i })).toBeDefined();
+
+      // Escape closes picker, leaving dialog open
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(screen.queryByRole('listbox', { name: /Select priority/i })).toBeNull();
+      expect(screen.getByRole('dialog', { name: /New Work Item/i })).toBeDefined();
+    });
+
+    it('Inspector pickers render candidate surfaces portaled and usable', () => {
+      render(
+        <ExecutionCoreHarness
+          initialItems={baseSampleItems}
+          initialSelectedId="item-core-1"
+          initialInspectorOpen={true}
+        />
+      );
+
+      const inspector = screen.getByRole('complementary', { name: /Detail panel/i });
+
+      // Cycle Picker
+      const cycleTrigger = within(inspector).getByRole('button', { name: /Change cycle/i });
+      fireEvent.click(cycleTrigger);
+
+      expect(screen.getByRole('listbox', { name: /Select cycle/i })).toBeDefined();
+      expect(screen.getByRole('option', { name: /No Cycle \/ Backlog/i })).toBeDefined();
+      fireEvent.keyDown(window, { key: 'Escape' });
+
+      // Labels Picker
+      const labelsTrigger = within(inspector).getByRole('button', { name: /Change labels/i });
+      fireEvent.click(labelsTrigger);
+
+      expect(screen.getByRole('listbox', { name: /Select labels/i })).toBeDefined();
+      expect(screen.getByRole('option', { name: /algorithms/i })).toBeDefined();
+      expect(screen.getByRole('option', { name: /backend/i })).toBeDefined();
+      fireEvent.keyDown(window, { key: 'Escape' });
+    });
   });
 });

@@ -5,7 +5,7 @@ const UIContext = createContext(null);
 export function UIProvider({ children }) {
   const [theme, setTheme] = useState('dark');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isInspectorOpen, setIsInspectorOpen] = useState(true);
+  const [isInspectorOpen, setIsInspectorOpen] = useState(false);
   const [activeView, setActiveView] = useState('data-grid');
   const [density, setDensity] = useState('compact');
 

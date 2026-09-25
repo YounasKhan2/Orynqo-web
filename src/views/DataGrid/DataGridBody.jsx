@@ -69,7 +69,7 @@ export function DataGridBody({
   // Flat rendering when no grouping
   if (groupBy === 'none') {
     return (
-      <div role="rowgroup" style={{ display: 'flex', flexDirection: 'column' }}>
+      <div role="rowgroup" style={{ display: 'flex', flexDirection: 'column', minWidth: '100%', width: 'max-content' }}>
         {items.map((item, index) => {
           const isFocused = focusedRowIndex === index;
           const isInspectorActive = selectedItemId === item.id;
@@ -144,7 +144,7 @@ export function DataGridBody({
   let runningIndex = 0;
 
   return (
-    <div role="rowgroup" style={{ display: 'flex', flexDirection: 'column' }}>
+    <div role="rowgroup" style={{ display: 'flex', flexDirection: 'column', minWidth: '100%', width: 'max-content' }}>
       {Array.from(groupsMap.values()).map((group) => {
         const isCollapsed = collapsedGroups.has(group.id);
         const pointsSum = group.items.reduce((sum, it) => sum + (it.estimate || 0), 0);

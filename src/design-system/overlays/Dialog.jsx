@@ -14,6 +14,7 @@ export function Dialog({
   footer,
   width = '540px',
   maxWidth = '92vw',
+  zIndex = 1000,
   className = '',
   style = {}
 }) {
@@ -48,7 +49,7 @@ export function Dialog({
         bottom: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.65)',
         backdropFilter: 'blur(3px)',
-        zIndex: 1000,
+        zIndex,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

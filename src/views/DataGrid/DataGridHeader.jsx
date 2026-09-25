@@ -32,7 +32,9 @@ export function DataGridHeader({
         backgroundColor: 'var(--bg-surface-subtle)',
         borderBottom: '1px solid var(--border-default)',
         userSelect: 'none',
-        flexShrink: 0
+        flexShrink: 0,
+        minWidth: '100%',
+        width: 'max-content'
       }}
     >
       {visibleColumns.map((column) => {

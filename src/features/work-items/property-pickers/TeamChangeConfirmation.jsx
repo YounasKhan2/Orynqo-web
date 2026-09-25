@@ -77,6 +77,7 @@ export function TeamChangeConfirmation({
       onClose={onClose}
       title="Confirm Team Change"
       width="460px"
+      zIndex={2500}
       footer={footer}
     >
       <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>

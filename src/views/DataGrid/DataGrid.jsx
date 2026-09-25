@@ -392,6 +392,8 @@ export function DataGrid({
         flexDirection: 'column',
         width: '100%',
         height: '100%',
+        flex: 1,
+        minWidth: 0,
         overflow: 'hidden',
         backgroundColor: 'var(--bg-canvas)'
       }}
