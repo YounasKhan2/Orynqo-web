@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { DataGridRow } from './DataGridRow';
 import { DataGridGroupHeader } from './DataGridGroupHeader';
 import { STATUS_DEFINITIONS, PRIORITY_DEFINITIONS } from '../../constants/workItems';
-import { USERS, PROJECTS } from '../../data/mockData';
+import { USERS, PROJECTS, TEAMS } from '../../data/mockData';
 
 /**
  * DataGridBody Component
@@ -125,6 +125,36 @@ export function DataGridBody({
       groupKey = item.projectId || 'ad-hoc';
       const p = PROJECTS.find((proj) => proj.id === item.projectId);
       groupLabel = p ? p.name : 'Ad-hoc';
+    } else if (groupBy === 'team') {
+      groupKey = item.teamId || 'no-team';
+      const t = TEAMS.find((team) => team.id === item.teamId);
+      groupLabel = t ? t.name : (item.teamId || 'No Team');
+    } else if (groupBy === 'due_date' || groupBy === 'dueDate') {
+      const due = item.dueDate ? new Date(item.dueDate) : null;
+      if (!due) {
+        groupKey = 'no_due_date';
+        groupLabel = 'No Due Date';
+      } else {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const endToday = new Date(today);
+        endToday.setHours(23, 59, 59, 999);
+        const endThisWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+        if (due < today) {
+          groupKey = 'overdue';
+          groupLabel = 'Overdue';
+        } else if (due <= endToday) {
+          groupKey = 'due_today';
+          groupLabel = 'Due Today';
+        } else if (due <= endThisWeek) {
+          groupKey = 'this_week';
+          groupLabel = 'This Week';
+        } else {
+          groupKey = 'later';
+          groupLabel = 'Later';
+        }
+      }
     } else if (groupBy === 'cycle') {
       groupKey = item.cycleId || 'no-cycle';
       groupLabel = item.cycleId || 'No Cycle';

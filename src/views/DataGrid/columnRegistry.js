@@ -107,6 +107,17 @@ export const COLUMN_DEFINITIONS = [
     alignment: 'left'
   },
   {
+    id: 'team',
+    label: 'Team',
+    accessor: 'teamId',
+    width: 110,
+    minWidth: 80,
+    sortable: true,
+    resizable: true,
+    defaultVisible: true,
+    alignment: 'left'
+  },
+  {
     id: 'project',
     label: 'Project',
     accessor: 'projectId',

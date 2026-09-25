@@ -67,6 +67,8 @@ export function DataGridToolbar({
     { id: 'none', label: 'No Grouping' },
     { id: 'status', label: 'Status' },
     { id: 'priority', label: 'Priority' },
+    { id: 'due_date', label: 'Due Date' },
+    { id: 'team', label: 'Team' },
     { id: 'assignee', label: 'Assignee' },
     { id: 'project', label: 'Project' },
     { id: 'cycle', label: 'Cycle' }

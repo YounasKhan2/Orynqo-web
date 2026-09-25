@@ -37,7 +37,9 @@ function MainView({
   myWorkQuery,
   myWorkProjection,
   myWorkCollapsedSections,
-  onToggleMyWorkSection
+  onToggleMyWorkSection,
+  isMyWorkFiltered,
+  onResetFilters
 }) {
   const {
     selectedItemId,
@@ -80,7 +82,8 @@ function MainView({
         onSelectAll={selectAll}
         onClearSelection={clearSelection}
         onBrowseTeams={() => onNavigate?.('teams')}
-        filtered={false}
+        filtered={isMyWorkFiltered}
+        onResetFilters={onResetFilters}
       />
     );
   }
@@ -502,7 +505,16 @@ function OrynqoWorkspace() {
   const myWorkScope = ['overview', 'assigned', 'created', 'subscribed'].includes(activeTab)
     ? activeTab
     : 'overview';
-  const myWorkFilters = useMemo(() => ({ searchQuery }), [searchQuery]);
+  const isMyWorkFiltered = useMemo(() => {
+    return Boolean(
+      (searchQuery && searchQuery.trim().length > 0) ||
+      (filters.status && filters.status !== 'all') ||
+      (filters.priority && filters.priority !== 'all') ||
+      (filters.assignee && filters.assignee !== 'all') ||
+      (filters.project && filters.project !== 'all')
+    );
+  }, [searchQuery, filters]);
+  const myWorkFilters = useMemo(() => ({ searchQuery, ...filters }), [searchQuery, filters]);
   const myWorkQuery = useMyWorkQuery({
     items,
     workspaceId: currentWorkspace.id,
@@ -882,6 +894,8 @@ function OrynqoWorkspace() {
         myWorkProjection={myWorkProjection}
         myWorkCollapsedSections={myWorkPreferences.collapsedSections}
         onToggleMyWorkSection={myWorkPreferences.toggleSection}
+        isMyWorkFiltered={isMyWorkFiltered}
+        onResetFilters={resetFilters}
       />
     </AppShell>
   );

@@ -15,7 +15,8 @@ export function WorkBucketSection({
   collapsed = false,
   onToggle,
   onOpenItem,
-  action
+  action,
+  renderReasons
 }) {
   return (
     <section
@@ -88,7 +89,10 @@ export function WorkBucketSection({
                 }}
               >
                 <span role="gridcell" className="font-mono" style={{ color: 'var(--text-muted)' }}>{item.identifier}</span>
-                <span role="gridcell" className="truncate">{item.title}</span>
+                <span role="gridcell" className="truncate" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                  <span className="truncate">{item.title}</span>
+                  {renderReasons ? renderReasons(item) : null}
+                </span>
                 <span role="gridcell">{status?.label || item.status}</span>
                 <span role="gridcell">{formatDate(item.dueDate)}</span>
                 <span role="gridcell" className="truncate" style={{ color: 'var(--text-secondary)' }}>{team?.name || item.teamId}</span>

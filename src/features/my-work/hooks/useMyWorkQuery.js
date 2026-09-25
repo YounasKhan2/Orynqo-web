@@ -26,6 +26,13 @@ function matchesFilters(item, filters = {}) {
     if (!haystack.includes(search)) return false;
   }
 
+  // Generic UI filter shapes
+  if (filters.status && filters.status !== 'all' && item.status !== filters.status) return false;
+  if (filters.priority && filters.priority !== 'all' && item.priority !== filters.priority) return false;
+  if (filters.project && filters.project !== 'all' && item.projectId !== filters.project) return false;
+  if (filters.assignee && filters.assignee !== 'all' && item.assigneeId !== filters.assignee) return false;
+
+  // Typed array filter shapes
   if (filters.teamIds?.length && !filters.teamIds.includes(item.teamId)) return false;
   if (filters.projectIds?.length && !filters.projectIds.includes(item.projectId)) return false;
   if (filters.cycleIds?.length && !filters.cycleIds.includes(item.cycleId)) return false;

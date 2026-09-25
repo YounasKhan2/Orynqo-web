@@ -69,6 +69,7 @@ export function MyWorkCockpit({
       onOpenInspector={onOpenItem}
       onUpdateItem={onUpdateItem}
       density={density}
+      groupBy="due_date"
       isInspectorOpen={isInspectorOpen}
       multiSelectedIds={multiSelectedIds}
       onToggleMultiSelect={onToggleMultiSelect}

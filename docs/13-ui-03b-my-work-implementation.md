@@ -133,7 +133,7 @@ Targeted test:
 npm test -- ui-03b-my-work.test.jsx
 ```
 
-Result: 5 tests passed.
+Result: 8 tests passed.
 
 Full regression:
 
@@ -141,7 +141,7 @@ Full regression:
 npm test
 ```
 
-Result: 10 test files passed, 154 tests passed.
+Result: 10 test files passed, 157 tests passed.
 
 Production build:
 

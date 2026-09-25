@@ -113,4 +113,59 @@ describe('UI-03B: My Work implementation', () => {
     expect(within(dialog).getByRole('button', { name: /Change Team/i }).textContent).toContain('Select Team *');
     expect(within(dialog).getByRole('button', { name: /Change Assignee/i }).textContent).toContain('Marcus Vance');
   });
+
+  it('preserves context when opening and closing Inspector from My Work overview', () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /My Work/i }));
+    expect(screen.getByRole('region', { name: /My Work Overview/i })).toBeDefined();
+
+    // Click on the first row in Overview
+    const rows = screen.getAllByRole('row');
+    fireEvent.click(rows[0]);
+
+    // Inspector should open
+    expect(screen.getByRole('complementary', { name: /Detail panel/i })).toBeDefined();
+    // Overview should still be active
+    expect(screen.getByRole('region', { name: /My Work Overview/i })).toBeDefined();
+
+    // Close Inspector
+    const closeBtn = screen.getByRole('button', { name: /Close inspector/i });
+    fireEvent.click(closeBtn);
+    expect(screen.queryByRole('complementary', { name: /Detail panel/i })).toBeNull();
+    expect(screen.getByRole('region', { name: /My Work Overview/i })).toBeDefined();
+  });
+
+  it('renders Board and Timeline projections from Assigned tab without forking mutation behavior', () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /My Work/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /Assigned/i }));
+
+    // Switch to Board projection
+    const boardRadio = screen.getByRole('radio', { name: /^Board$/i });
+    fireEvent.click(boardRadio);
+    expect(screen.getByText('In Progress')).toBeDefined();
+
+    // Switch to Timeline projection
+    const timelineRadio = screen.getByRole('radio', { name: /^Timeline$/i });
+    fireEvent.click(timelineRadio);
+    expect(screen.getByText('Sep 24')).toBeDefined();
+  });
+
+  it('renders filtered empty state with reset affordance', () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /My Work/i }));
+
+    const searchInput = screen.getByPlaceholderText(/Filter items.../i);
+    fireEvent.change(searchInput, { target: { value: 'non_existent_search_query_xyz' } });
+
+    expect(screen.getByText(/No work matches the active filters/i)).toBeDefined();
+    const resetBtn = screen.getByRole('button', { name: /Reset Filters/i });
+    expect(resetBtn).toBeDefined();
+
+    fireEvent.click(resetBtn);
+    expect(screen.queryByText(/No work matches the active filters/i)).toBeNull();
+  });
 });

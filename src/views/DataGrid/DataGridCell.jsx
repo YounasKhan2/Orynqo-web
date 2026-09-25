@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { TypeBadge } from '../../components/badges';
 import { Checkbox } from '../../design-system';
-import { PROJECTS } from '../../data/mockData';
+import { PROJECTS, TEAMS } from '../../data/mockData';
 import {
   StatusPicker,
   PriorityPicker,
@@ -340,6 +340,16 @@ export function DataGridCell({
         />
       );
       break;
+
+    case 'team': {
+      const team = TEAMS.find((t) => t.id === item.teamId);
+      content = (
+        <span className="truncate" style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
+          {team ? team.name : (item.teamId || '—')}
+        </span>
+      );
+      break;
+    }
 
     case 'project':
       content = (
