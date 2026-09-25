@@ -277,8 +277,6 @@ function OrynqoWorkspace() {
           onCreateSubItem={(title) => {
             if (!selectedItem) return;
             createItem({
-              id: `sub-${Date.now()}`,
-              identifier: `${selectedItem.identifier}-S${Math.floor(10 + Math.random() * 90)}`,
               workspaceId: selectedItem.workspaceId || 'wks-core',
               teamId: selectedItem.teamId || 'team-core',
               projectId: selectedItem.projectId || null,
@@ -288,8 +286,7 @@ function OrynqoWorkspace() {
               priority: 'medium',
               parentId: selectedItem.id,
               relations: [],
-              documentLinks: [],
-              createdAt: new Date().toISOString()
+              documentLinks: []
             });
           }}
           onOpenSpec={() => setActiveView('living-spec')}

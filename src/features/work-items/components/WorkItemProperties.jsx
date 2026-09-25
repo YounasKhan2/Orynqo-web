@@ -83,6 +83,7 @@ export function WorkItemProperties({
         <AssigneePicker
           value={item.assigneeId}
           isReadOnly={isReadOnly}
+          isRestricted={item.isAssigneeRestricted || item.isRestricted}
           onSelect={(assigneeId) => onUpdateItem?.({ assigneeId })}
         />
       </PropertyRow>

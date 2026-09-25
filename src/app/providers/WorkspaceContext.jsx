@@ -41,11 +41,15 @@ import { INITIAL_WORK_ITEMS, TEAMS, PROJECTS } from '../../data/mockData';
 
 const WorkspaceContext = createContext(null);
 
-export function WorkspaceProvider({ children }) {
+export function WorkspaceProvider({ children, initialItems, initialSelectedItemId }) {
   // Canonical Work Items store
-  const [items, setItems] = useState(INITIAL_WORK_ITEMS);
+  const [items, setItems] = useState(() => initialItems || INITIAL_WORK_ITEMS);
   const [activeTeamId, setActiveTeamId] = useState('team-core');
-  const [selectedItemId, setSelectedItemId] = useState(INITIAL_WORK_ITEMS[0]?.id || null);
+  const [selectedItemId, setSelectedItemId] = useState(() =>
+    initialSelectedItemId !== undefined
+      ? initialSelectedItemId
+      : (initialItems || INITIAL_WORK_ITEMS)[0]?.id || null
+  );
   const [multiSelectedIds, setMultiSelectedIds] = useState([]);
 
   // Mutate single work item

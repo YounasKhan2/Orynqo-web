@@ -58,15 +58,17 @@ export function AssigneePicker({
     });
   }, [memberList, searchQuery]);
 
+  const effectiveRestricted = isRestricted || Boolean(currentAssignee?.isRestricted || currentAssignee?.restricted);
+
   return (
     <div style={{ position: 'relative', display: 'inline-block' }} className={className}>
       <PropertyTrigger
         ref={triggerRef}
         label="Assignee"
-        valueLabel={currentAssignee ? currentAssignee.name : 'Unassigned'}
-        icon={currentAssignee ? null : User}
+        valueLabel={effectiveRestricted ? null : (currentAssignee ? currentAssignee.name : 'Unassigned')}
+        icon={effectiveRestricted || currentAssignee ? null : User}
         badge={
-          currentAssignee ? (
+          !effectiveRestricted && currentAssignee ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <UserAvatar user={currentAssignee} size="xs" />
               <span style={{ fontSize: '11px' }}>{currentAssignee.name}</span>
@@ -75,7 +77,7 @@ export function AssigneePicker({
         }
         isOpen={isOpen}
         isReadOnly={isReadOnly}
-        isRestricted={isRestricted}
+        isRestricted={effectiveRestricted}
         size={size}
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label="Change assignee"
