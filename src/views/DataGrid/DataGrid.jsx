@@ -47,7 +47,8 @@ export function DataGrid({
   filters: externalFilters,
   onFilterChange: externalOnFilterChange,
   onResetFilters: externalOnResetFilters,
-  filterGroup: propFilterGroup
+  filterGroup: propFilterGroup,
+  userTimezone
 }) {
   const containerRef = useRef(null);
   const tableRef = useRef(null);
@@ -467,6 +468,7 @@ export function DataGrid({
           focusedRowIndex={focusedRowIndex}
           rowHeight={rowHeight}
           groupBy={groupBy}
+          userTimezone={userTimezone}
           onSelectItem={(item) => {
             const idx = sortedItems.findIndex((i) => i.id === item.id);
             if (idx !== -1) setFocusedRowIndex(idx);

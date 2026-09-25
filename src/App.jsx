@@ -39,7 +39,8 @@ function MainView({
   myWorkCollapsedSections,
   onToggleMyWorkSection,
   isMyWorkFiltered,
-  onResetFilters
+  onResetFilters,
+  userTimezone
 }) {
   const {
     selectedItemId,
@@ -84,6 +85,7 @@ function MainView({
         onBrowseTeams={() => onNavigate?.('teams')}
         filtered={isMyWorkFiltered}
         onResetFilters={onResetFilters}
+        userTimezone={userTimezone}
       />
     );
   }
@@ -514,13 +516,15 @@ function OrynqoWorkspace() {
       (filters.project && filters.project !== 'all')
     );
   }, [searchQuery, filters]);
+  const userTimezone = CURRENT_USER.timezone || (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC');
   const myWorkFilters = useMemo(() => ({ searchQuery, ...filters }), [searchQuery, filters]);
   const myWorkQuery = useMyWorkQuery({
     items,
     workspaceId: currentWorkspace.id,
     currentUserId: CURRENT_USER.id,
     scope: myWorkScope,
-    filters: myWorkFilters
+    filters: myWorkFilters,
+    userTimezone
   });
   const myWorkProjection = myWorkScope === 'overview'
     ? 'data-grid'
@@ -896,6 +900,7 @@ function OrynqoWorkspace() {
         onToggleMyWorkSection={myWorkPreferences.toggleSection}
         isMyWorkFiltered={isMyWorkFiltered}
         onResetFilters={resetFilters}
+        userTimezone={userTimezone}
       />
     </AppShell>
   );

@@ -21,7 +21,8 @@ export function MyWorkCockpit({
   onClearSelection,
   onBrowseTeams,
   filtered,
-  onResetFilters
+  onResetFilters,
+  userTimezone
 }) {
   if (tab === 'overview') {
     return (
@@ -76,6 +77,7 @@ export function MyWorkCockpit({
       onSelectAll={onSelectAll}
       onClearSelection={onClearSelection}
       isKeyboardActive={isKeyboardActive}
+      userTimezone={userTimezone}
     />
   );
 }

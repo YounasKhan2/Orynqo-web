@@ -1,34 +1,28 @@
 import { useMemo } from 'react';
 import { getStatusCategory } from '../../../constants/workItems';
+import {
+  classifyDueDate,
+  getCalendarDateString,
+  addCalendarDays,
+  resolveTimezone,
+  DEFAULT_NEAR_TERM_DAYS,
+  DEFAULT_RETENTION_DAYS
+} from '../../../constants/dateUtils';
 
-export const MY_WORK_NEAR_TERM_DAYS = 7;
-export const MY_WORK_COMPLETED_RETENTION_DAYS = 7;
+export const MY_WORK_NEAR_TERM_DAYS = DEFAULT_NEAR_TERM_DAYS;
+export const MY_WORK_COMPLETED_RETENTION_DAYS = DEFAULT_RETENTION_DAYS;
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-export function getLocalDayBounds(now = new Date()) {
-  const start = new Date(now);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setHours(23, 59, 59, 999);
-  return { start, end };
-}
-
-export function addDays(date, days) {
-  return new Date(date.getTime() + days * DAY_MS);
-}
-
-export function getTimeBucket(item, now = new Date(), nearTermDays = MY_WORK_NEAR_TERM_DAYS) {
-  if (!item?.dueDate) return 'no_due_date';
-
-  const due = new Date(item.dueDate);
-  const { start, end } = getLocalDayBounds(now);
-  const nearTermEnd = addDays(end, nearTermDays);
-
-  if (due < start) return 'overdue';
-  if (due >= start && due <= end) return 'due_today';
-  if (due > end && due <= nearTermEnd) return 'due_soon';
-  return 'later';
+export function getTimeBucket(
+  item,
+  now = new Date(),
+  nearTermDays = MY_WORK_NEAR_TERM_DAYS,
+  userTimezone
+) {
+  return classifyDueDate(item?.dueDate, {
+    now,
+    timeZone: userTimezone,
+    nearTermDays
+  });
 }
 
 export function isCompletedCategory(item) {
@@ -45,9 +39,9 @@ export function isBlocked(item, allItems = []) {
   });
 }
 
-export function getAttentionReasons(item, allItems = [], now = new Date()) {
+export function getAttentionReasons(item, allItems = [], now = new Date(), userTimezone) {
   const reasons = [];
-  const timeBucket = getTimeBucket(item, now);
+  const timeBucket = getTimeBucket(item, now, MY_WORK_NEAR_TERM_DAYS, userTimezone);
 
   if (isBlocked(item, allItems)) reasons.push('blocked');
   if (timeBucket === 'overdue') reasons.push('overdue');
@@ -57,8 +51,8 @@ export function getAttentionReasons(item, allItems = [], now = new Date()) {
   return reasons;
 }
 
-export function getPrimaryAttentionReason(item, allItems = [], now = new Date()) {
-  const reasons = getAttentionReasons(item, allItems, now);
+export function getPrimaryAttentionReason(item, allItems = [], now = new Date(), userTimezone) {
+  const reasons = getAttentionReasons(item, allItems, now, userTimezone);
   return reasons[0] || null;
 }
 
@@ -66,6 +60,7 @@ export function bucketMyWorkItems({
   items = [],
   allItems = items,
   now = new Date(),
+  userTimezone,
   nearTermDays = MY_WORK_NEAR_TERM_DAYS,
   completedRetentionDays = MY_WORK_COMPLETED_RETENTION_DAYS
 } = {}) {
@@ -77,13 +72,14 @@ export function bucketMyWorkItems({
     recentlyCompleted: []
   };
 
-  const { start } = getLocalDayBounds(now);
-  const completedCutoff = addDays(start, -completedRetentionDays);
+  const tz = resolveTimezone(userTimezone);
+  const todayCalStr = getCalendarDateString(now, tz);
+  const completedCutoffCalStr = addCalendarDays(todayCalStr, -completedRetentionDays);
 
   items.forEach((item) => {
     const category = getStatusCategory(item.status);
-    const completedAt = item.completedAt ? new Date(item.completedAt) : null;
-    const attentionReasons = getAttentionReasons(item, allItems, now);
+    const completedAtCalStr = item.completedAt ? getCalendarDateString(item.completedAt, tz) : null;
+    const attentionReasons = getAttentionReasons(item, allItems, now, tz);
 
     if (!isCompletedCategory(item) && attentionReasons.length > 0) {
       buckets.needsAttention.push({
@@ -99,7 +95,7 @@ export function bucketMyWorkItems({
       return;
     }
 
-    if (!isCompletedCategory(item) && getTimeBucket(item, now, nearTermDays) === 'due_soon') {
+    if (!isCompletedCategory(item) && getTimeBucket(item, now, nearTermDays, tz) === 'due_soon') {
       buckets.upcoming.push(item);
       return;
     }
@@ -109,7 +105,7 @@ export function bucketMyWorkItems({
       return;
     }
 
-    if (isCompletedCategory(item) && completedAt && completedAt >= completedCutoff) {
+    if (isCompletedCategory(item) && completedAtCalStr && completedAtCalStr >= completedCutoffCalStr) {
       buckets.recentlyCompleted.push(item);
     }
   });
@@ -117,17 +113,18 @@ export function bucketMyWorkItems({
   return buckets;
 }
 
-export function useMyWorkBuckets(options) {
+export function useMyWorkBuckets(options = {}) {
   const {
     items,
     allItems,
     now,
+    userTimezone,
     nearTermDays = MY_WORK_NEAR_TERM_DAYS,
     completedRetentionDays = MY_WORK_COMPLETED_RETENTION_DAYS
   } = options;
 
   return useMemo(
-    () => bucketMyWorkItems({ items, allItems, now, nearTermDays, completedRetentionDays }),
-    [items, allItems, now, nearTermDays, completedRetentionDays]
+    () => bucketMyWorkItems({ items, allItems, now, userTimezone, nearTermDays, completedRetentionDays }),
+    [items, allItems, now, userTimezone, nearTermDays, completedRetentionDays]
   );
 }
