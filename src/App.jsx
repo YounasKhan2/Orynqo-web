@@ -6,6 +6,13 @@ import { WorkItemInspector, QuickCreateDialog } from './features/work-items';
 import { LivingSpecEditor } from './features/living-specs';
 import { TriageInbox } from './features/triage';
 import { MyWorkCockpit, MyWorkSummaryStrip, useMyWorkPreferences, useMyWorkQuery } from './features/my-work';
+import {
+  InboxCockpit,
+  useInboxPreferences,
+  useInboxQuery,
+  useInboxMutations,
+  INITIAL_NOTIFICATIONS
+} from './features/inbox';
 import { BulkActionBar, ShortcutsModal, CommandPalette } from './components';
 import { useWorkItemsFilter } from './hooks/useWorkItemsFilter';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -40,7 +47,11 @@ function MainView({
   onToggleMyWorkSection,
   isMyWorkFiltered,
   onResetFilters,
-  userTimezone
+  userTimezone,
+  inboxQuery,
+  inboxMutations,
+  inboxPreferences,
+  canonicalWorkItems
 }) {
   const {
     selectedItemId,
@@ -59,6 +70,22 @@ function MainView({
     setIsCreateModalOpen,
     isOverlayActive
   } = useUI();
+
+  if (activeScope === 'inbox') {
+    return (
+      <InboxCockpit
+        tab={activeTab}
+        query={inboxQuery}
+        mutations={inboxMutations}
+        preferences={inboxPreferences}
+        canonicalWorkItems={canonicalWorkItems}
+        onUpdateWorkItem={updateItem}
+        onNavigateToSource={onNavigate}
+        isKeyboardActive={!isOverlayActive}
+        onResetFilters={onResetFilters}
+      />
+    );
+  }
 
   if (activeScope === 'my-work') {
     return (
@@ -537,6 +564,35 @@ function OrynqoWorkspace() {
     },
     [myWorkPreferences, myWorkScope, setActiveView]
   );
+  // Inbox State & Hooks
+  const [inboxNotifications, setInboxNotifications] = useState(INITIAL_NOTIFICATIONS);
+  const inboxPreferences = useInboxPreferences();
+  const inboxTab = ['focus', 'all', 'later', 'archive'].includes(activeTab)
+    ? activeTab
+    : (inboxPreferences.activeTab || 'focus');
+
+  const inboxFilters = useMemo(
+    () => ({
+      isUnreadOnly: inboxPreferences.isUnreadOnly,
+      importance: inboxPreferences.importanceFilter,
+      responseRequiredOnly: inboxPreferences.responseRequiredOnly
+    }),
+    [inboxPreferences.isUnreadOnly, inboxPreferences.importanceFilter, inboxPreferences.responseRequiredOnly]
+  );
+
+  const inboxQuery = useInboxQuery({
+    notifications: inboxNotifications,
+    workspaceId: currentWorkspace.id,
+    recipientId: CURRENT_USER.id,
+    tab: inboxTab,
+    filters: inboxFilters,
+    searchQuery
+  });
+
+  const inboxMutations = useInboxMutations({
+    notifications: inboxNotifications,
+    setNotifications: setInboxNotifications
+  });
 
   // Centralized keyboard shortcuts
   useKeyboardShortcuts({
@@ -564,6 +620,15 @@ function OrynqoWorkspace() {
 
   // Resource tabs configuration for active resource
   const resourceTabs = useMemo(() => {
+    if (activeScope === 'inbox') {
+      return [
+        { id: 'focus', label: `Focus (${inboxQuery.focusCount})` },
+        { id: 'all', label: `All (${inboxQuery.totalActiveCount})` },
+        { id: 'later', label: 'Later' },
+        { id: 'archive', label: 'Archive' }
+      ];
+    }
+
     if (activeScope === 'my-work') {
       const scopeCount = (scope) =>
         items.filter((item) => {
@@ -620,7 +685,9 @@ function OrynqoWorkspace() {
   const handleSelectTab = useCallback(
     (tabId) => {
       setActiveTab(tabId);
-      if (activeScope === 'my-work') {
+      if (activeScope === 'inbox') {
+        inboxPreferences.setActiveTab(tabId);
+      } else if (activeScope === 'my-work') {
         myWorkPreferences.setActiveTab(tabId);
         setActiveView(tabId === 'overview' ? 'my-work' : myWorkPreferences.getProjection(tabId));
       } else if (tabId === 'work') {
@@ -629,7 +696,7 @@ function OrynqoWorkspace() {
         setActiveView('inbox');
       }
     },
-    [activeScope, setActiveTab, setActiveView, activeProjection, myWorkPreferences]
+    [activeScope, setActiveTab, setActiveView, activeProjection, myWorkPreferences, inboxPreferences]
   );
 
   // Contextual Breadcrumb composition adhering to UI-02A
@@ -751,11 +818,15 @@ function OrynqoWorkspace() {
           activeTeamId={activeTeamId}
           currentWorkspace={currentWorkspace}
           onSelectWorkspace={handleSelectWorkspace}
+          unreadInboxCount={inboxQuery.unreadCount}
           onNavigate={(dest) => {
             navigate(dest);
             if (typeof dest === 'string') {
-              if (dest === 'inbox') setActiveView('inbox');
-              else if (dest === 'my-work') {
+              if (dest === 'inbox') {
+                setActiveScope('inbox');
+                setActiveTab(inboxPreferences.activeTab || 'focus');
+                setActiveView('inbox');
+              } else if (dest === 'my-work') {
                 const tab = myWorkPreferences.activeTab || 'overview';
                 setActiveTab(tab);
                 setActiveView(tab === 'overview' ? 'my-work' : myWorkPreferences.getProjection(tab));
@@ -792,13 +863,25 @@ function OrynqoWorkspace() {
           density={density}
           onToggleDensity={toggleDensity}
           onOpenCreateModal={() => setIsCreateModalOpen(true)}
-          totalItemsCount={activeScope === 'my-work' ? myWorkQuery.items.length : filteredItems.length}
+          totalItemsCount={
+            activeScope === 'inbox'
+              ? inboxQuery.totalFilteredCount
+              : activeScope === 'my-work'
+              ? myWorkQuery.items.length
+              : filteredItems.length
+          }
           summarySlot={activeScope === 'my-work' ? <MyWorkSummaryStrip metrics={myWorkQuery.summaryMetrics} /> : null}
           tabs={resourceTabs}
           activeTab={activeTab}
           onSelectTab={handleSelectTab}
           showResourceNav={resourceTabs.length > 0}
-          showProjections={activeScope === 'my-work' ? activeTab !== 'overview' : activeTab === 'work'}
+          showProjections={
+            activeScope === 'inbox'
+              ? false
+              : activeScope === 'my-work'
+              ? activeTab !== 'overview'
+              : activeTab === 'work'
+          }
           activeProjection={activeScope === 'my-work' ? myWorkProjection : activeProjection}
           onSelectProjection={activeScope === 'my-work' ? handleSelectMyWorkProjection : handleSelectProjection}
           searchQuery={searchQuery}
@@ -901,6 +984,10 @@ function OrynqoWorkspace() {
         isMyWorkFiltered={isMyWorkFiltered}
         onResetFilters={resetFilters}
         userTimezone={userTimezone}
+        inboxQuery={inboxQuery}
+        inboxMutations={inboxMutations}
+        inboxPreferences={inboxPreferences}
+        canonicalWorkItems={items}
       />
     </AppShell>
   );
