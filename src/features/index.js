@@ -5,3 +5,4 @@ export * from './my-work';
 export * from './inbox';
 export * from './teams';
 export * from './cycles';
+export * from './documents';

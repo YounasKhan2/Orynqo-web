@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { INITIAL_FAVORITES, TEAMS, PROJECTS, INITIATIVES, LIVING_DOCUMENTS } from '../data/mockData';
+import { INITIAL_CANONICAL_DOCUMENTS } from '../data/documentsMockData';
 
 /**
  * useFavorites Hook
@@ -113,7 +114,9 @@ export function useFavorites(initialData = INITIAL_FAVORITES) {
         };
       }
       case 'doc': {
-        const doc = LIVING_DOCUMENTS.find((d) => d.id === fav.targetId);
+        const canonicalDoc = INITIAL_CANONICAL_DOCUMENTS.find((d) => d.id === fav.targetId);
+        const legacyDoc = LIVING_DOCUMENTS.find((d) => d.id === fav.targetId);
+        const doc = canonicalDoc || legacyDoc;
         return {
           id: fav.id,
           isRestricted: false,

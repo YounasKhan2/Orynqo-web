@@ -20,7 +20,9 @@ import { useNavigationState } from './hooks/useNavigationState';
 import { useFavorites } from './hooks/useFavorites';
 import { useSidebarPreferences } from './hooks/useSidebarPreferences';
 import { CURRENT_USER, USERS, TEAMS, PROJECTS, WORKSPACES, CYCLES, LIVING_DOCUMENTS } from './data/mockData';
+import { INITIAL_CANONICAL_DOCUMENTS, INITIAL_DOCUMENT_COMMENTS } from './data/documentsMockData';
 import { TeamHub } from './features/teams';
+import { DocsHub, DocumentCanvas } from './features/documents';
 import {
   Kanban,
   Table,
@@ -54,7 +56,18 @@ function MainView({
   inboxQuery,
   inboxMutations,
   inboxPreferences,
-  canonicalWorkItems
+  canonicalWorkItems,
+  canonicalDocuments = [],
+  documentComments = [],
+  onUpdateDocument,
+  onArchiveDocument,
+  onRestoreDocument,
+  onCreateDocument,
+  activeDocId,
+  favoriteDocIds = [],
+  onToggleDocFavorite,
+  onOpenWorkItem,
+  onCreateWorkItemFromSelection
 }) {
   const {
     selectedItemId,
@@ -126,7 +139,7 @@ function MainView({
         teamId={activeTeamId || 'team-core'}
         workItems={canonicalWorkItems}
         projects={PROJECTS}
-        documents={LIVING_DOCUMENTS}
+        documents={canonicalDocuments}
         users={USERS}
         cycles={CYCLES}
         activeTab={activeTab || 'overview'}
@@ -268,15 +281,44 @@ function MainView({
   }
 
   if (activeScope === 'docs') {
+    if (activeDocId) {
+      return (
+        <DocumentCanvas
+          documentId={activeDocId}
+          documents={canonicalDocuments}
+          workItems={canonicalWorkItems}
+          users={USERS}
+          projects={PROJECTS}
+          teams={TEAMS}
+          comments={documentComments}
+          favoriteDocIds={favoriteDocIds}
+          onToggleFavorite={onToggleDocFavorite}
+          onUpdateDocument={onUpdateDocument}
+          onArchiveDocument={onArchiveDocument}
+          onRestoreDocument={onRestoreDocument}
+          onBackToHub={() => onNavigate?.({ scope: 'docs', docId: null })}
+          onOpenWorkItem={(id) => {
+            selectItem(id);
+            setIsInspectorOpen(true);
+          }}
+          onOpenDocument={(id) => onNavigate?.({ scope: 'docs', docId: id })}
+          onCreateWorkItemFromSelection={onCreateWorkItemFromSelection}
+        />
+      );
+    }
+
     return (
-      <div role="region" aria-label="Documentation" style={{ padding: 'var(--space-6)', width: '100%' }}>
-        <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)' }}>
-          Workspace Documentation
-        </h2>
-        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', marginTop: '4px' }}>
-          Living product requirements, architectural design docs, and team handbooks.
-        </p>
-      </div>
+      <DocsHub
+        documents={canonicalDocuments}
+        teams={TEAMS}
+        projects={PROJECTS}
+        currentUserId={CURRENT_USER.id}
+        favoriteDocIds={favoriteDocIds}
+        onToggleFavorite={onToggleDocFavorite}
+        onSelectDocument={(id) => onNavigate?.({ scope: 'docs', docId: id })}
+        onCreateDocument={onCreateDocument}
+        isKeyboardActive={!isOverlayActive}
+      />
     );
   }
 
@@ -592,6 +634,103 @@ function OrynqoWorkspace() {
     },
     [myWorkPreferences, myWorkScope, setActiveView]
   );
+  // Canonical Documents State (DOC-001 / DOC-002)
+  const [documents, setDocuments] = useState(() => INITIAL_CANONICAL_DOCUMENTS);
+  const [documentComments, setDocumentComments] = useState(() => INITIAL_DOCUMENT_COMMENTS);
+  const [favoriteDocIds, setFavoriteDocIds] = useState(() => ['doc-handbook']);
+
+  const handleUpdateDocument = useCallback((docId, updates) => {
+    setDocuments((prev) =>
+      prev.map((d) => (d.id === docId ? { ...d, ...updates } : d))
+    );
+  }, []);
+
+  const handleArchiveDocument = useCallback((docId) => {
+    setDocuments((prev) =>
+      prev.map((d) =>
+        d.id === docId
+          ? {
+              ...d,
+              lifecycle: 'archived',
+              archivedAt: new Date().toISOString(),
+              archivedBy: CURRENT_USER.id
+            }
+          : d
+      )
+    );
+  }, []);
+
+  const handleRestoreDocument = useCallback((docId) => {
+    setDocuments((prev) =>
+      prev.map((d) =>
+        d.id === docId
+          ? {
+              ...d,
+              lifecycle: 'active',
+              archivedAt: null,
+              archivedBy: null
+            }
+          : d
+      )
+    );
+  }, []);
+
+  const handleCreateDocument = useCallback((input = {}) => {
+    const newDoc = {
+      id: `doc-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      workspaceId: currentWorkspace?.id || 'wks-core',
+      title: input.title || 'Untitled Document',
+      icon: '📄',
+      content: {
+        blocks: [
+          {
+            id: `blk-${Date.now()}-1`,
+            type: 'paragraph',
+            text: '',
+            meta: {}
+          }
+        ]
+      },
+      creatorId: CURRENT_USER.id,
+      lastEditorId: CURRENT_USER.id,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      parentId: input.parentId || null,
+      teamIds: input.teamId ? [input.teamId] : (input.teamIds || (activeScope === 'teams' && activeTeamId ? [activeTeamId] : [])),
+      projectIds: input.projectId ? [input.projectId] : (input.projectIds || (activeScope === 'projects' && activeProjectId ? [activeProjectId] : [])),
+      initiativeIds: [],
+      cycleIds: [],
+      lifecycle: 'active',
+      version: 1
+    };
+    setDocuments((prev) => [newDoc, ...prev]);
+    navigate({ scope: 'docs', docId: newDoc.id });
+    return newDoc;
+  }, [currentWorkspace, activeScope, activeTeamId, activeProjectId, navigate]);
+
+  const handleToggleDocFavorite = useCallback((docId) => {
+    setFavoriteDocIds((prev) =>
+      prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId]
+    );
+  }, []);
+
+  const handleCreateWorkItemFromSelection = useCallback(({ title: selectionTitle, sourceDocId }) => {
+    const createdItem = createItem({
+      title: selectionTitle || 'New WorkItem from living spec',
+      description: `Referenced from living spec: ${sourceDocId}`,
+      teamId: activeTeamId || 'team-core',
+      projectId: activeProjectId || null
+    });
+    // Link document to created item
+    if (createdItem) {
+      updateItem(createdItem.id, {
+        documentLinks: [sourceDocId]
+      });
+      selectItem(createdItem.id);
+      setIsInspectorOpen(true);
+    }
+  }, [createItem, updateItem, selectItem, setIsInspectorOpen, activeTeamId, activeProjectId]);
+
   // Inbox State & Hooks
   const [inboxNotifications, setInboxNotifications] = useState(INITIAL_NOTIFICATIONS);
   const inboxPreferences = useInboxPreferences();
@@ -776,7 +915,11 @@ function OrynqoWorkspace() {
     } else if (activeScope === 'initiatives') {
       list.push({ id: 'initiatives', label: 'Initiatives' });
     } else if (activeScope === 'docs') {
-      list.push({ id: 'docs', label: 'Docs' });
+      list.push({ id: 'docs', label: 'Docs', onClick: () => navigate({ scope: 'docs', docId: null }) });
+      if (activeDocId) {
+        const doc = documents.find((d) => d.id === activeDocId);
+        list.push({ id: activeDocId, label: doc?.title || 'Document' });
+      }
     } else if (activeScope === 'views') {
       list.push({ id: 'views', label: 'Views' });
     } else if (activeScope === 'teams-directory') {
@@ -793,6 +936,8 @@ function OrynqoWorkspace() {
     activeTab,
     activeProjection,
     myWorkScope,
+    activeDocId,
+    documents,
     navigate,
     setActiveTeamId,
     setWorkspaceTeamId
@@ -1018,6 +1163,20 @@ function OrynqoWorkspace() {
         inboxMutations={inboxMutations}
         inboxPreferences={inboxPreferences}
         canonicalWorkItems={items}
+        canonicalDocuments={documents}
+        documentComments={documentComments}
+        onUpdateDocument={handleUpdateDocument}
+        onArchiveDocument={handleArchiveDocument}
+        onRestoreDocument={handleRestoreDocument}
+        onCreateDocument={handleCreateDocument}
+        activeDocId={activeDocId}
+        favoriteDocIds={favoriteDocIds}
+        onToggleDocFavorite={handleToggleDocFavorite}
+        onOpenWorkItem={(id) => {
+          selectItem(id);
+          setIsInspectorOpen(true);
+        }}
+        onCreateWorkItemFromSelection={handleCreateWorkItemFromSelection}
       />
     </AppShell>
   );

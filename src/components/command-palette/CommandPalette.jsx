@@ -53,6 +53,14 @@ export function CommandPalette({
       run: () => { onClose?.(); onOpenCreateModal?.(); }
     },
     {
+      id: 'act-create-doc',
+      type: 'action',
+      title: 'Create Document',
+      category: 'Actions',
+      icon: FileText,
+      run: () => { onClose?.(); if (onNavigate) onNavigate('docs'); }
+    },
+    {
       id: 'act-inbox',
       type: 'action',
       title: 'Go to Inbox',
