@@ -37,6 +37,7 @@ export function TeamSidebarGroup({
         title={isCollapsed ? team.name : undefined}
         aria-label={team.name}
         aria-current={isActive ? 'true' : undefined}
+        data-testid={`sidebar-team-${team.id}`}
         style={{
           display: 'flex',
           alignItems: 'center',

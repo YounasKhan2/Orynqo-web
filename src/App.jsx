@@ -21,7 +21,15 @@ import { useFavorites } from './hooks/useFavorites';
 import { useSidebarPreferences } from './hooks/useSidebarPreferences';
 import { CURRENT_USER, USERS, TEAMS, PROJECTS, WORKSPACES, CYCLES, LIVING_DOCUMENTS } from './data/mockData';
 import { INITIAL_CANONICAL_DOCUMENTS, INITIAL_DOCUMENT_COMMENTS } from './data/documentsMockData';
-import { INITIAL_CANONICAL_PROJECTS } from './data/projectsMockData';
+import {
+  INITIAL_CANONICAL_PROJECTS,
+  INITIAL_PROJECT_UPDATES,
+  INITIAL_PROJECT_MILESTONES,
+  INITIAL_PROJECT_DEPENDENCIES
+} from './data/projectsMockData';
+import { validateProjectDependency } from './features/projects/model/projectDependencies';
+import { createMilestoneModel } from './features/projects/model/projectMilestones';
+import { createProjectUpdateModel } from './features/projects/model/projectUpdates';
 import { TeamHub } from './features/teams';
 import { DocsHub, DocumentCanvas } from './features/documents';
 import { ProjectWorkspace, ProjectsDirectory } from './features/projects';
@@ -72,12 +80,22 @@ function MainView({
   onCreateWorkItemFromSelection,
   canonicalProjects = [],
   activeProjectId,
+  projectDependencies = [],
+  projectMilestones = [],
+  projectUpdates = [],
   onUpdateProject,
   onArchiveProject,
   onRestoreProject,
   onCompleteProject,
   onCreateProject,
-  favoriteProjectIds = [],
+  onAddProjectDependency,
+  onRemoveProjectDependency,
+  onAddProjectMilestone,
+  onUpdateProjectMilestone,
+  onArchiveProjectMilestone,
+  onCompleteProjectMilestone,
+  onPostProjectUpdate,
+  isProjectFavorite = () => false,
   onToggleProjectFavorite
 }) {
   const {
@@ -273,8 +291,18 @@ function MainView({
           isKeyboardActive={!isOverlayActive}
           onQuickCreate={() => setIsCreateModalOpen(true)}
           userTimezone={userTimezone}
-          isFavorite={favoriteProjectIds.includes(activeProjectId)}
+          isFavorite={isProjectFavorite(activeProjectId)}
           onToggleFavorite={() => onToggleProjectFavorite?.(activeProjectId)}
+          dependencies={projectDependencies}
+          milestones={projectMilestones}
+          updates={projectUpdates}
+          onAddDependency={onAddProjectDependency}
+          onRemoveDependency={onRemoveProjectDependency}
+          onAddMilestone={onAddProjectMilestone}
+          onUpdateMilestone={onUpdateProjectMilestone}
+          onArchiveMilestone={onArchiveProjectMilestone}
+          onCompleteMilestone={onCompleteProjectMilestone}
+          onPostUpdate={onPostProjectUpdate}
         />
       );
     }
@@ -599,6 +627,7 @@ function OrynqoWorkspace() {
   const {
     favorites,
     resolveTarget,
+    addFavorite,
     removeFavorite,
     reorderFavorites
   } = useFavorites();
@@ -785,7 +814,105 @@ function OrynqoWorkspace() {
 
   // Canonical Projects State (PRJ-001 - PRJ-007)
   const [projects, setProjects] = useState(() => INITIAL_CANONICAL_PROJECTS);
-  const [favoriteProjectIds, setFavoriteProjectIds] = useState(() => ['proj-1']);
+  const [projectDependencies, setProjectDependencies] = useState(() => INITIAL_PROJECT_DEPENDENCIES);
+  const [projectMilestones, setProjectMilestones] = useState(() => INITIAL_PROJECT_MILESTONES);
+  const [projectUpdates, setProjectUpdates] = useState(() => INITIAL_PROJECT_UPDATES);
+
+  // Reusing canonical Favorite architecture for Projects
+  const isProjectFavorite = useCallback(
+    (projectId) => {
+      return favorites.some((f) => f.targetType === 'project' && f.targetId === projectId);
+    },
+    [favorites]
+  );
+
+  const handleToggleProjectFavorite = useCallback(
+    (projectId) => {
+      if (isProjectFavorite(projectId)) {
+        removeFavorite(projectId);
+      } else {
+        const proj = projects.find((p) => p.id === projectId);
+        addFavorite({
+          targetType: 'project',
+          targetId: projectId,
+          title: proj?.name || 'Project',
+          icon: 'Shield'
+        });
+      }
+    },
+    [isProjectFavorite, projects, removeFavorite, addFavorite]
+  );
+
+  // Authoritative Project Dependency Mutations (enforcing cycle detection at boundary)
+  const handleAddProjectDependency = useCallback(
+    ({ blockerId, dependentId }) => {
+      let result = { valid: false, error: 'Validation failed' };
+      setProjectDependencies((prev) => {
+        const validation = validateProjectDependency(blockerId, dependentId, prev);
+        if (!validation.valid) {
+          result = validation;
+          return prev;
+        }
+
+        const newEdge = {
+          id: `dep-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+          blockerId,
+          dependentId,
+          createdAt: new Date().toISOString()
+        };
+        result = { valid: true, edge: newEdge };
+        return [...prev, newEdge];
+      });
+      return result;
+    },
+    []
+  );
+
+  const handleRemoveProjectDependency = useCallback((depIdOrEdge) => {
+    setProjectDependencies((prev) =>
+      prev.filter((d) => d.id !== depIdOrEdge && `${d.blockerId}-${d.dependentId}` !== depIdOrEdge)
+    );
+  }, []);
+
+  // Authoritative Project Milestone Mutations
+  const handleAddProjectMilestone = useCallback(({ projectId, name, description = '', targetDate = null }) => {
+    let created = null;
+    setProjectMilestones((prev) => {
+      const order = prev.filter((m) => m.projectId === projectId).length + 1;
+      const newMls = createMilestoneModel({
+        projectId,
+        name,
+        description,
+        targetDate,
+        sortOrder: order
+      });
+      created = newMls;
+      return [...prev, newMls];
+    });
+    return created;
+  }, []);
+
+  const handleUpdateProjectMilestone = useCallback((milestoneId, patch) => {
+    setProjectMilestones((prev) =>
+      prev.map((m) => (m.id === milestoneId ? { ...m, ...patch, updatedAt: new Date().toISOString() } : m))
+    );
+  }, []);
+
+  const handleArchiveProjectMilestone = useCallback((milestoneId) => {
+    setProjectMilestones((prev) =>
+      prev.map((m) =>
+        m.id === milestoneId ? { ...m, status: 'archived', updatedAt: new Date().toISOString() } : m
+      )
+    );
+  }, []);
+
+  const handleCompleteProjectMilestone = useCallback((milestoneId) => {
+    setProjectMilestones((prev) =>
+      prev.map((m) =>
+        m.id === milestoneId ? { ...m, status: 'completed', updatedAt: new Date().toISOString() } : m
+      )
+    );
+  }, []);
 
   const handleUpdateProject = useCallback((projectId, updates, expectedVersion = null) => {
     let succeeded = false;
@@ -813,6 +940,28 @@ function OrynqoWorkspace() {
     });
     return succeeded;
   }, []);
+
+  // Authoritative Project Updates
+  const handlePostProjectUpdate = useCallback(
+    ({ projectId, narrative, health, targetDateSnapshot = null, highlights = [], blockers = [] }) => {
+      const newUpdate = createProjectUpdateModel({
+        projectId,
+        authorId: CURRENT_USER.id,
+        narrative,
+        health,
+        targetDateSnapshot,
+        highlights,
+        blockers
+      });
+
+      setProjectUpdates((prev) => [newUpdate, ...prev]);
+
+      // Side-effect: update project health canonically
+      handleUpdateProject(projectId, { health });
+      return newUpdate;
+    },
+    [handleUpdateProject]
+  );
 
   const handleArchiveProject = useCallback((projectId) => {
     setProjects((prev) =>
@@ -866,12 +1015,6 @@ function OrynqoWorkspace() {
     navigate({ scope: 'projects', projectId: newProject.id, tab: 'overview' });
     return newProject;
   }, [currentWorkspace, activeScope, activeTeamId, navigate]);
-
-  const handleToggleProjectFavorite = useCallback((projectId) => {
-    setFavoriteProjectIds((prev) =>
-      prev.includes(projectId) ? prev.filter((id) => id !== projectId) : [...prev, projectId]
-    );
-  }, []);
 
   // Inbox State & Hooks
   const [inboxNotifications, setInboxNotifications] = useState(INITIAL_NOTIFICATIONS);
@@ -1333,12 +1476,22 @@ function OrynqoWorkspace() {
         onCreateWorkItemFromSelection={handleCreateWorkItemFromSelection}
         canonicalProjects={projects}
         activeProjectId={activeProjectId}
+        projectDependencies={projectDependencies}
+        projectMilestones={projectMilestones}
+        projectUpdates={projectUpdates}
         onUpdateProject={handleUpdateProject}
         onArchiveProject={handleArchiveProject}
         onRestoreProject={handleRestoreProject}
         onCompleteProject={handleCompleteProject}
         onCreateProject={handleCreateProject}
-        favoriteProjectIds={favoriteProjectIds}
+        onAddProjectDependency={handleAddProjectDependency}
+        onRemoveProjectDependency={handleRemoveProjectDependency}
+        onAddProjectMilestone={handleAddProjectMilestone}
+        onUpdateProjectMilestone={handleUpdateProjectMilestone}
+        onArchiveProjectMilestone={handleArchiveProjectMilestone}
+        onCompleteProjectMilestone={handleCompleteProjectMilestone}
+        onPostProjectUpdate={handlePostProjectUpdate}
+        isProjectFavorite={isProjectFavorite}
         onToggleProjectFavorite={handleToggleProjectFavorite}
       />
     </AppShell>

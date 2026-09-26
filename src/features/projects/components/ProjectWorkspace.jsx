@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { ProjectHeader } from './ProjectHeader';
 import { ProjectOverviewTab } from './ProjectOverviewTab';
 import { ProjectWorkTab } from './ProjectWorkTab';
@@ -57,7 +57,18 @@ export function ProjectWorkspace({
   onToggleFavorite,
   canEdit = true,
   canPostUpdate = true,
-  canManage = true
+  canManage = true,
+  // Canonical State & Mutation Props
+  dependencies: canonicalDependencies = [],
+  milestones: canonicalMilestones = null,
+  updates: canonicalUpdates = null,
+  onAddDependency,
+  onRemoveDependency,
+  onAddMilestone,
+  onUpdateMilestone,
+  onArchiveMilestone,
+  onCompleteMilestone,
+  onPostUpdate
 }) {
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
 
@@ -76,35 +87,61 @@ export function ProjectWorkspace({
     onUpdateProject
   });
 
-  // 2. Project Updates Hook
-  const {
-    updates,
-    latestUpdate,
-    postUpdate
-  } = useProjectUpdates({
+  // 2. Project Updates (Canonical if provided, fallback to hook for backwards compatibility)
+  const updatesHook = useProjectUpdates({
     projectId,
+    initialUpdates: canonicalUpdates || [],
     onUpdateProjectHealth: (pId, newHealth) => {
       onUpdateProject?.(pId, { health: newHealth }, project?.version);
     }
   });
 
-  // 3. Project Milestones Hook
-  const {
-    milestones,
-    addMilestone,
-    updateMilestone,
-    archiveMilestone,
-    completeMilestone
-  } = useProjectMilestones({
+  const updates = canonicalUpdates
+    ? canonicalUpdates
+        .filter((u) => u.projectId === projectId)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    : updatesHook.updates;
+  const latestUpdate = updates.length > 0 ? updates[0] : null;
+
+  const handlePostUpdate = (payload) => {
+    if (onPostUpdate) {
+      onPostUpdate({ ...payload, projectId: project?.id || projectId });
+    } else {
+      updatesHook.postUpdate(payload);
+    }
+  };
+
+  // 3. Project Milestones (Canonical if provided, fallback to hook)
+  const milestonesHook = useProjectMilestones({
     projectId,
+    initialMilestones: canonicalMilestones || [],
     workItems
   });
 
-  // 4. Project Dependencies Hook
+  const milestones = canonicalMilestones
+    ? canonicalMilestones
+        .filter((m) => m.projectId === projectId)
+        .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+    : milestonesHook.milestones;
+
+  const addMilestone = useCallback(
+    (input) => {
+      if (onAddMilestone) {
+        return onAddMilestone({ ...input, projectId: project?.id || projectId });
+      }
+      return milestonesHook.addMilestone(input);
+    },
+    [onAddMilestone, milestonesHook, project, projectId]
+  );
+  const updateMilestone = onUpdateMilestone || milestonesHook.updateMilestone;
+  const archiveMilestone = onArchiveMilestone || milestonesHook.archiveMilestone;
+  const completeMilestone = onCompleteMilestone || milestonesHook.completeMilestone;
+
+  // 4. Project Dependencies Hook (Supplied with authoritative collection)
   const dependencies = useProjectDependencies({
     projectId,
     allProjects: projects,
-    dependencies: []
+    dependencies: canonicalDependencies
   });
 
   if (!project) {
@@ -236,11 +273,14 @@ export function ProjectWorkspace({
             project={project}
             teams={teams}
             allProjects={projects}
-            dependencies={[]}
+            workItems={workItems}
+            dependencies={canonicalDependencies}
             onUpdateProject={(updates) => onUpdateProject?.(project.id, updates, project.version)}
             onArchiveProject={onArchiveProject}
             onRestoreProject={onRestoreProject}
             onCompleteProject={onCompleteProject}
+            onAddDependency={onAddDependency}
+            onRemoveDependency={onRemoveDependency}
             isConflict={isConflict}
             saveState={saveState}
             canManageSettings={canManage}
@@ -256,7 +296,7 @@ export function ProjectWorkspace({
         currentTargetDate={project.targetDate}
         currentHealth={project.health}
         onSubmit={(payload) => {
-          postUpdate(payload);
+          handlePostUpdate(payload);
         }}
       />
     </div>

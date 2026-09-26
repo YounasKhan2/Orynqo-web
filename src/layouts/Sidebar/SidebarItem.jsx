@@ -22,6 +22,7 @@ export function SidebarItem({
       title={isCollapsed ? (shortcut ? `${label} (${shortcut})` : label) : undefined}
       aria-label={label}
       aria-current={isActive ? 'page' : undefined}
+      data-testid={`sidebar-item-${label.toLowerCase().replace(/\s+/g, '-')}`}
       style={{
         display: 'flex',
         alignItems: 'center',

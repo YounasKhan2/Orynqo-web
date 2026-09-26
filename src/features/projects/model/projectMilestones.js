@@ -75,6 +75,13 @@ export function validateMilestoneAssociation(workItem, milestone) {
     return { valid: false, error: 'Cannot assign milestone to WorkItem without an associated project.' };
   }
 
+  if (milestone.status === MILESTONE_STATUS.ARCHIVED || milestone.status === 'archived') {
+    return {
+      valid: false,
+      error: 'Cannot assign an archived milestone to a WorkItem.'
+    };
+  }
+
   if (milestone.projectId !== workItem.projectId) {
     return {
       valid: false,

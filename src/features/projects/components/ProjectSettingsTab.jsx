@@ -15,7 +15,8 @@ import {
 import {
   PROJECT_OPERATIONAL_STATE,
   PROJECT_ARCHIVE_STATE,
-  PROJECT_HEALTH
+  PROJECT_HEALTH,
+  canRemoveTeamFromProject
 } from '../model/projectModel';
 import { validateProjectDependency } from '../model/projectDependencies';
 
@@ -34,6 +35,7 @@ export function ProjectSettingsTab({
   project,
   teams = [],
   allProjects = [],
+  workItems = [],
   dependencies = [],
   onUpdateProject,
   onArchiveProject,
@@ -76,11 +78,22 @@ export function ProjectSettingsTab({
     });
   };
 
+  // Team removal validation state
+  const [teamRemovalError, setTeamRemovalError] = useState(null);
+
   // Toggle participating team
   const handleToggleTeam = (teamId) => {
+    setTeamRemovalError(null);
     setParticipatingTeamIds((prev) => {
       let next;
       if (prev.includes(teamId)) {
+        // Enforce team removal safety: verify if team owns active Project WorkItems
+        const safetyCheck = canRemoveTeamFromProject(teamId, project?.id, workItems);
+        if (!safetyCheck.canRemove) {
+          setTeamRemovalError(safetyCheck.error || safetyCheck.reason);
+          return prev;
+        }
+
         next = prev.filter((id) => id !== teamId);
         // If removing lead team, reset lead team
         if (leadTeamId === teamId) {
@@ -105,12 +118,16 @@ export function ProjectSettingsTab({
       return;
     }
 
-    onAddDependency?.({ blockerId: blockerProjectId, dependentId: project.id });
+    const res = onAddDependency?.({ blockerId: blockerProjectId, dependentId: project.id });
+    if (res && res.valid === false) {
+      setDependencyError(res.error);
+      return;
+    }
     setBlockerProjectId('');
   };
 
   const isArchived = project?.archiveState === PROJECT_ARCHIVE_STATE.ARCHIVED;
-  const isCompleted = operationalState === PROJECT_OPERATIONAL_STATE.COMPLETED;
+  const isCompleted = (project?.operationalState || operationalState) === PROJECT_OPERATIONAL_STATE.COMPLETED;
 
   return (
     <div
@@ -316,6 +333,23 @@ export function ProjectSettingsTab({
           Projects coordinate work across 0..N squads. Project association never alters a WorkItem's canonical owning team.
         </p>
 
+        {/* Team Removal Safety Error Banner */}
+        {teamRemovalError && (
+          <div
+            data-testid="team-removal-error-banner"
+            style={{
+              padding: '10px 14px',
+              backgroundColor: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid var(--color-error, #ef4444)',
+              borderRadius: '6px',
+              color: 'var(--color-error, #ef4444)',
+              fontSize: '12px'
+            }}
+          >
+            {teamRemovalError}
+          </div>
+        )}
+
         {/* Participating Squad Checkboxes */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary, #f8fafc)' }}>
@@ -425,6 +459,133 @@ export function ProjectSettingsTab({
             {dependencyError}
           </div>
         )}
+
+        {/* Current Dependencies List */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div>
+            <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary, #94a3b8)', margin: '0 0 6px 0' }}>
+              Blocked By ({dependencies.filter((d) => d.dependentId === project?.id).length}):
+            </h4>
+            {dependencies.filter((d) => d.dependentId === project?.id).length === 0 ? (
+              <p style={{ fontSize: '12px', color: 'var(--text-muted, #64748b)', margin: 0 }}>
+                No blocker projects. This project has no prerequisite dependencies.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {dependencies
+                  .filter((d) => d.dependentId === project?.id)
+                  .map((dep) => {
+                    const blocker = allProjects.find((p) => p.id === dep.blockerId) || { id: dep.blockerId, name: dep.blockerId };
+                    return (
+                      <div
+                        key={dep.id || `${dep.blockerId}-${dep.dependentId}`}
+                        data-testid={`dependency-row-${dep.blockerId}`}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '8px 12px',
+                          borderRadius: '6px',
+                          backgroundColor: 'var(--bg-surface-raised, #334155)',
+                          fontSize: '12px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ color: 'var(--color-warning, #f59e0b)', fontWeight: 600 }}>Prerequisite:</span>
+                          <span style={{ color: 'var(--text-primary, #f8fafc)', fontWeight: 500 }}>{blocker.name}</span>
+                          <span style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '11px' }}>({blocker.identifier || blocker.key || blocker.id})</span>
+                        </div>
+                        {canManageSettings && (
+                          <button
+                            type="button"
+                            data-testid={`remove-dependency-btn-${dep.blockerId}`}
+                            onClick={() => onRemoveDependency?.(dep.id || `${dep.blockerId}-${dep.dependentId}`)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '4px 8px',
+                              backgroundColor: 'transparent',
+                              border: '1px solid var(--border-default, #475569)',
+                              borderRadius: '4px',
+                              color: 'var(--text-muted, #94a3b8)',
+                              cursor: 'pointer',
+                              fontSize: '11px'
+                            }}
+                          >
+                            <X size={12} />
+                            <span>Remove</span>
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary, #94a3b8)', margin: '0 0 6px 0' }}>
+              Blocks ({dependencies.filter((d) => d.blockerId === project?.id).length}):
+            </h4>
+            {dependencies.filter((d) => d.blockerId === project?.id).length === 0 ? (
+              <p style={{ fontSize: '12px', color: 'var(--text-muted, #64748b)', margin: 0 }}>
+                This project does not block any other projects.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {dependencies
+                  .filter((d) => d.blockerId === project?.id)
+                  .map((dep) => {
+                    const dependent = allProjects.find((p) => p.id === dep.dependentId) || { id: dep.dependentId, name: dep.dependentId };
+                    return (
+                      <div
+                        key={dep.id || `${dep.blockerId}-${dep.dependentId}`}
+                        data-testid={`dependent-row-${dep.dependentId}`}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '8px 12px',
+                          borderRadius: '6px',
+                          backgroundColor: 'var(--bg-surface-raised, #334155)',
+                          fontSize: '12px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ color: 'var(--primary-base, #3b82f6)', fontWeight: 600 }}>Blocks:</span>
+                          <span style={{ color: 'var(--text-primary, #f8fafc)', fontWeight: 500 }}>{dependent.name}</span>
+                          <span style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '11px' }}>({dependent.identifier || dependent.key || dependent.id})</span>
+                        </div>
+                        {canManageSettings && (
+                          <button
+                            type="button"
+                            data-testid={`remove-dependency-btn-${dep.dependentId}`}
+                            onClick={() => onRemoveDependency?.(dep.id || `${dep.blockerId}-${dep.dependentId}`)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '4px 8px',
+                              backgroundColor: 'transparent',
+                              border: '1px solid var(--border-default, #475569)',
+                              borderRadius: '4px',
+                              color: 'var(--text-muted, #94a3b8)',
+                              cursor: 'pointer',
+                              fontSize: '11px'
+                            }}
+                          >
+                            <X size={12} />
+                            <span>Remove</span>
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Add Blocker Form */}
         {canManageSettings && (

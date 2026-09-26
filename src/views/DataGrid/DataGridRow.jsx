@@ -56,6 +56,7 @@ export function DataGridRow({
       aria-selected={isInspectorActive || isMultiSelected}
       data-row-index={index}
       data-item-id={item.id}
+      data-testid={`work-item-row-${item.id}`}
       onClick={() => onSelectItem?.(item)}
       onDoubleClick={() => onOpenInspector?.(item)}
       style={{

@@ -23,6 +23,7 @@ export function ContextBar({
   activeTab = 'work',
   onSelectTab,
   showResourceNav = true,
+  maxVisibleTabs = 6,
   // Projection controls
   showProjections = true,
   activeProjection = 'data-grid',
@@ -140,6 +141,7 @@ export function ContextBar({
             tabs={tabs}
             activeTab={activeTab}
             onSelectTab={onSelectTab}
+            maxVisibleTabs={maxVisibleTabs}
           />
 
           {/* Right: Projection Switcher & Filters */}

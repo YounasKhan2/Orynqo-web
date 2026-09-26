@@ -166,6 +166,7 @@ export function WorkItemDetailContainer({
 
   return (
     <div
+      data-testid="work-item-inspector-detail"
       className={`work-item-detail-container ${className}`}
       style={{
         display: 'flex',

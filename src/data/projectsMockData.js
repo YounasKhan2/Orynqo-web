@@ -166,3 +166,12 @@ export const INITIAL_PROJECT_MILESTONES = [
     updatedAt: '2026-09-10T12:00:00.000Z'
   }
 ];
+
+export const INITIAL_PROJECT_DEPENDENCIES = [
+  {
+    id: 'dep-1',
+    blockerId: 'proj-1',
+    dependentId: 'proj-5',
+    createdAt: '2026-09-12T10:00:00.000Z'
+  }
+];

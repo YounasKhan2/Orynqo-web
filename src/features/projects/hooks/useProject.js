@@ -81,7 +81,6 @@ export function useProject({
       const updates = forcedUpdates || {
         name: draftName,
         summary: draftSummary,
-        version: (lastSavedVersionRef.current || 1) + 1,
         updatedAt: new Date().toISOString()
       };
 

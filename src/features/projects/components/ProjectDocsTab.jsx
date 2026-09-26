@@ -17,11 +17,12 @@ export function ProjectDocsTab({
   onCreateDocument,
   canCreate = true
 }) {
-  // Filter canonical documents associated with this project
-  const projectDocs = (documents || []).filter(
-    (doc) => (doc.projectId === project?.id || (doc.associations?.projectIds || []).includes(project?.id)) &&
-             doc.lifecycle !== 'archived'
-  );
+  // Filter canonical documents associated with this project exclusively via canonical associations
+  const projectDocs = (documents || []).filter((doc) => {
+    if (doc.lifecycle === 'archived') return false;
+    const docProjectIds = doc.projectIds || doc.contextAssociations?.projectIds || [];
+    return docProjectIds.includes(project?.id);
+  });
 
   return (
     <div
@@ -54,7 +55,7 @@ export function ProjectDocsTab({
             data-testid="create-project-doc-btn"
             onClick={() =>
               onCreateDocument?.({
-                projectId: project?.id,
+                projectIds: [project?.id],
                 title: `${project?.name || 'Project'} Document`
               })
             }

@@ -153,6 +153,36 @@ export function canAssociateWorkItemWithProject(workItem, project) {
 }
 
 /**
+ * Validates whether a participating team can be safely removed from a Project.
+ * Invariant: If a participating Team still owns Project-associated active WorkItems,
+ * it cannot be silently removed. Explicit resolution is required.
+ *
+ * @param {string} teamId - Team handle attempting to be removed
+ * @param {string} projectId - Project identifier
+ * @param {Array<Object>} workItems - Canonical workItems
+ * @returns {{ canRemove: boolean, activeWorkItemCount: number, error?: string }}
+ */
+export function canRemoveTeamFromProject(teamId, projectId, workItems = []) {
+  if (!teamId || !projectId) {
+    return { canRemove: true, activeWorkItemCount: 0 };
+  }
+
+  const activeOwnedItems = (workItems || []).filter(
+    (it) => it.projectId === projectId && it.teamId === teamId && !it.isArchived && it.status !== 'archived' && it.status !== 'cancelled'
+  );
+
+  if (activeOwnedItems.length > 0) {
+    return {
+      canRemove: false,
+      activeWorkItemCount: activeOwnedItems.length,
+      error: `Cannot remove Team "${teamId}" from Project: ${activeOwnedItems.length} active WorkItem(s) are owned by this team. Explicit resolution required.`
+    };
+  }
+
+  return { canRemove: true, activeWorkItemCount: 0 };
+}
+
+/**
  * Calculates transparent, empirical progress for a Project over canonical WorkItems.
  * Supports both signatures:
  *   calculateProjectProgress(items, isAccessible)

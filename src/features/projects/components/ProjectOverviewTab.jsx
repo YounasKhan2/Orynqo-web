@@ -91,15 +91,18 @@ export function ProjectOverviewTab({
             <span style={{ fontSize: 'var(--text-xs, 12px)', fontWeight: 700, color: 'var(--text-muted, #94a3b8)', textTransform: 'uppercase' }}>
               Project Charter & Scope
             </span>
-            <span
-              style={{
-                fontFamily: 'monospace',
-                fontSize: '11px',
-                color: 'var(--primary-base, #3b82f6)'
-              }}
-            >
-              {project.identifier || project.key}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ProjectHealthBadge health={project.health} />
+              <span
+                style={{
+                  fontFamily: 'monospace',
+                  fontSize: '11px',
+                  color: 'var(--primary-base, #3b82f6)'
+                }}
+              >
+                {project.identifier || project.key}
+              </span>
+            </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
