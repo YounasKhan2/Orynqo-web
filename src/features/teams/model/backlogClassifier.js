@@ -30,6 +30,49 @@ export const WORK_ITEM_TRIAGE_STATES = {
 };
 
 /**
+ * Resolves the canonical workflow category for a WorkItem.
+ * Uses statusCategory if present, or normalizes from STATUS_DEFINITIONS / status string.
+ *
+ * @param {Object} item
+ * @returns {'unstarted'|'started'|'completed'|'canceled'|'backlog'}
+ */
+export function resolveStatusCategory(item) {
+  if (!item) return 'unstarted';
+  if (item.statusCategory) return item.statusCategory;
+
+  const status = item.status;
+  if (status === 'done') return 'completed';
+  if (status === 'canceled') return 'canceled';
+  if (status === 'in_progress' || status === 'in_review') return 'started';
+  if (status === 'backlog') return 'backlog';
+  if (status === 'todo') return 'unstarted';
+
+  return 'unstarted';
+}
+
+/**
+ * Canonical check whether a work item is completed.
+ *
+ * @param {Object} item
+ * @returns {boolean}
+ */
+export function isWorkItemCompleted(item) {
+  if (!item) return false;
+  return resolveStatusCategory(item) === 'completed';
+}
+
+/**
+ * Canonical check whether a work item is canceled.
+ *
+ * @param {Object} item
+ * @returns {boolean}
+ */
+export function isWorkItemCanceled(item) {
+  if (!item) return false;
+  return resolveStatusCategory(item) === 'canceled';
+}
+
+/**
  * Classifies a single canonical WorkItem within a team and cycles context.
  *
  * @param {Object} item - Canonical WorkItem
@@ -38,7 +81,7 @@ export const WORK_ITEM_TRIAGE_STATES = {
  * @returns {string} One of WORK_ITEM_TRIAGE_STATES
  */
 export function classifyTeamWorkItem(item, teamId, cycles = []) {
-  if (!item || item.teamId !== teamId) {
+  if (!item || item.teamId !== teamId || item.parentId) {
     return null;
   }
 
@@ -47,13 +90,7 @@ export function classifyTeamWorkItem(item, teamId, cycles = []) {
     return WORK_ITEM_TRIAGE_STATES.ARCHIVED;
   }
 
-  const statusCategory = item.statusCategory || (
-    item.status === 'done' ? 'completed' :
-    item.status === 'canceled' ? 'canceled' :
-    (item.status === 'in_progress' || item.status === 'in_review') ? 'started' :
-    (item.status === 'todo' || item.status === 'backlog') ? 'unstarted' :
-    'unstarted'
-  );
+  const statusCategory = resolveStatusCategory(item);
 
   // 2. Completed / Canceled
   if (statusCategory === 'completed') {

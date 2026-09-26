@@ -39,7 +39,8 @@ export function TeamHeader({
   onSearchChange,
   canManageSettings = false,
   isSearchActive = false,
-  onToggleSearch
+  onToggleSearch,
+  searchInputRef
 }) {
   const IconComponent = team?.icon ? ICON_MAP[team.icon] || Layers : Layers;
 
@@ -146,6 +147,8 @@ export function TeamHeader({
             }}
           />
           <input
+            ref={searchInputRef}
+            data-testid="team-search-input"
             type="text"
             placeholder="Search team... (/)"
             value={searchQuery}

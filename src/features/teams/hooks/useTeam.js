@@ -1,20 +1,24 @@
 import { useMemo } from 'react';
-import { TEAMS, USERS } from '../../../data/mockData';
+import { TEAMS } from '../../../data/mockData';
 import { resolveTeamCapabilities, getTeamPermissions } from '../model/teamCapabilities';
 
 /**
  * useTeam Hook (TEM-001)
  *
  * Provides team metadata, resolved capabilities, and user permission bundle.
+ * Supports teamOverride (for test/demo harnesses) and supplied users collection.
  *
  * @param {string} teamId
- * @param {Object} currentUser
- * @returns {{ team: Object, capabilities: Object, permissions: Object, members: Array<Object>, lead: Object|null }}
+ * @param {Object|null} [currentUser=null]
+ * @param {Object|null} [teamOverride=null]
+ * @param {Array<Object>} [users=[]]
+ * @returns {{ team: Object|null, capabilities: Object, permissions: Object, members: Array<Object>, lead: Object|null }}
  */
-export function useTeam(teamId, currentUser = null) {
+export function useTeam(teamId, currentUser = null, teamOverride = null, users = []) {
   const team = useMemo(() => {
-    return TEAMS.find((t) => t.id === teamId) || TEAMS[0];
-  }, [teamId]);
+    if (teamOverride) return teamOverride;
+    return (TEAMS || []).find((t) => t.id === teamId) || null;
+  }, [teamId, teamOverride]);
 
   const capabilities = useMemo(() => {
     return resolveTeamCapabilities(team);
@@ -25,12 +29,19 @@ export function useTeam(teamId, currentUser = null) {
   }, [currentUser, team]);
 
   const members = useMemo(() => {
-    return USERS.filter((u) => u.teamId === team?.id);
-  }, [team?.id]);
+    if (!team) return [];
+    return (users || []).filter((u) => {
+      if (u.teamId === team.id) return true;
+      if (Array.isArray(u.teamIds) && u.teamIds.includes(team.id)) return true;
+      if (Array.isArray(team.members) && team.members.includes(u.id)) return true;
+      return false;
+    });
+  }, [team, users]);
 
   const lead = useMemo(() => {
-    return USERS.find((u) => u.id === team?.leadId) || members[0] || null;
-  }, [team?.leadId, members]);
+    if (!team) return null;
+    return (users || []).find((u) => u.id === team.leadId) || members[0] || null;
+  }, [team, users, members]);
 
   return {
     team,

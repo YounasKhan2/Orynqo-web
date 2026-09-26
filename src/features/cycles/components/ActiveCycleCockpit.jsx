@@ -172,6 +172,7 @@ export function ActiveCycleCockpit({
 
           <button
             type="button"
+            data-testid="complete-cycle-btn"
             onClick={() => onCompleteCycle?.(activeCycle.id)}
             style={{
               display: 'flex',

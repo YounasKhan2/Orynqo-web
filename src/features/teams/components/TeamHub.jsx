@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
 import { TeamHeader } from './TeamHeader';
 import { TeamResourceNav } from './TeamResourceNav';
 import { TeamOverview } from './TeamOverview';
@@ -16,6 +16,7 @@ import {
   useTeamKeyboard,
 } from '../hooks';
 import { useCycles } from '../../cycles/hooks/useCycles';
+import { filterTeamBacklog } from '../model/backlogClassifier';
 
 /**
  * TEM-001: TeamHub
@@ -44,13 +45,20 @@ export const TeamHub = ({
   userRole = 'member',
   currentUser = null,
 }) => {
+  const searchInputRef = useRef(null);
+
   // 1. Team Metadata & Capabilities
-  const { team, capabilities, permissions, lead, members } = useTeam(teamId, currentUser);
+  const { team, capabilities, permissions, lead, members } = useTeam(
+    teamId,
+    currentUser,
+    teamOverride,
+    users
+  );
 
   // 2. Active sub-tab inside Cycles view ('active' | 'planning')
   const [cycleSubView, setCycleSubView] = useState('active');
 
-  // 3. Team-scoped queries
+  // 3. Team-scoped queries querying supplied datasets
   const teamWork = useTeamWorkQuery({
     workItems,
     teamId: team?.id,
@@ -58,27 +66,57 @@ export const TeamHub = ({
     tab: 'active'
   });
 
-  const teamProjects = useTeamProjectsQuery(team?.id, workItems);
+  const teamProjects = useTeamProjectsQuery({
+    teamId: team?.id,
+    projects,
+    workItems
+  });
 
-  const teamDocs = useTeamDocumentsQuery(team?.id);
+  const teamDocs = useTeamDocumentsQuery({
+    teamId: team?.id,
+    documents
+  });
 
-  const teamMembers = useTeamMembersQuery(team?.id, workItems);
+  const teamMembers = useTeamMembersQuery({
+    teamId: team?.id,
+    users,
+    workItems,
+    activeCycleId: null,
+    team
+  });
 
-  // 4. Team-scoped Cycles management
+  // 4. Team-scoped Cycles management consuming supplied cycles
   const cyclesHook = useCycles({
     teamId: team?.id,
-    initialCycles: cycles,
+    cycles,
     workItems,
     estimatesEnabled: capabilities.estimatesEnabled,
     onUpdateWorkItem,
   });
 
-  // 5. Centralized keyboard registration
+  // 5. Compute available capability-visible tabs
+  const availableTabs = useMemo(() => {
+    return [
+      { id: 'overview', label: 'Overview' },
+      { id: 'work', label: 'Work' },
+      ...(capabilities.cyclesEnabled ? [{ id: 'cycles', label: 'Cycles' }] : []),
+      { id: 'projects', label: 'Projects' },
+      { id: 'docs', label: 'Docs' },
+      { id: 'members', label: 'Members' }
+    ];
+  }, [capabilities.cyclesEnabled]);
+
+  const handleFocusSearch = useCallback(() => {
+    searchInputRef.current?.focus();
+  }, []);
+
+  // 6. Centralized keyboard registration matching hook contract
   useTeamKeyboard({
+    isActive: true,
+    availableTabs,
     activeTab,
-    onTabChange,
-    canCreateWork: permissions.canCreateWork,
-    onOpenQuickCreate: () => onOpenQuickCreate && onOpenQuickCreate({ teamId: team?.id }),
+    onSelectTab: onTabChange,
+    onFocusSearch: handleFocusSearch
   });
 
   if (!team) {
@@ -126,6 +164,7 @@ export const TeamHub = ({
         canCreateWork={permissions.canCreateWork}
         canManageSettings={permissions.canManageSettings}
         onOpenQuickCreate={() => onOpenQuickCreate && onOpenQuickCreate({ teamId: team.id })}
+        searchInputRef={searchInputRef}
       />
 
       {/* TEM-001 Capability-Aware ResourceNav */}
@@ -236,12 +275,12 @@ export const TeamHub = ({
                   onSelectItem={onSelectWorkItem}
                   onOpenInspector={onSelectWorkItem}
                   onUpdateItem={onUpdateWorkItem}
-                  onCompleteCycle={() => cyclesHook.promptCompleteCycle(cyclesHook.activeCycle)}
+                  onCompleteCycle={() => cyclesHook.activeCycle && cyclesHook.promptCompleteCycle(cyclesHook.activeCycle.id)}
                 />
               ) : (
                 <CyclePlanningWorkbench
                   upcomingCycle={cyclesHook.nextUpcomingCycle}
-                  backlogItems={(workItems || []).filter(i => i.teamId === team?.id && !i.cycleId && i.status !== 'done' && i.status !== 'canceled')}
+                  backlogItems={filterTeamBacklog(workItems, team?.id, cycles)}
                   cycleItems={cyclesHook.upcomingCycleItems}
                   estimatesEnabled={capabilities.estimatesEnabled}
                   canPlanWork={permissions.canPlanWork}
@@ -284,6 +323,7 @@ export const TeamHub = ({
           cycle={cyclesHook.rolloverModalState.cycle}
           incompleteItems={cyclesHook.rolloverModalState.incompleteItems}
           nextCycle={cyclesHook.nextUpcomingCycle}
+          error={cyclesHook.rolloverModalState.error}
           onConfirm={cyclesHook.confirmCompleteCycle}
           onCancel={cyclesHook.cancelRollover}
         />

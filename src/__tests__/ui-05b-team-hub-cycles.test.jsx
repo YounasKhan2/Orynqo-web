@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import React from 'react';
 
 // Domain model imports
@@ -27,6 +27,7 @@ import { TeamResourceNav } from '../features/teams/components/TeamResourceNav';
 import { TeamProjects } from '../features/teams/components/TeamProjects';
 import { CyclePlanningWorkbench } from '../features/cycles/components/CyclePlanningWorkbench';
 import { CycleRolloverModal } from '../features/cycles/components/CycleRolloverModal';
+import { dispatchViewKeyboardEvent, isEditableElement } from '../hooks/keyboardScopes';
 
 describe('UI-05B: Team Hub & Core Cycles Domain & Components', () => {
 
@@ -345,6 +346,511 @@ describe('UI-05B: Team Hub & Core Cycles Domain & Components', () => {
       // Confirm
       fireEvent.click(screen.getByText('Confirm & Complete Cycle'));
       expect(onConfirm).toHaveBeenCalled();
+    });
+  });
+
+  describe('6. Integration Pass 01A: End-to-End Scenarios & Contracts', () => {
+    // Shared fixtures for integration testing
+    const testTeam = {
+      id: 'team-alpha',
+      name: 'Alpha Team',
+      key: 'ALP',
+      description: 'Alpha mission squad',
+      members: ['user-1', 'user-2'],
+      capabilities: { cycles: true, triage: false },
+    };
+
+    const testUsers = [
+      { id: 'user-1', name: 'Alice Admin', teamId: 'team-alpha' },
+      { id: 'user-2', name: 'Bob Builder', teamId: 'team-alpha' },
+      { id: 'user-3', name: 'Charlie Cross', teamIds: ['team-alpha', 'team-beta'] },
+      { id: 'user-foreign', name: 'Frank Foreign', teamId: 'team-other' },
+    ];
+
+    const testCycles = [
+      { id: 'c-alp-active', teamId: 'team-alpha', name: 'Alpha Cycle 1', status: 'active', startDate: '2026-09-01', endDate: '2026-09-15' },
+      { id: 'c-alp-upcoming', teamId: 'team-alpha', name: 'Alpha Cycle 2', status: 'upcoming', startDate: '2026-09-16', endDate: '2026-09-30' },
+      { id: 'c-beta-active', teamId: 'team-beta', name: 'Beta Cycle 1', status: 'active', startDate: '2026-09-01', endDate: '2026-09-15' },
+    ];
+
+    const testProjects = [
+      { id: 'proj-1', name: 'Led Alpha Project', leadTeamId: 'team-alpha', teams: ['team-alpha'] },
+      { id: 'proj-2', name: 'Participating Project', leadTeamId: 'team-other', teams: ['team-other', 'team-alpha'] },
+      { id: 'proj-3', name: 'Unrelated Project', leadTeamId: 'team-other', teams: ['team-other'] },
+    ];
+
+    const testDocuments = [
+      { id: 'doc-1', title: 'Alpha Runbook', teamId: 'team-alpha', isPinned: true },
+      { id: 'doc-2', title: 'Alpha Specs', teamId: 'team-alpha', isPinned: false },
+      { id: 'doc-3', title: 'Shared Guide', teamId: 'team-other', pinnedTeamIds: ['team-alpha'] },
+      { id: 'doc-4', title: 'Other Guide', teamId: 'team-other' },
+    ];
+
+    const testWorkItems = [
+      { id: 'wi-1', title: 'Active Incomplete 1', teamId: 'team-alpha', cycleId: 'c-alp-active', status: 'in_progress' },
+      { id: 'wi-2', title: 'Active Done 2', teamId: 'team-alpha', cycleId: 'c-alp-active', status: 'done' },
+      { id: 'wi-3', title: 'Alpha Backlog 1', teamId: 'team-alpha', cycleId: null, status: 'todo' },
+      { id: 'wi-4', title: 'Alpha Backlog 2', teamId: 'team-alpha', cycleId: null, status: 'backlog' },
+      { id: 'wi-5', title: 'Upcoming Item', teamId: 'team-alpha', cycleId: 'c-alp-upcoming', status: 'todo' },
+    ];
+
+    it('1. TeamHub consumes supplied Team/Cycle/Project/Document/User datasets rather than global fixtures', () => {
+      render(
+        <TeamHub
+          teamId="team-alpha"
+          teamOverride={testTeam}
+          workItems={testWorkItems}
+          projects={testProjects}
+          documents={testDocuments}
+          users={testUsers}
+          cycles={testCycles}
+          activeTab="overview"
+        />
+      );
+
+      // Verify custom team name rendered
+      expect(screen.getByText('Alpha Team')).toBeDefined();
+      expect(screen.getByText('ALP')).toBeDefined();
+
+      // Verify active cycle from supplied cycles rendered in overview
+      expect(screen.getByText('Alpha Cycle 1')).toBeDefined();
+
+      // Verify supplied project rendered
+      expect(screen.getByText('Led Alpha Project')).toBeDefined();
+    });
+
+    it('2. Switching team changes Cycle data correctly', () => {
+      const { rerender } = render(
+        <TeamHub
+          teamId="team-alpha"
+          teamOverride={testTeam}
+          workItems={testWorkItems}
+          projects={testProjects}
+          documents={testDocuments}
+          users={testUsers}
+          cycles={testCycles}
+          activeTab="cycles"
+        />
+      );
+
+      expect(screen.getByText('Alpha Cycle 1')).toBeDefined();
+
+      const testTeamBeta = {
+        id: 'team-beta',
+        name: 'Beta Team',
+        key: 'BET',
+        members: ['user-3'],
+        capabilities: { cycles: true },
+      };
+
+      rerender(
+        <TeamHub
+          teamId="team-beta"
+          teamOverride={testTeamBeta}
+          workItems={[]}
+          projects={[]}
+          documents={[]}
+          users={testUsers}
+          cycles={testCycles}
+          activeTab="cycles"
+        />
+      );
+
+      expect(screen.getByText('Beta Cycle 1')).toBeDefined();
+      expect(screen.queryByText('Alpha Cycle 1')).toBeNull();
+    });
+
+    it('3. Team keyboard ResourceNav changes tabs through centralized PAGE/VIEW dispatch', () => {
+      const onTabChange = vi.fn();
+
+      render(
+        <TeamHub
+          teamId="team-alpha"
+          teamOverride={testTeam}
+          workItems={testWorkItems}
+          projects={testProjects}
+          documents={testDocuments}
+          users={testUsers}
+          cycles={testCycles}
+          activeTab="overview"
+          onTabChange={onTabChange}
+        />
+      );
+
+      // Available tabs: 1: overview, 2: work, 3: cycles, 4: projects, 5: docs, 6: members
+      // Press '2' for Work
+      const handled2 = dispatchViewKeyboardEvent(new KeyboardEvent('keydown', { key: '2' }));
+      expect(handled2).toBe(true);
+      expect(onTabChange).toHaveBeenCalledWith('work');
+
+      // Press '4' for Projects
+      const handled4 = dispatchViewKeyboardEvent(new KeyboardEvent('keydown', { key: '4' }));
+      expect(handled4).toBe(true);
+      expect(onTabChange).toHaveBeenCalledWith('projects');
+    });
+
+    it('4. Team search semantic shortcut (/) focuses the Team search control', () => {
+      render(
+        <TeamHub
+          teamId="team-alpha"
+          teamOverride={testTeam}
+          workItems={testWorkItems}
+          projects={testProjects}
+          documents={testDocuments}
+          users={testUsers}
+          cycles={testCycles}
+          activeTab="overview"
+        />
+      );
+
+      const searchInput = screen.getByTestId('team-search-input');
+      const focusSpy = vi.spyOn(searchInput, 'focus');
+
+      const handled = dispatchViewKeyboardEvent(new KeyboardEvent('keydown', { key: '/' }));
+
+      expect(handled).toBe(true);
+      expect(focusSpy).toHaveBeenCalled();
+    });
+
+    it('5. Overlay and editable controls suppress Team PAGE/VIEW shortcuts', () => {
+      const onTabChange = vi.fn();
+
+      render(
+        <div>
+          <input data-testid="test-input" />
+          <TeamHub
+            teamId="team-alpha"
+            teamOverride={testTeam}
+            workItems={testWorkItems}
+            projects={testProjects}
+            documents={testDocuments}
+            users={testUsers}
+            cycles={testCycles}
+            activeTab="overview"
+            onTabChange={onTabChange}
+          />
+        </div>
+      );
+
+      const input = screen.getByTestId('test-input');
+
+      // When target is an editable control, number shortcuts should be suppressed
+      const eventInInput = new KeyboardEvent('keydown', { key: '2' });
+      Object.defineProperty(eventInInput, 'target', { value: input, writable: false });
+
+      const handledInInput = dispatchViewKeyboardEvent(eventInInput);
+      expect(handledInInput).toBe(false);
+      expect(onTabChange).not.toHaveBeenCalled();
+
+      // When an OVERLAY scope element exists in DOM, shortcuts should be suppressed
+      const overlay = document.createElement('div');
+      overlay.setAttribute('data-keyboard-scope', 'OVERLAY');
+      document.body.appendChild(overlay);
+
+      const handledInOverlay = dispatchViewKeyboardEvent(new KeyboardEvent('keydown', { key: '2' }));
+      expect(handledInOverlay).toBe(false);
+      expect(onTabChange).not.toHaveBeenCalled();
+
+      document.body.removeChild(overlay);
+    });
+
+    it('6 & 7. Complete Cycle from ActiveCycleCockpit opens rollover review with correct incomplete items', () => {
+      render(
+        <TeamHub
+          teamId="team-alpha"
+          teamOverride={testTeam}
+          workItems={testWorkItems}
+          projects={testProjects}
+          documents={testDocuments}
+          users={testUsers}
+          cycles={testCycles}
+          activeTab="cycles"
+          userRole="lead"
+        />
+      );
+
+      // Find "Complete Cycle" button in ActiveCycleCockpit
+      const completeBtn = screen.getByTestId('complete-cycle-btn');
+      expect(completeBtn).toBeDefined();
+
+      // Click Complete Cycle
+      fireEvent.click(completeBtn);
+
+      // Verify Rollover Modal opened for 'Alpha Cycle 1'
+      expect(screen.getByText('Complete Alpha Cycle 1')).toBeDefined();
+
+      // Verify incomplete item appears in review (wi-1: Active Incomplete 1)
+      const reviewContainer = screen.getByTestId('rollover-incomplete-items');
+      expect(reviewContainer).toBeDefined();
+      expect(screen.getByTestId('rollover-item-wi-1')).toBeDefined();
+      expect(screen.queryByTestId('rollover-item-wi-2')).toBeNull();
+    });
+
+    it('8. Confirming Backlog rollover clears scheduling relationships', async () => {
+      const onUpdateWorkItem = vi.fn().mockResolvedValue({});
+
+      render(
+        <TeamHub
+          teamId="team-alpha"
+          teamOverride={testTeam}
+          workItems={testWorkItems}
+          projects={testProjects}
+          documents={testDocuments}
+          users={testUsers}
+          cycles={testCycles}
+          activeTab="cycles"
+          userRole="lead"
+          onUpdateWorkItem={onUpdateWorkItem}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('complete-cycle-btn'));
+      expect(screen.getByText('Complete Alpha Cycle 1')).toBeDefined();
+
+      // Select Backlog radio option (default)
+      const backlogRadio = screen.getByTestId('rollover-dest-backlog');
+      fireEvent.click(backlogRadio);
+
+      // Confirm rollover
+      await act(async () => {
+        fireEvent.click(screen.getByText('Confirm & Complete Cycle'));
+      });
+
+      // Verify onUpdateWorkItem was called to clear cycleId for wi-1
+      expect(onUpdateWorkItem).toHaveBeenCalledWith('wi-1', { cycleId: null });
+    });
+
+    it('9. Confirming Upcoming Cycle rollover schedules to the eligible upcoming Cycle', async () => {
+      const onUpdateWorkItem = vi.fn().mockResolvedValue({});
+
+      render(
+        <TeamHub
+          teamId="team-alpha"
+          teamOverride={testTeam}
+          workItems={testWorkItems}
+          projects={testProjects}
+          documents={testDocuments}
+          users={testUsers}
+          cycles={testCycles}
+          activeTab="cycles"
+          userRole="lead"
+          onUpdateWorkItem={onUpdateWorkItem}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('complete-cycle-btn'));
+      expect(screen.getByText('Complete Alpha Cycle 1')).toBeDefined();
+
+      // Select upcoming_cycle radio option
+      const upcomingRadio = screen.getByTestId('rollover-dest-upcoming');
+      fireEvent.click(upcomingRadio);
+
+      // Confirm rollover
+      await act(async () => {
+        fireEvent.click(screen.getByText('Confirm & Complete Cycle'));
+      });
+
+      // Verify onUpdateWorkItem was called with nextCycleId: 'c-alp-upcoming'
+      expect(onUpdateWorkItem).toHaveBeenCalledWith('wi-1', { cycleId: 'c-alp-upcoming' });
+    });
+
+    it('10. Invalid Upcoming Cycle target is rejected by rollover validation', () => {
+      const incomplete = [testWorkItems[0]];
+      const activeCycle = testCycles[0];
+
+      // Missing nextCycleId when destination is upcoming_cycle
+      expect(() => {
+        executeCycleCompletion({
+          cycle: activeCycle,
+          incompleteItems: incomplete,
+          destination: ROLLOVER_DESTINATIONS.UPCOMING_CYCLE,
+          nextCycleId: null,
+          availableCycles: testCycles,
+        });
+      }).toThrow(/requires an explicit nextCycleId/i);
+
+      // Targeting cycle from different team
+      expect(() => {
+        executeCycleCompletion({
+          cycle: activeCycle,
+          incompleteItems: incomplete,
+          destination: ROLLOVER_DESTINATIONS.UPCOMING_CYCLE,
+          nextCycleId: 'c-beta-active',
+          availableCycles: testCycles,
+        });
+      }).toThrow(/not current team/i);
+
+      // Targeting self
+      expect(() => {
+        executeCycleCompletion({
+          cycle: activeCycle,
+          incompleteItems: incomplete,
+          destination: ROLLOVER_DESTINATIONS.UPCOMING_CYCLE,
+          nextCycleId: activeCycle.id,
+          availableCycles: testCycles,
+        });
+      }).toThrow(/into the cycle being completed/i);
+    });
+
+    it('11. Mutation failure triggers rollback and keeps rollover review open with error', async () => {
+      const failingUpdate = vi.fn().mockRejectedValue(new Error('Network mutation failed'));
+
+      render(
+        <TeamHub
+          teamId="team-alpha"
+          teamOverride={testTeam}
+          workItems={testWorkItems}
+          projects={testProjects}
+          documents={testDocuments}
+          users={testUsers}
+          cycles={testCycles}
+          activeTab="cycles"
+          userRole="lead"
+          onUpdateWorkItem={failingUpdate}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('complete-cycle-btn'));
+      expect(screen.getByText('Complete Alpha Cycle 1')).toBeDefined();
+
+      // Attempt to confirm
+      fireEvent.click(screen.getByText('Confirm & Complete Cycle'));
+
+      // Modal must remain open and display failure banner
+      await screen.findByTestId('rollover-error-banner');
+      expect(screen.getByText(/Network mutation failed/i)).toBeDefined();
+
+      // Cycle completion did NOT succeed
+      expect(screen.getByText('Complete Alpha Cycle 1')).toBeDefined();
+    });
+
+    it('12. Team Work Backlog and Cycle Planning Backlog resolve the same canonical set', () => {
+      // Direct comparison of filterTeamBacklog which powers both surfaces
+      const backlogForTeamWork = filterTeamBacklog(testWorkItems, testTeam.id, testCycles);
+
+      // Cycle Planning Workbench receives backlog derived via filterTeamBacklog in TeamHub
+      expect(backlogForTeamWork.map(i => i.id)).toEqual(['wi-3', 'wi-4']);
+
+      // Render Cycle Planning view in TeamHub
+      render(
+        <TeamHub
+          teamId="team-alpha"
+          teamOverride={testTeam}
+          workItems={testWorkItems}
+          projects={testProjects}
+          documents={testDocuments}
+          users={testUsers}
+          cycles={testCycles}
+          activeTab="cycles"
+        />
+      );
+
+      // Switch to planning view
+      fireEvent.click(screen.getByTestId('cycle-subnav-planning'));
+
+      // Both wi-3 and wi-4 must appear in the planning backlog pane
+      expect(screen.getByText('Alpha Backlog 1')).toBeDefined();
+      expect(screen.getByText('Alpha Backlog 2')).toBeDefined();
+    });
+
+    it('13. Supplied Projects determine Lead/Participant results', () => {
+      render(
+        <TeamHub
+          teamId="team-alpha"
+          teamOverride={testTeam}
+          workItems={testWorkItems}
+          projects={testProjects}
+          documents={testDocuments}
+          users={testUsers}
+          cycles={testCycles}
+          activeTab="projects"
+        />
+      );
+
+      expect(screen.getByText('Led Alpha Project')).toBeDefined();
+      expect(screen.getByText('Participating Project')).toBeDefined();
+      expect(screen.queryByText('Unrelated Project')).toBeNull();
+    });
+
+    it('14. Supplied Documents determine Team Docs results with canonical pin metadata', () => {
+      render(
+        <TeamHub
+          teamId="team-alpha"
+          teamOverride={testTeam}
+          workItems={testWorkItems}
+          projects={testProjects}
+          documents={testDocuments}
+          users={testUsers}
+          cycles={testCycles}
+          activeTab="docs"
+        />
+      );
+
+      // Direct doc
+      expect(screen.getByText('Alpha Runbook')).toBeDefined();
+      expect(screen.getByText('Alpha Specs')).toBeDefined();
+      // Shared guide pinned for team-alpha
+      expect(screen.getByText('Shared Guide')).toBeDefined();
+      // Foreign unpinned doc
+      expect(screen.queryByText('Other Guide')).toBeNull();
+    });
+
+    it('15. Supplied Users/membership determine Team Members results with multi-team support', () => {
+      render(
+        <TeamHub
+          teamId="team-alpha"
+          teamOverride={testTeam}
+          workItems={testWorkItems}
+          projects={testProjects}
+          documents={testDocuments}
+          users={testUsers}
+          cycles={testCycles}
+          activeTab="members"
+        />
+      );
+
+      expect(screen.getByText('Alice Admin')).toBeDefined();
+      expect(screen.getByText('Bob Builder')).toBeDefined();
+      // Multi-team member (user-3 with teamIds: ['team-alpha', ...])
+      expect(screen.getByText('Charlie Cross')).toBeDefined();
+      // Foreign member
+      expect(screen.queryByText('Frank Foreign')).toBeNull();
+    });
+
+    it('16. Cycles-disabled Team exposes no active planning surface or cycles tab', () => {
+      const disabledTeam = {
+        ...testTeam,
+        capabilities: { cycles: false },
+      };
+
+      render(
+        <TeamHub
+          teamId="team-alpha"
+          teamOverride={disabledTeam}
+          workItems={testWorkItems}
+          projects={testProjects}
+          documents={testDocuments}
+          users={testUsers}
+          cycles={testCycles}
+          activeTab="overview"
+        />
+      );
+
+      // Cycles tab must not be rendered in ResourceNav
+      expect(screen.queryByTestId('team-tab-cycles')).toBeNull();
+    });
+
+    it('17. Existing global shortcuts continue working outside Team PAGE/VIEW handling', () => {
+      // Team handler only consumes 1-6 and /
+      // Other keys such as 'c', 'k', '?' return false to fall through to global handlers
+      const handledC = dispatchViewKeyboardEvent(new KeyboardEvent('keydown', { key: 'c' }));
+      expect(handledC).toBe(false);
+
+      const handledK = dispatchViewKeyboardEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
+      expect(handledK).toBe(false);
+
+      const handledQuestion = dispatchViewKeyboardEvent(new KeyboardEvent('keydown', { key: '?' }));
+      expect(handledQuestion).toBe(false);
     });
   });
 });

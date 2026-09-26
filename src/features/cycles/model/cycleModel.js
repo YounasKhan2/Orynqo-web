@@ -1,3 +1,5 @@
+import { isWorkItemCompleted } from '../../teams/model/backlogClassifier';
+
 /**
  * Cycle Domain Model & Invariants Engine (UI-05A / UI-05B)
  *
@@ -55,9 +57,9 @@ export function deriveCycleProgress(cycle, workItems = [], estimatesEnabled = tr
 
   const cycleItems = (workItems || []).filter((item) => item.cycleId === cycle.id);
   const totalItems = cycleItems.length;
-  const completedItems = cycleItems.filter((item) => item.status === 'done').length;
+  const completedItems = cycleItems.filter((item) => isWorkItemCompleted(item)).length;
   const blockedItems = cycleItems.filter((item) => (item.relations || []).some((r) => r.type === 'blocked_by')).length;
-  const urgentItems = cycleItems.filter((item) => item.priority === 'urgent' && item.status !== 'done').length;
+  const urgentItems = cycleItems.filter((item) => item.priority === 'urgent' && !isWorkItemCompleted(item)).length;
 
   let totalPoints = 0;
   let completedPoints = 0;
@@ -66,7 +68,7 @@ export function deriveCycleProgress(cycle, workItems = [], estimatesEnabled = tr
     cycleItems.forEach((item) => {
       const pts = Number(item.estimate) || 0;
       totalPoints += pts;
-      if (item.status === 'done') {
+      if (isWorkItemCompleted(item)) {
         completedPoints += pts;
       }
     });

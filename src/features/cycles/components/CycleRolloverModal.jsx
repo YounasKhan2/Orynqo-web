@@ -20,6 +20,7 @@ export function CycleRolloverModal({
   cycle,
   incompleteItems = [],
   nextCycle = null,
+  error = null,
   onConfirm,
   onCancel
 }) {
@@ -88,6 +89,27 @@ export function CycleRolloverModal({
 
         {/* Content */}
         <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          {error && (
+            <div
+              role="alert"
+              data-testid="rollover-error-banner"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: 'var(--space-3)',
+                backgroundColor: 'rgba(248, 81, 73, 0.1)',
+                border: '1px solid var(--status-canceled)',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: 'var(--text-xs)',
+                color: 'var(--status-canceled)'
+              }}
+            >
+              <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+              <span>{error}</span>
+            </div>
+          )}
+
           {incompleteItems.length > 0 ? (
             <>
               <div
@@ -106,6 +128,37 @@ export function CycleRolloverModal({
                 <span>
                   <strong>{incompleteItems.length} uncompleted item{incompleteItems.length > 1 ? 's' : ''}</strong> will not be silently carried over. Please choose where they should be routed.
                 </span>
+              </div>
+
+              {/* Incomplete items list */}
+              <div
+                data-testid="rollover-incomplete-items"
+                style={{
+                  maxHeight: '120px',
+                  overflowY: 'auto',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--bg-surface-subtle)',
+                  padding: 'var(--space-2)'
+                }}
+              >
+                {incompleteItems.map((item) => (
+                  <div
+                    key={item.id}
+                    data-testid={`rollover-item-${item.id}`}
+                    style={{
+                      fontSize: 'var(--text-xs)',
+                      color: 'var(--text-primary)',
+                      padding: '2px 4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}
+                  >
+                    <span>{item.title}</span>
+                    <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)' }}>{item.status}</span>
+                  </div>
+                ))}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
@@ -130,6 +183,8 @@ export function CycleRolloverModal({
                     <input
                       type="radio"
                       name="rollover-dest"
+                      value={ROLLOVER_DESTINATIONS.UPCOMING_CYCLE}
+                      data-testid="rollover-dest-upcoming"
                       checked={destination === ROLLOVER_DESTINATIONS.UPCOMING_CYCLE}
                       onChange={() => setDestination(ROLLOVER_DESTINATIONS.UPCOMING_CYCLE)}
                     />
@@ -160,6 +215,8 @@ export function CycleRolloverModal({
                   <input
                     type="radio"
                     name="rollover-dest"
+                    value={ROLLOVER_DESTINATIONS.BACKLOG}
+                    data-testid="rollover-dest-backlog"
                     checked={destination === ROLLOVER_DESTINATIONS.BACKLOG}
                     onChange={() => setDestination(ROLLOVER_DESTINATIONS.BACKLOG)}
                   />
