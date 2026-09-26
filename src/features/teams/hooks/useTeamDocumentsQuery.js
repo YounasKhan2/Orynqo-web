@@ -26,8 +26,9 @@ export function useTeamDocumentsQuery(options, legacyDocuments = []) {
 
   return useMemo(() => {
     const docs = (documents || []).filter((doc) => {
+      const docTeams = doc.teamIds || doc.contextAssociations?.teamIds || (doc.teamId ? [doc.teamId] : []);
       return (
-        doc.teamId === teamId ||
+        docTeams.includes(teamId) ||
         (doc.associatedTeamIds || []).includes(teamId) ||
         (doc.teams || []).includes(teamId) ||
         (doc.pinnedTeamIds || []).includes(teamId)

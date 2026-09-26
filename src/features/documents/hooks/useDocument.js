@@ -47,11 +47,11 @@ export function useDocument({
   const isDirtyRef = useRef(false);
   const inFlightSaveRef = useRef(false);
 
-  // Sync draft when documentId changes or initial load
+  // Sync draft on initial load or upstream updates
   useEffect(() => {
     if (canonicalDoc) {
-      // Only overwrite draft if not currently dirty with pending changes
       if (!isDirtyRef.current) {
+        // Not dirty: cleanly adopt canonical doc
         setDraftTitle(canonicalDoc.title || '');
         const initialContent = canonicalDoc.content || (canonicalDoc.blocks ? { blocks: canonicalDoc.blocks } : { blocks: [] });
         setDraftContent(initialContent);
@@ -60,12 +60,13 @@ export function useDocument({
         setSaveError(null);
         setIsConflict(false);
       } else if (canonicalDoc.version > lastSavedVersionRef.current) {
-        // Concurrency conflict detected! Upstream changed while local has pending edits.
+        // Upstream canonical document version has advanced while local edits are pending!
+        // Local draft is preserved; conflict state is raised.
         setIsConflict(true);
         setSaveState(SAVE_STATES.CONFLICT);
       }
     }
-  }, [canonicalDoc?.id]);
+  }, [canonicalDoc?.id, canonicalDoc?.version]);
 
   // Clean up debounce timer
   useEffect(() => {
@@ -101,8 +102,10 @@ export function useDocument({
       version: (lastSavedVersionRef.current || 1) + 1
     };
 
-    // Concurrency check before write
-    if (canonicalDoc.version > lastSavedVersionRef.current) {
+    const expectedVersion = lastSavedVersionRef.current || 1;
+
+    // Concurrency check before write: if canonicalDoc has already moved ahead
+    if (canonicalDoc.version > expectedVersion) {
       setIsConflict(true);
       setSaveState(SAVE_STATES.CONFLICT);
       return;
@@ -113,17 +116,24 @@ export function useDocument({
     setSaveError(null);
 
     try {
-      const result = await onUpdateDocument(canonicalDoc.id, updates);
+      // Pass docId, updates, and expectedVersion to the authoritative mutation boundary
+      const result = await onUpdateDocument(canonicalDoc.id, updates, expectedVersion);
       if (result === false) {
-        throw new Error('Server rejected document update');
+        throw new Error('Server rejected document update due to concurrency conflict or permission failure');
       }
       isDirtyRef.current = false;
       lastSavedVersionRef.current = updates.version;
       setSaveState(SAVE_STATES.SAVED);
       setSaveError(null);
+      setIsConflict(false);
     } catch (err) {
       // DATA-LOSS PROTECTION: Local state remains 100% intact
-      setSaveState(SAVE_STATES.FAILED);
+      if (err?.name === 'ConflictError' || err?.isConflict || err?.message?.includes('conflict') || err?.message?.includes('concurrency')) {
+        setIsConflict(true);
+        setSaveState(SAVE_STATES.CONFLICT);
+      } else {
+        setSaveState(SAVE_STATES.FAILED);
+      }
       setSaveError(err.message || 'Failed to save changes. Local edits preserved.');
     } finally {
       inFlightSaveRef.current = false;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DocumentHeader } from './DocumentHeader';
 import { DocumentEditor } from './DocumentEditor';
 import { DocumentBacklinksPanel } from './DocumentBacklinksPanel';
@@ -34,8 +34,15 @@ export function DocumentCanvas({
   onOpenWorkItem,
   onOpenDocument,
   onCreateWorkItemFromSelection,
-  isAccessible = () => true
+  isAccessible = () => true,
+  viewportMode = 'wide' // 'wide' | 'compact' | 'narrow'
 }) {
+  const [showSupportingSurfaces, setShowSupportingSurfaces] = useState(viewportMode !== 'narrow');
+  const isNarrow = viewportMode === 'narrow';
+
+  useEffect(() => {
+    setShowSupportingSurfaces(viewportMode !== 'narrow');
+  }, [viewportMode]);
   const {
     document,
     draftTitle,
@@ -117,6 +124,7 @@ export function DocumentCanvas({
       role="main"
       aria-label="Document Canvas"
       data-testid="document-canvas"
+      className={`orynqo-canvas-layout--${viewportMode}`}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -124,7 +132,7 @@ export function DocumentCanvas({
         width: '100%',
         backgroundColor: 'var(--bg-canvas, #0d1117)',
         overflowY: 'auto',
-        padding: '24px 32px'
+        padding: isNarrow ? '12px 16px' : '24px 32px'
       }}
     >
       <div style={{ maxWidth: '820px', width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column' }}>
@@ -164,11 +172,11 @@ export function DocumentCanvas({
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <AlertCircle size={14} />
-              <span>Document was updated externally. Your local changes are preserved.</span>
+              <span>Conflict requiring attention. Your local changes are preserved.</span>
             </div>
             <button
               type="button"
-              data-testid="force-save-btn"
+              data-testid="conflict-retry-btn"
               onClick={retrySave}
               style={{
                 background: 'var(--priority-high, #f59e0b)',
@@ -181,7 +189,7 @@ export function DocumentCanvas({
                 cursor: 'pointer'
               }}
             >
-              Overwrite with mine
+              Retry / Recheck
             </button>
           </div>
         )}
@@ -254,24 +262,50 @@ export function DocumentCanvas({
           onSelectionChange={setSelectedText}
         />
 
+        {/* Responsive toggle in narrow mode */}
+        {isNarrow && (
+          <div style={{ marginTop: '16px', display: 'flex', gap: '8px' }}>
+            <button
+              type="button"
+              data-testid="toggle-supporting-surfaces-btn"
+              onClick={() => setShowSupportingSurfaces((prev) => !prev)}
+              style={{
+                fontSize: '11px',
+                padding: '4px 8px',
+                backgroundColor: 'var(--bg-surface, #161b22)',
+                border: '1px solid var(--border-default, #30363d)',
+                borderRadius: '4px',
+                color: 'var(--text-secondary, #8b949e)',
+                cursor: 'pointer'
+              }}
+            >
+              {showSupportingSurfaces ? 'Hide Details & Discussion' : 'Show Details & Discussion'}
+            </button>
+          </div>
+        )}
+
         {/* Derived Backlinks Panel with Zero-Leakage Filtering */}
-        <DocumentBacklinksPanel
-          backlinks={backlinks}
-          totalCount={backlinksCount}
-          onOpenWorkItem={onOpenWorkItem}
-          onOpenDocument={onOpenDocument}
-        />
+        {showSupportingSurfaces && (
+          <DocumentBacklinksPanel
+            backlinks={backlinks}
+            totalCount={backlinksCount}
+            onOpenWorkItem={onOpenWorkItem}
+            onOpenDocument={onOpenDocument}
+          />
+        )}
 
         {/* Discussion & Comments */}
-        <DocumentCommentsPanel
-          threads={threads}
-          unresolvedCount={unresolvedCount}
-          onAddThread={addThread}
-          onAddReply={addReply}
-          onToggleResolve={toggleResolve}
-          users={users}
-          currentUserId={currentUserId}
-        />
+        {showSupportingSurfaces && (
+          <DocumentCommentsPanel
+            threads={threads}
+            unresolvedCount={unresolvedCount}
+            onAddThread={addThread}
+            onAddReply={addReply}
+            onToggleResolve={toggleResolve}
+            users={users}
+            currentUserId={currentUserId}
+          />
+        )}
       </div>
     </div>
   );

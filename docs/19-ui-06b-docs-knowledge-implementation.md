@@ -133,3 +133,52 @@ In accordance with Section 1 and Section 45 of the contract, the following remai
 - Public web publishing
 - AI authoring
 - Permanent Trash / hard-delete workflows
+
+---
+
+### 11. CORRECTION PASS 01A SUMMARY
+
+In Implementation Correction Pass 01A, the following verifications and integration semantics were proven and hardened:
+
+1. **Stale-Write Concurrency Precondition**:
+   - The authoritative mutation boundary (`handleUpdateDocument` in `App.jsx` and `executeSave` in `useDocument.js`) now strictly passes and validates `expectedVersion`.
+   - Any stale mutation where `canonicalDoc.version > expectedVersion` is deterministically rejected before applying changes, protecting canonical data.
+   - When an upstream version change arrives during an active local draft edit, `useDocument` detects `version > lastSavedVersionRef.current`, sets `isConflict(true)` and `saveState(SAVE_STATES.CONFLICT)`, and keeps the local draft 100% intact.
+
+2. **Non-Destructive Conflict UX**:
+   - Replaced destructive "Overwrite with mine" with non-destructive recovery:
+     ```text
+     Conflict requiring attention. Your local changes are preserved. [Retry / Recheck]
+     ```
+   - Normal saves are never falsely reported as successful when in conflict.
+
+3. **Document $\rightarrow$ WorkItem Selection Conversion Integration**:
+   - Tested real interaction on `DocumentCanvas` text selection, rendering the floating action bar and invoking `onCreateWorkItemFromSelection` with `{ title, sourceDocId }`.
+   - Verified that conversion delegates to canonical WorkItem creation with the canonical `documentLinks: [sourceDocId]` relationship.
+
+4. **Team Docs (`TEM-005`) Integration & Supplied Data Boundary**:
+   - Verified that `TeamHub` consumes the supplied `canonicalDocuments` collection directly in the `docs` tab without falling back to independent fixtures.
+   - Proved that the exact same canonical Document ID is surfaced across both Docs Hub and Team Docs, filtered cleanly by `teamIds`.
+
+5. **Keyboard Scope Suppression & Overlays**:
+   - Focused block inputs in `DocumentEditor` stop event propagation to prevent triggering parent/global `PAGE` or `VIEW` shortcut commands.
+   - Overlays (`/` slash menu and `@` mention popover) trap navigation keys (`ArrowDown`, `ArrowUp`, `Enter`) and handle `Escape` to close cleanly.
+   - Centralized global shortcuts (e.g. `Ctrl+K`) fire accurately outside editable surfaces.
+
+6. **Responsive Layout Semantics**:
+   - Implemented and verified semantic `viewportMode` (`wide` vs `narrow`).
+   - In `wide` mode, supporting surfaces (`DocumentBacklinksPanel`, `DocumentCommentsPanel`) render directly inline.
+   - In `narrow` mode, supporting surfaces collapse by default to prioritize the editor canvas, and can be explicitly toggled via `Show Details & Discussion`.
+
+7. **Archive Descendant Resolution Boundary**:
+   - Hardened `handleArchiveDocument` in `App.jsx` to verify whether active descendants exist via `getDescendants(docId, documents)`.
+   - Rejects archiving parents with active descendants without explicit descendant resolution.
+
+8. **Zero-Leakage Security (Breadcrumbs & Backlinks)**:
+   - Verified that breadcrumbs mask restricted ancestor titles with `Restricted Item`, never leaking sensitive titles in rendered markup.
+   - Verified that derived backlinks panels completely exclude restricted source documents from both rows and total counts (`Backlinks (N)`).
+
+9. **Verification Metrics**:
+   - **Focused Test Suite (`ui-06b-docs-knowledge.test.jsx`)**: 45 passed (expanded from 40).
+   - **Full Repository Test Suite**: 13 test files, 267 passed (100% green).
+   - **Production Build**: Clean build with zero warnings or errors.

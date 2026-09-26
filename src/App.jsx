@@ -639,15 +639,42 @@ function OrynqoWorkspace() {
   const [documentComments, setDocumentComments] = useState(() => INITIAL_DOCUMENT_COMMENTS);
   const [favoriteDocIds, setFavoriteDocIds] = useState(() => ['doc-handbook']);
 
-  const handleUpdateDocument = useCallback((docId, updates) => {
-    setDocuments((prev) =>
-      prev.map((d) => (d.id === docId ? { ...d, ...updates } : d))
-    );
+  const handleUpdateDocument = useCallback((docId, updates, expectedVersion = null) => {
+    let succeeded = false;
+    setDocuments((prev) => {
+      const current = prev.find((d) => d.id === docId);
+      if (!current) return prev;
+
+      // Authoritative concurrency check: reject if expectedVersion is provided and stale
+      if (expectedVersion !== null && current.version > expectedVersion) {
+        succeeded = false;
+        return prev;
+      }
+
+      succeeded = true;
+      return prev.map((d) => (d.id === docId ? { ...d, ...updates } : d));
+    });
+    return succeeded;
   }, []);
 
-  const handleArchiveDocument = useCallback((docId) => {
-    setDocuments((prev) =>
-      prev.map((d) =>
+  const handleArchiveDocument = useCallback((docId, descendantResolution = 'reject_if_children') => {
+    let succeeded = false;
+    setDocuments((prev) => {
+      const current = prev.find((d) => d.id === docId);
+      if (!current) return prev;
+
+      // ARCHIVE DESCENDANT SAFETY:
+      // A parent Document with children cannot be archived in a way that silently
+      // deletes descendants, hides descendants unexpectedly, breaks hierarchy, or reparents implicitly.
+      const hasChildren = prev.some((d) => d.parentId === docId && d.lifecycle === 'active');
+      if (hasChildren && descendantResolution === 'reject_if_children') {
+        // Explicit descendant resolution required: fail mutation
+        succeeded = false;
+        return prev;
+      }
+
+      succeeded = true;
+      return prev.map((d) =>
         d.id === docId
           ? {
               ...d,
@@ -656,8 +683,9 @@ function OrynqoWorkspace() {
               archivedBy: CURRENT_USER.id
             }
           : d
-      )
-    );
+      );
+    });
+    return succeeded;
   }, []);
 
   const handleRestoreDocument = useCallback((docId) => {

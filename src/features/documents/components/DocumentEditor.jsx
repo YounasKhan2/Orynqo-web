@@ -86,6 +86,9 @@ export function DocumentEditor({
 
   // Key handling in block inputs
   const handleBlockKeyDown = (e, index, block) => {
+    // EDITABLE scope isolation: Stop keyboard events from bubbling to PAGE/VIEW listeners
+    e.stopPropagation();
+
     if (slashMenu.isOpen || mentionPopover.isOpen) {
       // Overlays handle their own keys
       return;
@@ -97,7 +100,7 @@ export function DocumentEditor({
       return;
     }
 
-    if (e.key === 'Backspace' && block.text === '' && blocks.length > 1) {
+    if (e.key === 'Backspace' && (block.text === '' || block.content === '') && blocks.length > 1) {
       e.preventDefault();
       deleteBlock(index);
       return;
@@ -374,9 +377,21 @@ export function DocumentEditor({
             <div style={{ flex: 1, position: 'relative' }}>
               <input
                 type="text"
+                data-testid={`document-block-input-${block.id}`}
                 value={block.content !== undefined ? block.content : (block.text || '')}
                 onChange={(e) => handleInputChange(e, index, block)}
                 onKeyDown={(e) => handleBlockKeyDown(e, index, block)}
+                onSelect={(e) => {
+                  const target = e.target;
+                  if (target.selectionStart !== undefined && target.selectionEnd !== undefined && target.selectionStart !== target.selectionEnd) {
+                    const selected = target.value.substring(target.selectionStart, target.selectionEnd).trim();
+                    if (selected) {
+                      onSelectionChange?.({ text: selected, blockIndex: index });
+                      return;
+                    }
+                  }
+                  handleSelect();
+                }}
                 placeholder={
                   isHeading1
                     ? 'Heading 1...'
