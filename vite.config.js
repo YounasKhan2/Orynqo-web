@@ -10,6 +10,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    testTimeout: 15000
+    testTimeout: 15000,
+    maxWorkers: 4
   }
 });

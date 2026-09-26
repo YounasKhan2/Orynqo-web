@@ -68,11 +68,26 @@ During Human Review, integration defects were identified and corrected:
 
 ---
 
-## 3. Verification & Test Suite Results
+## 3. Correction Pass 01B
+
+Final Rollover Integrity & Git Graph Verification:
+
+1. **Strict Authoritative Upcoming Cycle Validation**:
+   - In `rolloverEngine.js`, `executeCycleCompletion` now strictly requires an authoritative target upcoming Cycle in the supplied collection (`!candidateCycles || candidateCycles.length === 0` throws an error). It never skips target verification.
+   - Rejects empty cycle collections, nonexistent targets, cross-team targets, self targets, and non-upcoming targets before any state changes occur.
+2. **Snapshot-Based WorkItem Rollback**:
+   - In `useCycles.js`, captured previous scheduling state snapshot (`previousWorkItemState = new Map(incomplete.map(item => [item.id, item.cycleId ?? null]))`).
+   - On mutation failure, restores each successfully mutated WorkItem to its exact previous scheduling snapshot, preserves untouched items, keeps the review modal open, and exposes the failure banner.
+3. **Verified Git Graph**:
+   - Verified exact relationship with `origin/main` (`cba2e009b4c23e7a6890655bec6dd07d743b8320`): 0 behind, clean merge-base, linear history.
+
+---
+
+## 4. Verification & Test Suite Results
 
 - **Unit & Integration Suite**:
-   - `src/__tests__/ui-05b-team-hub-cycles.test.jsx`: **35/35 tests passing** (expanded from 19 tests with 16 comprehensive integration scenarios).
+   - `src/__tests__/ui-05b-team-hub-cycles.test.jsx`: **36/36 tests passing** (expanded with strict rollover validation and sequential snapshot-based rollback tests).
 - **Full Repository Test Run**:
-   - `npm test`: **221/221 tests passing** across 12 test files (zero regressions, zero test loss).
+   - `npm test`: **222/222 tests passing** across 12 test files (zero regressions, zero test loss).
 - **Production Build**:
-   - `npm run build`: Succeeded in 5.54s without errors or bundle issues.
+   - `npm run build`: Succeeded in 10.30s without errors or bundle issues.

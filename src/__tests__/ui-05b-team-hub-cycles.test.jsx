@@ -216,11 +216,38 @@ describe('UI-05B: Team Hub & Core Cycles Domain & Components', () => {
         incompleteItems: incomplete,
         destination: ROLLOVER_DESTINATIONS.UPCOMING_CYCLE,
         nextCycleId: 'c-43',
+        availableCycles: upcoming,
       });
 
       expect(outcome.cycleUpdate.status).toBe('completed');
       expect(outcome.workItemUpdates[0].cycleId).toBe('c-43');
       expect(outcome.workItemUpdates[1].cycleId).toBe('c-43');
+    });
+
+    it('rejects upcoming cycle rollover when cycles collection is empty or missing target cycle', () => {
+      const incomplete = items.filter(i => i.status !== 'done');
+
+      // Empty collection
+      expect(() => {
+        executeCycleCompletion({
+          cycle,
+          incompleteItems: incomplete,
+          destination: ROLLOVER_DESTINATIONS.UPCOMING_CYCLE,
+          nextCycleId: 'missing-cycle',
+          availableCycles: [],
+        });
+      }).toThrow(/not found|required for validation/i);
+
+      // Missing from collection
+      expect(() => {
+        executeCycleCompletion({
+          cycle,
+          incompleteItems: incomplete,
+          destination: ROLLOVER_DESTINATIONS.UPCOMING_CYCLE,
+          nextCycleId: 'nonexistent-c',
+          availableCycles: upcoming,
+        });
+      }).toThrow(/not found/i);
     });
   });
 
@@ -669,6 +696,28 @@ describe('UI-05B: Team Hub & Core Cycles Domain & Components', () => {
         });
       }).toThrow(/requires an explicit nextCycleId/i);
 
+      // Empty authoritative cycles collection
+      expect(() => {
+        executeCycleCompletion({
+          cycle: activeCycle,
+          incompleteItems: incomplete,
+          destination: ROLLOVER_DESTINATIONS.UPCOMING_CYCLE,
+          nextCycleId: 'missing-cycle',
+          availableCycles: [],
+        });
+      }).toThrow(/not found|required for validation/i);
+
+      // Nonexistent target in non-empty cycles
+      expect(() => {
+        executeCycleCompletion({
+          cycle: activeCycle,
+          incompleteItems: incomplete,
+          destination: ROLLOVER_DESTINATIONS.UPCOMING_CYCLE,
+          nextCycleId: 'nonexistent-id',
+          availableCycles: testCycles,
+        });
+      }).toThrow(/not found/i);
+
       // Targeting cycle from different team
       expect(() => {
         executeCycleCompletion({
@@ -680,6 +729,20 @@ describe('UI-05B: Team Hub & Core Cycles Domain & Components', () => {
         });
       }).toThrow(/not current team/i);
 
+      // Targeting non-upcoming cycle of same team (e.g. if another cycle is somehow active or completed)
+      expect(() => {
+        executeCycleCompletion({
+          cycle: activeCycle,
+          incompleteItems: incomplete,
+          destination: ROLLOVER_DESTINATIONS.UPCOMING_CYCLE,
+          nextCycleId: 'c-alp-completed',
+          availableCycles: [
+            ...testCycles,
+            { id: 'c-alp-completed', teamId: 'team-alpha', status: 'completed' },
+          ],
+        });
+      }).toThrow(/not in "upcoming" status/i);
+
       // Targeting self
       expect(() => {
         executeCycleCompletion({
@@ -690,37 +753,72 @@ describe('UI-05B: Team Hub & Core Cycles Domain & Components', () => {
           availableCycles: testCycles,
         });
       }).toThrow(/into the cycle being completed/i);
+
+      // Valid upcoming cycle target passes
+      const validResult = executeCycleCompletion({
+        cycle: activeCycle,
+        incompleteItems: incomplete,
+        destination: ROLLOVER_DESTINATIONS.UPCOMING_CYCLE,
+        nextCycleId: 'c-alp-upcoming',
+        availableCycles: testCycles,
+      });
+      expect(validResult.workItemUpdates[0].cycleId).toBe('c-alp-upcoming');
     });
 
-    it('11. Mutation failure triggers rollback and keeps rollover review open with error', async () => {
-      const failingUpdate = vi.fn().mockRejectedValue(new Error('Network mutation failed'));
+    it('11. Mutation failure triggers snapshot-based rollback and keeps rollover review open with error', async () => {
+      // Test setup with multiple incomplete items to verify sequential snapshot restoration
+      const multiIncompleteItems = [
+        { id: 'wi-1', title: 'Active Incomplete 1', teamId: 'team-alpha', cycleId: 'c-alp-active', status: 'in_progress' },
+        { id: 'wi-new', title: 'Active Incomplete 2', teamId: 'team-alpha', cycleId: 'c-alp-active', status: 'todo' },
+        { id: 'wi-2', title: 'Active Done 2', teamId: 'team-alpha', cycleId: 'c-alp-active', status: 'done' },
+      ];
+
+      // wi-1 succeeds, wi-new rejects
+      const stepUpdate = vi.fn().mockImplementation((id, updates) => {
+        if (id === 'wi-1' && updates.cycleId === 'c-alp-upcoming') {
+          return Promise.resolve({ id, ...updates });
+        }
+        if (id === 'wi-new') {
+          return Promise.reject(new Error('Network mutation failed on item 2'));
+        }
+        return Promise.resolve({ id, ...updates });
+      });
 
       render(
         <TeamHub
           teamId="team-alpha"
           teamOverride={testTeam}
-          workItems={testWorkItems}
+          workItems={multiIncompleteItems}
           projects={testProjects}
           documents={testDocuments}
           users={testUsers}
           cycles={testCycles}
           activeTab="cycles"
           userRole="lead"
-          onUpdateWorkItem={failingUpdate}
+          onUpdateWorkItem={stepUpdate}
         />
       );
 
       fireEvent.click(screen.getByTestId('complete-cycle-btn'));
       expect(screen.getByText('Complete Alpha Cycle 1')).toBeDefined();
 
-      // Attempt to confirm
-      fireEvent.click(screen.getByText('Confirm & Complete Cycle'));
+      // Attempt to confirm (default is upcoming_cycle when nextCycle exists)
+      await act(async () => {
+        fireEvent.click(screen.getByText('Confirm & Complete Cycle'));
+      });
 
       // Modal must remain open and display failure banner
       await screen.findByTestId('rollover-error-banner');
-      expect(screen.getByText(/Network mutation failed/i)).toBeDefined();
+      expect(screen.getByText(/Network mutation failed on item 2/i)).toBeDefined();
 
-      // Cycle completion did NOT succeed
+      // Verify wi-1 was attempted with target cycle ('c-alp-upcoming') and then rolled back to its exact previous scheduling snapshot ('c-alp-active')
+      expect(stepUpdate).toHaveBeenCalledWith('wi-1', { cycleId: 'c-alp-upcoming' });
+      expect(stepUpdate).toHaveBeenCalledWith('wi-1', { cycleId: 'c-alp-active' });
+
+      // Untouched items after the failure were not mutated
+      expect(stepUpdate).not.toHaveBeenCalledWith('wi-2', expect.anything());
+
+      // Cycle completion did NOT succeed (Cycle modal still open)
       expect(screen.getByText('Complete Alpha Cycle 1')).toBeDefined();
     });
 

@@ -68,20 +68,22 @@ export function executeCycleCompletion({
       throw new Error('Upcoming Cycle rollover requires an explicit nextCycleId');
     }
 
-    if (candidateCycles && candidateCycles.length > 0) {
-      const targetCycle = candidateCycles.find((c) => c.id === nextCycleId);
-      if (!targetCycle) {
-        throw new Error(`Target upcoming cycle "${nextCycleId}" not found`);
-      }
-      if (targetCycle.teamId !== cycle.teamId) {
-        throw new Error(`Target upcoming cycle "${nextCycleId}" belongs to team "${targetCycle.teamId}", not current team "${cycle.teamId}"`);
-      }
-      if (targetCycle.id === cycle.id) {
-        throw new Error('Cannot roll over incomplete items into the cycle being completed');
-      }
-      if (targetCycle.status !== 'upcoming') {
-        throw new Error(`Target cycle "${nextCycleId}" is not in "upcoming" status (current status: "${targetCycle.status}")`);
-      }
+    if (!candidateCycles || candidateCycles.length === 0) {
+      throw new Error(`Target upcoming cycle "${nextCycleId}" not found. Authoritative cycles collection is required for validation.`);
+    }
+
+    const targetCycle = candidateCycles.find((c) => c.id === nextCycleId);
+    if (!targetCycle) {
+      throw new Error(`Target upcoming cycle "${nextCycleId}" not found`);
+    }
+    if (targetCycle.teamId !== cycle.teamId) {
+      throw new Error(`Target upcoming cycle "${nextCycleId}" belongs to team "${targetCycle.teamId}", not current team "${cycle.teamId}"`);
+    }
+    if (targetCycle.id === cycle.id) {
+      throw new Error('Cannot roll over incomplete items into the cycle being completed');
+    }
+    if (targetCycle.status !== 'upcoming') {
+      throw new Error(`Target cycle "${nextCycleId}" is not in "upcoming" status (current status: "${targetCycle.status}")`);
     }
 
     targetCycleId = nextCycleId;

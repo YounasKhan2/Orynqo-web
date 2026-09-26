@@ -161,8 +161,11 @@ export function useCycles({
         return;
       }
 
-      // Snapshot previous state for rollback on mutation failure
+      // Snapshot previous cycle and workItem scheduling states for deterministic rollback
       const previousCycles = cycles;
+      const previousWorkItemState = new Map(
+        incomplete.map((item) => [item.id, item.cycleId ?? null])
+      );
 
       // 1. Optimistically update local cycle state
       setLocalCycles((prev) =>
@@ -186,9 +189,10 @@ export function useCycles({
         // Rollback optimistic cycle state
         setLocalCycles(previousCycles);
 
-        // Attempt best-effort rollback of applied item mutations
+        // Restore each successfully mutated WorkItem to its exact previous scheduling snapshot
         appliedMutations.forEach(({ id }) => {
-          onUpdateWorkItem?.(id, { cycleId });
+          const originalCycleId = previousWorkItemState.get(id) ?? null;
+          onUpdateWorkItem?.(id, { cycleId: originalCycleId });
         });
 
         // Keep rollover review open with explicit error
