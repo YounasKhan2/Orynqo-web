@@ -5,7 +5,8 @@ import {
   CheckCircle2,
   Compass,
   FileText,
-  Bookmark
+  Bookmark,
+  FolderKanban
 } from 'lucide-react';
 import { Kbd } from '../../design-system';
 import { TEAMS } from '../../data/mockData';
@@ -247,6 +248,13 @@ export function Sidebar({
               isActive={effectiveScope === 'initiatives'}
               isCollapsed={isCollapsed}
               onClick={() => handleNavigate('initiatives')}
+            />
+            <SidebarItem
+              icon={FolderKanban}
+              label="Projects"
+              isActive={effectiveScope === 'projects' || effectiveScope === 'projects-directory'}
+              isCollapsed={isCollapsed}
+              onClick={() => handleNavigate('projects')}
             />
             <SidebarItem
               icon={FileText}

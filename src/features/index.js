@@ -6,3 +6,4 @@ export * from './inbox';
 export * from './teams';
 export * from './cycles';
 export * from './documents';
+export * from './projects';

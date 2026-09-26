@@ -21,8 +21,10 @@ import { useFavorites } from './hooks/useFavorites';
 import { useSidebarPreferences } from './hooks/useSidebarPreferences';
 import { CURRENT_USER, USERS, TEAMS, PROJECTS, WORKSPACES, CYCLES, LIVING_DOCUMENTS } from './data/mockData';
 import { INITIAL_CANONICAL_DOCUMENTS, INITIAL_DOCUMENT_COMMENTS } from './data/documentsMockData';
+import { INITIAL_CANONICAL_PROJECTS } from './data/projectsMockData';
 import { TeamHub } from './features/teams';
 import { DocsHub, DocumentCanvas } from './features/documents';
+import { ProjectWorkspace, ProjectsDirectory } from './features/projects';
 import {
   Kanban,
   Table,
@@ -67,7 +69,16 @@ function MainView({
   favoriteDocIds = [],
   onToggleDocFavorite,
   onOpenWorkItem,
-  onCreateWorkItemFromSelection
+  onCreateWorkItemFromSelection,
+  canonicalProjects = [],
+  activeProjectId,
+  onUpdateProject,
+  onArchiveProject,
+  onRestoreProject,
+  onCompleteProject,
+  onCreateProject,
+  favoriteProjectIds = [],
+  onToggleProjectFavorite
 }) {
   const {
     selectedItemId,
@@ -215,55 +226,68 @@ function MainView({
 
   if (activeScope === 'projects-directory') {
     return (
-      <div
-        role="region"
-        aria-label="Projects Directory"
-        style={{
-          padding: 'var(--space-6)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 'var(--space-4)',
-          width: '100%',
-          overflowY: 'auto'
-        }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)' }}>
-            Projects Directory (PRJ-007)
-          </h2>
-          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
-            Global index of active initiatives and cross-functional projects.
-          </p>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--space-3)' }}>
-          {PROJECTS.map((proj) => (
-            <div
-              key={proj.id}
-              onClick={() => onNavigate?.({ scope: 'projects', projectId: proj.id, tab: 'work' })}
-              style={{
-                padding: 'var(--space-3)',
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-md)',
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '6px'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <FolderKanban size={16} color="var(--primary-base)" />
-                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', color: 'var(--text-primary)' }}>
-                  {proj.name}
-                </span>
-              </div>
-              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                Teams: {(proj.teamIds || (proj.teamId ? [proj.teamId] : [])).join(', ')} • Target: {proj.targetDate}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
+      <ProjectsDirectory
+        projects={canonicalProjects}
+        workItems={canonicalWorkItems}
+        teams={TEAMS}
+        users={USERS}
+        onNavigateToProject={(id) => onNavigate?.({ scope: 'projects', projectId: id, tab: 'overview' })}
+        onOpenCreateProject={() => onCreateProject?.()}
+      />
+    );
+  }
+
+  if (activeScope === 'projects') {
+    if (activeProjectId) {
+      return (
+        <ProjectWorkspace
+          projectId={activeProjectId}
+          projects={canonicalProjects}
+          workItems={canonicalWorkItems}
+          documents={canonicalDocuments}
+          teams={TEAMS}
+          users={USERS}
+          activeTab={activeTab || 'overview'}
+          onTabChange={onTabChange}
+          onUpdateProject={onUpdateProject}
+          onArchiveProject={onArchiveProject}
+          onRestoreProject={onRestoreProject}
+          onCompleteProject={onCompleteProject}
+          onOpenWorkItem={onOpenWorkItem}
+          onNavigateToDoc={(id) => onNavigate?.({ scope: 'docs', docId: id })}
+          onCreateDocument={onCreateDocument}
+          selectedWorkItemId={selectedItemId}
+          onSelectItem={(item) => selectItem(item.id)}
+          onOpenInspector={(item) => {
+            selectItem(item.id);
+            setIsInspectorOpen(true);
+          }}
+          onCloseInspector={() => setIsInspectorOpen(false)}
+          isInspectorOpen={isInspectorOpen}
+          onUpdateWorkItem={updateItem}
+          density={density}
+          multiSelectedIds={multiSelectedIds}
+          onToggleMultiSelect={toggleMultiSelect}
+          onSelectAll={selectAll}
+          onClearSelection={clearSelection}
+          isKeyboardActive={!isOverlayActive}
+          onQuickCreate={() => setIsCreateModalOpen(true)}
+          userTimezone={userTimezone}
+          isFavorite={favoriteProjectIds.includes(activeProjectId)}
+          onToggleFavorite={() => onToggleProjectFavorite?.(activeProjectId)}
+        />
+      );
+    }
+
+    return (
+      <ProjectsDirectory
+        projects={canonicalProjects}
+        workItems={canonicalWorkItems}
+        teams={TEAMS}
+        users={USERS}
+        onNavigateToProject={(id) => onNavigate?.({ scope: 'projects', projectId: id, tab: 'overview' })}
+        onOpenCreateProject={() => onCreateProject?.()}
+      />
     );
   }
 
@@ -759,6 +783,96 @@ function OrynqoWorkspace() {
     }
   }, [createItem, updateItem, selectItem, setIsInspectorOpen, activeTeamId, activeProjectId]);
 
+  // Canonical Projects State (PRJ-001 - PRJ-007)
+  const [projects, setProjects] = useState(() => INITIAL_CANONICAL_PROJECTS);
+  const [favoriteProjectIds, setFavoriteProjectIds] = useState(() => ['proj-1']);
+
+  const handleUpdateProject = useCallback((projectId, updates, expectedVersion = null) => {
+    let succeeded = false;
+    setProjects((prev) => {
+      const current = prev.find((p) => p.id === projectId);
+      if (!current) return prev;
+
+      // Authoritative concurrency check: reject if expectedVersion is provided and stale
+      if (expectedVersion !== null && current.version > expectedVersion) {
+        succeeded = false;
+        return prev;
+      }
+
+      succeeded = true;
+      return prev.map((p) =>
+        p.id === projectId
+          ? {
+              ...p,
+              ...updates,
+              version: (current.version || 1) + 1,
+              updatedAt: new Date().toISOString()
+            }
+          : p
+      );
+    });
+    return succeeded;
+  }, []);
+
+  const handleArchiveProject = useCallback((projectId) => {
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === projectId
+          ? { ...p, archiveState: 'archived', updatedAt: new Date().toISOString() }
+          : p
+      )
+    );
+  }, []);
+
+  const handleRestoreProject = useCallback((projectId) => {
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === projectId
+          ? { ...p, archiveState: 'active', updatedAt: new Date().toISOString() }
+          : p
+      )
+    );
+  }, []);
+
+  const handleCompleteProject = useCallback((projectId) => {
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === projectId
+          ? { ...p, operationalState: 'completed', updatedAt: new Date().toISOString() }
+          : p
+      )
+    );
+  }, []);
+
+  const handleCreateProject = useCallback((input = {}) => {
+    const newProject = {
+      id: `proj-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      identifier: input.identifier || `PRJ-${Math.floor(100 + Math.random() * 900)}`,
+      workspaceId: currentWorkspace?.id || 'wks-core',
+      name: input.name || 'Untitled Project',
+      summary: input.summary || '',
+      operationalState: 'planned',
+      archiveState: 'active',
+      health: 'unset',
+      leadUserId: input.leadUserId || CURRENT_USER.id,
+      leadTeamId: input.leadTeamId || (activeScope === 'teams' && activeTeamId ? activeTeamId : null),
+      participatingTeamIds: input.participatingTeamIds || (activeScope === 'teams' && activeTeamId ? [activeTeamId] : []),
+      targetDate: input.targetDate || null,
+      version: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    setProjects((prev) => [...prev, newProject]);
+    navigate({ scope: 'projects', projectId: newProject.id, tab: 'overview' });
+    return newProject;
+  }, [currentWorkspace, activeScope, activeTeamId, navigate]);
+
+  const handleToggleProjectFavorite = useCallback((projectId) => {
+    setFavoriteProjectIds((prev) =>
+      prev.includes(projectId) ? prev.filter((id) => id !== projectId) : [...prev, projectId]
+    );
+  }, []);
+
   // Inbox State & Hooks
   const [inboxNotifications, setInboxNotifications] = useState(INITIAL_NOTIFICATIONS);
   const inboxPreferences = useInboxPreferences();
@@ -869,7 +983,8 @@ function OrynqoWorkspace() {
         { id: 'work', label: 'Work', icon: Table },
         { id: 'docs', label: 'Docs', icon: FileText },
         { id: 'milestones', label: 'Milestones' },
-        { id: 'activity', label: 'Activity' }
+        { id: 'activity', label: 'Activity' },
+        { id: 'settings', label: 'Settings' }
       ];
     }
 
@@ -948,6 +1063,15 @@ function OrynqoWorkspace() {
         const doc = documents.find((d) => d.id === activeDocId);
         list.push({ id: activeDocId, label: doc?.title || 'Document' });
       }
+    } else if (activeScope === 'projects') {
+      list.push({ id: 'projects', label: 'Projects', onClick: () => navigate({ scope: 'projects-directory' }) });
+      if (activeProjectId) {
+        const proj = projects.find((p) => p.id === activeProjectId);
+        list.push({ id: activeProjectId, label: proj?.name || 'Project' });
+        if (activeTab && activeTab !== 'overview') {
+          list.push({ id: activeTab, label: activeTab.charAt(0).toUpperCase() + activeTab.slice(1) });
+        }
+      }
     } else if (activeScope === 'views') {
       list.push({ id: 'views', label: 'Views' });
     } else if (activeScope === 'teams-directory') {
@@ -966,6 +1090,8 @@ function OrynqoWorkspace() {
     myWorkScope,
     activeDocId,
     documents,
+    activeProjectId,
+    projects,
     navigate,
     setActiveTeamId,
     setWorkspaceTeamId
@@ -1205,6 +1331,15 @@ function OrynqoWorkspace() {
           setIsInspectorOpen(true);
         }}
         onCreateWorkItemFromSelection={handleCreateWorkItemFromSelection}
+        canonicalProjects={projects}
+        activeProjectId={activeProjectId}
+        onUpdateProject={handleUpdateProject}
+        onArchiveProject={handleArchiveProject}
+        onRestoreProject={handleRestoreProject}
+        onCompleteProject={handleCompleteProject}
+        onCreateProject={handleCreateProject}
+        favoriteProjectIds={favoriteProjectIds}
+        onToggleProjectFavorite={handleToggleProjectFavorite}
       />
     </AppShell>
   );
