@@ -19,7 +19,8 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useNavigationState } from './hooks/useNavigationState';
 import { useFavorites } from './hooks/useFavorites';
 import { useSidebarPreferences } from './hooks/useSidebarPreferences';
-import { CURRENT_USER, TEAMS, PROJECTS, WORKSPACES } from './data/mockData';
+import { CURRENT_USER, USERS, TEAMS, PROJECTS, WORKSPACES, CYCLES, LIVING_DOCUMENTS } from './data/mockData';
+import { TeamHub } from './features/teams';
 import {
   Kanban,
   Table,
@@ -39,6 +40,8 @@ import {
 function MainView({
   activeScope,
   activeTab,
+  activeTeamId,
+  onTabChange,
   filteredItems,
   onNavigate,
   myWorkQuery,
@@ -113,6 +116,31 @@ function MainView({
         filtered={isMyWorkFiltered}
         onResetFilters={onResetFilters}
         userTimezone={userTimezone}
+      />
+    );
+  }
+
+  if (activeScope === 'teams') {
+    return (
+      <TeamHub
+        teamId={activeTeamId || 'team-core'}
+        workItems={canonicalWorkItems}
+        projects={PROJECTS}
+        documents={LIVING_DOCUMENTS}
+        users={USERS}
+        cycles={CYCLES}
+        activeTab={activeTab || 'overview'}
+        onTabChange={onTabChange || ((tab) => onNavigate?.({ scope: 'teams', teamId: activeTeamId || 'team-core', tab }))}
+        onUpdateWorkItem={updateItem}
+        onOpenQuickCreate={({ teamId }) => setIsCreateModalOpen(true)}
+        onSelectWorkItem={(id) => {
+          selectItem(id);
+          setIsInspectorOpen(true);
+        }}
+        selectedWorkItemId={selectedItemId}
+        onNavigateToProject={(id) => onNavigate?.({ scope: 'projects', projectId: id, tab: 'work' })}
+        onNavigateToDoc={(id) => onNavigate?.({ scope: 'docs', docId: id })}
+        userRole="lead"
       />
     );
   }
@@ -975,6 +1003,8 @@ function OrynqoWorkspace() {
       <MainView
         activeScope={activeScope}
         activeTab={activeTab}
+        activeTeamId={activeTeamId}
+        onTabChange={handleSelectTab}
         filteredItems={filteredItems}
         onNavigate={navigate}
         myWorkQuery={myWorkQuery}
