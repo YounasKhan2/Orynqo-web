@@ -183,6 +183,7 @@ export function useNavigationState({
       } else if (dest === 'docs' || dest === '/docs') {
         setActiveScope('docs');
         setActiveTab('all');
+        setActiveDocId(null);
       } else if (dest === 'views' || dest === '/views') {
         setActiveScope('views');
         setActiveTab('all');

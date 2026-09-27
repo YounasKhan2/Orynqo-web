@@ -20,7 +20,7 @@ export function ProjectDocsTab({
   // Filter canonical documents associated with this project exclusively via canonical associations
   const projectDocs = (documents || []).filter((doc) => {
     if (doc.lifecycle === 'archived') return false;
-    const docProjectIds = doc.projectIds || doc.contextAssociations?.projectIds || [];
+    const docProjectIds = doc.projectIds || [];
     return docProjectIds.includes(project?.id);
   });
 

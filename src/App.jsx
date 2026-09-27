@@ -96,7 +96,8 @@ function MainView({
   onCompleteProjectMilestone,
   onPostProjectUpdate,
   isProjectFavorite = () => false,
-  onToggleProjectFavorite
+  onToggleProjectFavorite,
+  isAccessible = () => true
 }) {
   const {
     selectedItemId,
@@ -251,6 +252,7 @@ function MainView({
         users={USERS}
         onNavigateToProject={(id) => onNavigate?.({ scope: 'projects', projectId: id, tab: 'overview' })}
         onOpenCreateProject={() => onCreateProject?.()}
+        isAccessible={isAccessible}
       />
     );
   }
@@ -303,6 +305,7 @@ function MainView({
           onArchiveMilestone={onArchiveProjectMilestone}
           onCompleteMilestone={onCompleteProjectMilestone}
           onPostUpdate={onPostProjectUpdate}
+          isAccessible={isAccessible}
         />
       );
     }
@@ -315,6 +318,7 @@ function MainView({
         users={USERS}
         onNavigateToProject={(id) => onNavigate?.({ scope: 'projects', projectId: id, tab: 'overview' })}
         onOpenCreateProject={() => onCreateProject?.()}
+        isAccessible={isAccessible}
       />
     );
   }
@@ -340,7 +344,7 @@ function MainView({
           documents={canonicalDocuments}
           workItems={canonicalWorkItems}
           users={USERS}
-          projects={PROJECTS}
+          projects={canonicalProjects}
           teams={TEAMS}
           comments={documentComments}
           favoriteDocIds={favoriteDocIds}
@@ -363,7 +367,7 @@ function MainView({
       <DocsHub
         documents={canonicalDocuments}
         teams={TEAMS}
-        projects={PROJECTS}
+        projects={canonicalProjects}
         currentUserId={CURRENT_USER.id}
         favoriteDocIds={favoriteDocIds}
         onToggleFavorite={onToggleDocFavorite}
@@ -517,7 +521,7 @@ function MainView({
  * Production Shell Orchestrator
  * Connects Domain Context, Presentation Preferences, Navigation Coordinates, and Overlays
  */
-function OrynqoWorkspace() {
+function OrynqoWorkspace({ initialProjects = null }) {
   const {
     items,
     activeTeamId: workspaceTeamId,
@@ -813,7 +817,7 @@ function OrynqoWorkspace() {
   }, [createItem, updateItem, selectItem, setIsInspectorOpen, activeTeamId, activeProjectId]);
 
   // Canonical Projects State (PRJ-001 - PRJ-007)
-  const [projects, setProjects] = useState(() => INITIAL_CANONICAL_PROJECTS);
+  const [projects, setProjects] = useState(() => initialProjects || INITIAL_CANONICAL_PROJECTS);
   const [projectDependencies, setProjectDependencies] = useState(() => INITIAL_PROJECT_DEPENDENCIES);
   const [projectMilestones, setProjectMilestones] = useState(() => INITIAL_PROJECT_MILESTONES);
   const [projectUpdates, setProjectUpdates] = useState(() => INITIAL_PROJECT_UPDATES);
@@ -843,9 +847,49 @@ function OrynqoWorkspace() {
     [isProjectFavorite, projects, removeFavorite, addFavorite]
   );
 
-  // Authoritative Project Dependency Mutations (enforcing cycle detection at boundary)
+  // Authoritative Project Dependency Mutations (enforcing workspace tenancy, zero-leakage access, permissions, and graph invariants)
   const handleAddProjectDependency = useCallback(
-    ({ blockerId, dependentId }) => {
+    ({ blockerId, dependentId, canManage = true, isAccessible = () => true }) => {
+      // 1. Permission check
+      if (!canManage) {
+        return {
+          valid: false,
+          error: 'Unauthorized: actor does not have permission to mutate dependency relationships.'
+        };
+      }
+
+      // 2. Existence check
+      const blocker = projects.find((p) => p.id === blockerId);
+      const dependent = projects.find((p) => p.id === dependentId);
+      if (!blocker || !dependent) {
+        return {
+          valid: false,
+          error: 'Project does not exist or access is restricted.'
+        };
+      }
+
+      // 3. Workspace tenancy check (Cross-workspace rejection)
+      const currentWkId = currentWorkspace?.id || 'wks-core';
+      const blockerWkId = blocker.workspaceId || 'wks-core';
+      const dependentWkId = dependent.workspaceId || 'wks-core';
+      if (blockerWkId !== currentWkId || dependentWkId !== currentWkId) {
+        return {
+          valid: false,
+          error: 'Cross-workspace dependencies are prohibited.'
+        };
+      }
+
+      // 4. Accessibility check (Zero-leakage: do not leak target details if restricted)
+      const blockerAccessible = !blocker.isRestricted && blocker.isAccessible !== false && isAccessible(blocker, 'project');
+      const dependentAccessible = !dependent.isRestricted && dependent.isAccessible !== false && isAccessible(dependent, 'project');
+      if (!blockerAccessible || !dependentAccessible) {
+        return {
+          valid: false,
+          error: 'Project does not exist or access is restricted.'
+        };
+      }
+
+      // 5. Graph invariant (self, duplicate, cycle)
       let result = { valid: false, error: 'Validation failed' };
       setProjectDependencies((prev) => {
         const validation = validateProjectDependency(blockerId, dependentId, prev);
@@ -865,7 +909,7 @@ function OrynqoWorkspace() {
       });
       return result;
     },
-    []
+    [projects, currentWorkspace]
   );
 
   const handleRemoveProjectDependency = useCallback((depIdOrEdge) => {
@@ -1493,6 +1537,12 @@ function OrynqoWorkspace() {
         onPostProjectUpdate={handlePostProjectUpdate}
         isProjectFavorite={isProjectFavorite}
         onToggleProjectFavorite={handleToggleProjectFavorite}
+        isAccessible={(entity, type) => {
+          if (!entity) return false;
+          if (entity.isRestricted || entity.restricted) return false;
+          if (entity.isAccessible === false) return false;
+          return true;
+        }}
       />
     </AppShell>
   );
@@ -1502,11 +1552,11 @@ function OrynqoWorkspace() {
  * Root Application Bootstrap
  * Provides context boundaries without logic bloat
  */
-export function App() {
+export function App({ initialItems, initialProjects = null }) {
   return (
     <UIProvider>
-      <WorkspaceProvider>
-        <OrynqoWorkspace />
+      <WorkspaceProvider initialItems={initialItems}>
+        <OrynqoWorkspace initialProjects={initialProjects} />
       </WorkspaceProvider>
     </UIProvider>
   );

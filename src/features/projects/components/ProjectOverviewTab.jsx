@@ -43,12 +43,13 @@ export function ProjectOverviewTab({
   onNavigateToTab,
   onNavigateToDoc,
   onNavigateToWorkItem,
-  onOpenUpdateModal
+  onOpenUpdateModal,
+  isAccessible = () => true
 }) {
   if (!project) return null;
 
-  // Compute transparent progress ratio
-  const progress = calculateProjectProgress(workItems);
+  // Compute transparent progress ratio with zero-leakage security filter
+  const progress = calculateProjectProgress(workItems, isAccessible);
   const participatingTeamIds = project.participatingTeamIds || project.teamIds || (project.teamId ? [project.teamId] : []);
   const leadTeamId = project.leadTeamId || (project.teamIds ? project.teamIds[0] : project.teamId);
 

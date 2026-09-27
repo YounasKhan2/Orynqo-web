@@ -46,7 +46,8 @@ export function ProjectSettingsTab({
   isConflict = false,
   saveState = 'Saved',
   canManageSettings = true,
-  canArchive = true
+  canArchive = true,
+  isAccessible = () => true
 }) {
   const [name, setName] = useState(project?.name || '');
   const [summary, setSummary] = useState(project?.summary || '');
@@ -118,7 +119,12 @@ export function ProjectSettingsTab({
       return;
     }
 
-    const res = onAddDependency?.({ blockerId: blockerProjectId, dependentId: project.id });
+    const res = onAddDependency?.({
+      blockerId: blockerProjectId,
+      dependentId: project.id,
+      canManage: canManageSettings,
+      isAccessible
+    });
     if (res && res.valid === false) {
       setDependencyError(res.error);
       return;
@@ -606,7 +612,14 @@ export function ProjectSettingsTab({
             >
               <option value="">Select project that blocks this project...</option>
               {allProjects
-                .filter((p) => p.id !== project?.id)
+                .filter(
+                  (p) =>
+                    p.id !== project?.id &&
+                    (!p.workspaceId || !project?.workspaceId || p.workspaceId === project?.workspaceId) &&
+                    !p.isRestricted &&
+                    p.isAccessible !== false &&
+                    isAccessible(p, 'project')
+                )
                 .map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name} ({p.identifier || p.key})

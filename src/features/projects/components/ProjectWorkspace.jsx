@@ -58,6 +58,7 @@ export function ProjectWorkspace({
   canEdit = true,
   canPostUpdate = true,
   canManage = true,
+  isAccessible = () => true,
   // Canonical State & Mutation Props
   dependencies: canonicalDependencies = [],
   milestones: canonicalMilestones = null,
@@ -141,7 +142,8 @@ export function ProjectWorkspace({
   const dependencies = useProjectDependencies({
     projectId,
     allProjects: projects,
-    dependencies: canonicalDependencies
+    dependencies: canonicalDependencies,
+    isAccessible
   });
 
   if (!project) {
@@ -206,13 +208,14 @@ export function ProjectWorkspace({
             teams={teams}
             workItems={workItems}
             milestones={milestones}
-            documents={documents}
+            documents={(documents || []).filter((doc) => doc.lifecycle !== 'archived' && (doc.projectIds || []).includes(project?.id))}
             latestUpdate={latestUpdate}
             dependencies={dependencies}
             onNavigateToTab={onTabChange}
             onNavigateToDoc={onNavigateToDoc}
             onNavigateToWorkItem={onOpenWorkItem}
             onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
+            isAccessible={isAccessible}
           />
         )}
 
@@ -285,6 +288,7 @@ export function ProjectWorkspace({
             saveState={saveState}
             canManageSettings={canManage}
             canArchive={canManage}
+            isAccessible={isAccessible}
           />
         )}
       </div>

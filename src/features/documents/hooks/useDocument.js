@@ -68,15 +68,6 @@ export function useDocument({
     }
   }, [canonicalDoc?.id, canonicalDoc?.version]);
 
-  // Clean up debounce timer
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, []);
-
   const draftTitleRef = useRef(draftTitle);
   const draftContentRef = useRef(draftContent);
 
@@ -139,6 +130,18 @@ export function useDocument({
       inFlightSaveRef.current = false;
     }
   }, [canonicalDoc, onUpdateDocument]);
+
+  // Clean up debounce timer and flush pending dirty edits on unmount (data-loss protection)
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        if (isDirtyRef.current) {
+          executeSave();
+        }
+      }
+    };
+  }, [executeSave]);
 
   // Continuous autosave scheduling
   const scheduleAutosave = useCallback(() => {

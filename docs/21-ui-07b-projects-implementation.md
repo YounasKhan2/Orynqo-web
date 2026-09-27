@@ -119,7 +119,7 @@ All 14 test suites in the repository are passing with **zero skips and zero fail
 
 | Suite | Status | Focus |
 |---|---|---|
-| `ui-07b-projects.test.jsx` | PASS (30/30) | Unit invariants (orthogonal states, lead team rules, team ownership preservation, transparent progress, zero-leakage progress, single-edge dependencies, directed BFS cycle rejection, milestone cardinality & non-destructive archive, immutable update snapshots) + Component rendering (PRJ-001, PRJ-006, PRJ-007) + Real Production-Path Integration Tests (Sidebar -> Directory -> Project, Project -> Work -> canonical WorkItem -> Inspector WRK-005, Project -> Docs -> canonical DOC-002 Document Canvas, stale-write concurrency conflict rejection, cycle rejection across navigation, project updates domain persistence, milestone navigation survival, team removal safety rejection, canonical useFavorites toggle, and creation/completion/archive lifecycle) |
+| `ui-07b-projects.test.jsx` | PASS (32/32) | Unit invariants (orthogonal states, lead team rules, team ownership preservation, transparent progress, zero-leakage progress, single-edge dependencies, directed BFS cycle rejection, milestone cardinality & non-destructive archive, immutable update snapshots) + Component rendering (PRJ-001, PRJ-006, PRJ-007) + Real Production-Path Integration Tests (Sidebar -> Directory -> Project, Project -> Work -> canonical WorkItem -> Inspector WRK-005, Project -> Docs -> canonical DOC-002 Document Canvas with continuous autosave & identity continuity across PRJ-003 and DOC-001, stale-write concurrency conflict rejection, cycle rejection across navigation, authoritative dependency mutation boundary rejection [cross-workspace, inaccessible target without leakage, unauthorized mutations, cycle checks leaving canonical state untouched], project updates domain persistence, milestone navigation survival, team removal safety rejection, canonical useFavorites toggle, rendered zero-leakage product path [PRJ-001 progress 1/2 (50%) and PRJ-007 directory exclusion], and creation/completion/archive lifecycle) |
 | `ui-01a-work-item-inspector.test.jsx` | PASS (16/16) | Canonical WorkItem inspector & detail presentation |
 | `ui-01b-high-density-grid.test.jsx` | PASS (27/27) | Universal DataGrid keyboard & selection mechanics |
 | `ui-01c-quick-create-pickers.test.jsx` | PASS (37/37) | Quick Create and Universal Property Pickers |
@@ -130,11 +130,34 @@ All 14 test suites in the repository are passing with **zero skips and zero fail
 | `ui-05b-team-hub-cycles.test.jsx` | PASS (36/36) | Team Hub, Cycle rollover, and execution |
 | `ui-06b-docs-knowledge.test.jsx` | PASS (45/45) | Canonical document hierarchy, canvas, and editor |
 | Other utility & algebra suites | PASS (20/20) | Filters, scopes, command palette, and workspace selection |
-| **Total** | **PASS (297/297)** | **14 test files, 100% green** |
+| **Total** | **PASS (299/299)** | **14 test files, 100% green** |
 
 ---
 
-## 6. Deliberate Deferrals (Post-Core)
+## 6. Implementation Correction Pass 01B (Integrity Hardening)
+
+Three bounded architectural corrections were applied and verified:
+1. **Document Association Invariant (Single Canonical Representation):**
+   - Eliminated legacy dual/fallback representations (`doc.contextAssociations?.projectIds`).
+   - Standardized exclusively on `doc.projectIds` (array of Project IDs on canonical Document).
+   - Contextual creation initializes `projectIds: [project.id]`.
+   - Verified canonical identity continuity across PRJ-003 Project Docs, DOC-002 Document Canvas, and DOC-001 global Docs Hub.
+2. **Rendered Zero-Leakage Product Path:**
+   - In `ProjectOverviewTab` and `ProjectsDirectory`, progress rollups pass the `isAccessible` authorization resolver.
+   - For a Project with 1 accessible completed item, 1 accessible active item, and 2 restricted active items, Project Overview renders progress transparently as `1 / 2` and `(50%)` without leaking the inaccessible items into the denominator.
+   - Restricted / inaccessible projects are strictly omitted from `ProjectsDirectory` (PRJ-007).
+3. **Authoritative Dependency Mutation Boundary:**
+   - Hardened `handleAddProjectDependency` in `App.jsx` to enforce:
+     - Existence check on source and target projects.
+     - Single workspace boundary check (`source.workspaceId === currentWorkspace.id && target.workspaceId === currentWorkspace.id`).
+     - Access control check (`!isRestricted && isAccessible !== false`) with zero metadata leakage upon rejection.
+     - Permission check (`canManage === true`).
+     - Directed graph invariants (no self-dependency, no duplicate edges, no cycles via BFS).
+   - Rejection leaves canonical state untouched without raising partial mutations.
+
+---
+
+## 7. Deliberate Deferrals (Post-Core)
 
 Per section 43 of the authorization, the following capabilities were deliberately excluded:
 - Project Templates

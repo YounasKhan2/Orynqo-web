@@ -344,7 +344,7 @@ export function ProjectsDirectory({
                 const leadUser = users.find((u) => u.id === (project.leadUserId || project.leadId));
                 const participatingTeamIds = project.participatingTeamIds || project.teamIds || (project.teamId ? [project.teamId] : []);
                 const projectItems = (workItems || []).filter((it) => it.projectId === project.id);
-                const progress = calculateProjectProgress(projectItems);
+                const progress = calculateProjectProgress(projectItems, isAccessible);
 
                 return (
                   <tr
