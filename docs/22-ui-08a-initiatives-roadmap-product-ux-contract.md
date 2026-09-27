@@ -1,8 +1,8 @@
 # UI-08A: Initiatives & Roadmap Product & UX Contract
 
-- **Document Version:** `1.0.0`
+- **Document Version:** `1.1.0`
 - **Surface Identifier:** `INT-001` (Initiatives Directory / Portfolio Primary Page), `INT-002` (Initiative Resource Page & Roadmap)
-- **Status:** **PHASE 1 PRODUCT ARCHITECTURE + UX CONTRACT — HUMAN REVIEW**
+- **Status:** **CORRECTION PASS 01A — HUMAN REVIEW**
 - **Base Git SHA:** `2368de3be1ee06cde2c9aae21362d43249354404`
 - **Branch:** `design/ui-08a-initiatives-roadmap-product-ux`
 - **Lineage:** `docs/06-complete-page-and-surface-registry.md` $\rightarrow$ `docs/10-ui-02a-application-shell-sidebar-contract.md` $\rightarrow$ `docs/12-ui-03a-my-work-product-ux-contract.md` $\rightarrow$ `docs/14-ui-04a-personal-inbox-product-ux-contract.md` $\rightarrow$ `docs/16-ui-05a-team-hub-product-ux-contract.md` $\rightarrow$ `docs/18-ui-06a-docs-knowledge-product-ux-contract.md` $\rightarrow$ `docs/20-ui-07a-projects-product-ux-contract.md` $\rightarrow$ `docs/22-ui-08a-initiatives-roadmap-product-ux-contract.md`
@@ -58,7 +58,7 @@ Observed Competitor Pattern
 | **Strategic Health** | Asana: Portfolio status updates with On Track, At Risk, Off Track.<br>Linear: Project updates rollup to Initiative updates.<br>Jira: Status categories derived from workflow states. | **Human-Curated Health + Transparent Supporting Signals:** Initiative lead curates health (`unset`, `on_track`, `at_risk`, `off_track`); UI displays objective risk signals (e.g., overdue projects). | *Rejected: Automated algorithmic health calculation.*<br>Algorithmic health scores generate false positives, mask nuance, and disincentivize transparent risk disclosure by teams. |
 | **Cross-Team Coordination** | Jira: Team field or board assignment.<br>Linear: Projects retain participating teams; Initiative rolls them up.<br>Monday: People/team columns with automations. | **Purely Derived Team Participation:** Initiative participating teams are the unique union of participating teams across associated Projects. | *Rejected: Independent Initiative-Team assignment.*<br>Creating a separate team assignment on Initiatives dissociates strategic planning from actual project execution commitments. |
 | **Initiative Dependencies** | Jira: Cross-project and cross-plan dependency lines with warning flags.<br>Asana: Dependency links between projects.<br>Linear: Project-level dependencies. | **Deferred to POST-CORE:** Core relies on canonical Project-level dependencies (`PRJ-006`); cross-Initiative dependencies deferred. | *Rejected: Forcing Initiative dependencies into CORE.*<br>95% of strategic blockers occur at the deliverable (Project/Milestone) level. Adding high-level initiative dependencies in CORE adds graph complexity without operational clarity. |
-| **Updates & Narrative** | Linear: Initiative Updates with narrative, health, and Slack notification.<br>Asana: Portfolio Status Updates with progress snapshots. | **Canonical Initiative Updates:** Historical, immutable narrative snapshots with health, target window, and highlights/blockers. | *Rejected: Ephemeral comment threads or unstructured wiki notes.*<br>Strategic stakeholders require an authoritative, chronological audit trail of executive updates. |
+| **Updates & Narrative** | Linear: Initiative Updates with narrative, health, and Slack notification.<br>Asana: Portfolio Status Updates with progress snapshots. | **Canonical Initiative Updates:** Historical, versioned narrative snapshots with health, target window, and highlights/blockers. | *Rejected: Ephemeral comment threads or unstructured wiki notes.*<br>Strategic stakeholders require an authoritative, chronological audit trail of executive updates. |
 | **Scalability & Large Portfolios** | Jira: Advanced Roadmaps notoriously suffers from browser slowdowns with >500 issues.<br>Linear: Fast virtualized roadmaps and grouped table views. | **High-Density Virtualized Surfaces:** Server-compatible cursor pagination, windowed timeline rendering, bounded date ranges, lazy-loaded sub-projects. | *Rejected: Client-side mega-context loading all workspace projects.*<br>Large enterprise workspaces have thousands of projects; directory and roadmap must operate on bounded, authorization-filtered queries. |
 
 ---
@@ -123,14 +123,14 @@ Initiative
 ├── associated Projects (canonical query projection of Projects where project.initiativeId == initiative.id)
 ├── derived participating Teams (unique set of participating teams across associated Projects)
 ├── Initiative Updates (chronological log of published strategic narrative updates)
-├── access policy (workspace-visible vs restricted access grants)
+├── access policy (workspace-discoverable / workspace-visible vs restricted access grants)
 └── derived activity (chronological stream of meaningful Initiative domain events)
 ```
 
 ### Invariants:
 1. **Workspace Tenancy:** Every Initiative belongs to exactly one Workspace. Cross-workspace initiatives are strictly prohibited in CORE.
 2. **Stable Reference:** Every Initiative possesses a unique, stable human-readable reference (e.g., `INT-12`) used for quick-switcher search, entity mentions (`@[initiative:ref:title]`), and URL routing.
-3. **Optimistic Concurrency:** All Initiative metadata mutations require optimistic revision validation (e.g., version token or integer) to prevent silent overwrite of concurrent edits.
+3. **Optimistic Concurrency Support:** All Initiative metadata mutations require optimistic revision validation (e.g., revision version token or integer) to prevent silent overwrite of concurrent edits.
 4. **Zero Duplicate Storage:** Associated projects are resolved via canonical Project foreign key (`project.initiativeId`) or relation table, never stored as cloned JSON blobs inside the Initiative record.
 
 ---
@@ -148,8 +148,8 @@ $$\text{Initiative} \rightarrow \text{Projects} = 0..N$$
   *"Project 'Mobile Checkout V2' is currently aligned with Initiative 'Q2 Mobile Polish'. Reassign it to 'Enterprise Expansion'?"*
 
 ### 5.2 Association & Dissociation Lifecycle
-- **Association:** Sets `project.initiativeId = initiative.id`. This operation is an authorized Project mutation delegating to the Project domain boundary.
-- **Dissociation:** Sets `project.initiativeId = null`. The Project becomes a standalone workspace project.
+- **Association Ownership:** Associating a Project to an Initiative mutates the Project-domain relationship (`project.initiativeId = initiative.id`). This operation delegates directly to the Authoritative Project Mutation Boundary. The Initiative does NOT maintain an independent mutable `projectIds[]` collection as a competing source of truth.
+- **Dissociation:** Setting `project.initiativeId = null` clears the relationship at the Project mutation boundary. The Project becomes a standalone workspace project.
 - **Project Archive / Completion:** If an associated Project is archived or completed, it remains associated with the Initiative for historical fidelity, but is visually distinguished in the portfolio and roadmap.
 - **Initiative Archive:** Archiving an Initiative does **NOT** archive or alter associated Projects; they remain active in the workspace and retain their association link for historical audits.
 
@@ -194,11 +194,11 @@ Unlike low-level tasks or projects that use `in_progress`, Initiatives represent
   - Count of associated Projects marked `at_risk` or `off_track`.
   - Count of associated Projects with overdue target dates.
   - Count of associated Projects with active blocker dependencies.
-  - Presence of stale Project Updates (>30 days since last update).
+  - Presence of stale Project Updates (per workspace/product freshness policy; default threshold tunable).
   > **INVARIANT:** Supporting signals inform the human lead; they NEVER automatically mutate or override the curated Initiative health.
 
 ### 6.4 Progress Semantics & Zero-Leakage Policy
-Initiative progress must avoid false mathematical certainty. Averaging arbitrary percentages across disparate projects is misleading. Orynqo exposes a **dual empirical metric**:
+Initiative progress consumes canonical Project and WorkItem inputs already frozen in UI-07 and UI-01. It does NOT independently invent a second definition of progress. Orynqo exposes a **dual empirical metric**:
 
 1. **Project Completion Ratio (Primary Milestone Metric):**
    $$\text{Project Progress} = \frac{\text{Completed Accessible Projects}}{\text{Total Active + Completed Accessible Projects}}$$
@@ -217,6 +217,7 @@ Initiative progress must avoid false mathematical certainty. Averaging arbitrary
   2. Project X's WorkItems are completely excluded from the aggregate item ratio.
   3. No metadata (title, dates, health) of Project X is exposed.
 - If an Initiative has zero accessible projects, progress displays: `No projects aligned` (never `0%` or `NaN`).
+- Estimate-weighted progress is deferred as POST-CORE; cross-team estimates cannot be assumed semantically comparable.
 
 ---
 
@@ -240,7 +241,7 @@ An Initiative's temporal horizon can be expressed in one of four structured form
 
 ---
 
-## 8. Canonical Initiative Updates
+## 8. Canonical Initiative Updates & Historical Integrity
 
 Asynchronous strategic alignment is driven by historical, published narrative updates.
 
@@ -252,7 +253,7 @@ Initiative Update
 ├── author (user handle of updater)
 ├── publishedAt (ISO timestamp)
 ├── narrative (rich text markdown: achievements, focus, strategic context)
-├── healthSnapshot ('on_track' | 'at_risk' | 'off_track')
+├── healthSnapshot ('unset' | 'on_track' | 'at_risk' | 'off_track')
 ├── horizonSnapshot (temporal horizon at time of update)
 ├── structuredHighlights (optional key milestones achieved)
 ├── structuredBlockers (optional major program-level risks)
@@ -260,9 +261,10 @@ Initiative Update
 ```
 
 ### 8.2 Operational & Mutation Rules
+- **Explicit Health Assessment:** Every published Initiative Update requires an explicit health assessment. While the parent Initiative supports `health: 'unset'` initially, an authored status update is a conscious health declaration; the snapshot must declare `on_track`, `at_risk`, or `off_track` (or explicitly preserve `unset` if the initiative remains in discovery).
 - **Health Synchronization:** Publishing an Initiative Update sets the parent Initiative's `health` to the update's `healthSnapshot`.
 - **Target Horizon Preservation:** Publishing an update snapshots the horizon for historical record, but does **NOT** silently mutate the Initiative's authoritative horizon. Changing the horizon remains an explicit mutation.
-- **Immutable History:** Published updates are historical records. Authors may edit typos within an implementation-tunable grace period (e.g., 30 minutes); thereafter, updates are permanently read-only.
+- **Historical Integrity & Versioned Corrections:** Published Initiative Updates preserve historical integrity. They cannot be silently mutated in place in a manner that erases history. A published Update may receive an explicit correction, but prior published content/versions remain historically recoverable. Alternatively, a superseding update is published.
 - **Zero Leakage in Updates:** Mentions of restricted projects or documents in update text must be sanitized or masked for unauthorized viewers.
 
 ---
@@ -309,7 +311,7 @@ $$\text{Sidebar (WHERE)} \rightarrow \text{Initiative Header (Identity \& Core S
 - Horizon picker (Quarter, Half, Date Range, Unscheduled).
 - Primary actions: `Post Update`, `Add Project`, `Favorite (★)`, `Settings / More (...)`.
 
-### 10.2 Resource Sub-Surfaces (Tabs)
+### 10.2 Exactly Five Canonical Resource Tabs
 To prevent navigation fragmentation while maintaining clear information hierarchy, `INT-002` freezes exactly **five** dedicated tabs:
 
 ```text
@@ -324,15 +326,26 @@ To prevent navigation fragmentation while maintaining clear information hierarch
 │               │ horizon and expandable Project timelines with milestone gates.   │
 │ 4. Updates    │ Chronological historical feed of all published strategic updates │
 │               │ with narrative, health snapshots, and author stamps.            │
-│ 5. Activity   │ Audit stream of canonical ActivityEvents (state changes, project │
+│ 5. Activity   │ Stream of canonical ActivityEvents (state changes, project       │
 │               │ additions/removals, horizon adjustments).                        │
 └───────────────┴──────────────────────────────────────────────────────────────────┘
 ```
 
 > **TAB JUSTIFICATION & EXCLUSIONS:**
-> - *Why no Docs tab?* Strategic docs associate with contributing Projects or exist in Docs Hub (`DOC-001`). Relevant charter documents link directly in the Overview narrative.
+> - *Why exactly five tabs?* Adding a sixth Settings tab is strictly avoided to preserve clean resource navigation.
+> - *Why no Docs tab?* Strategic living specs associate with contributing Projects or exist in Docs Hub (`DOC-001`). Relevant charter documents link directly in the Overview narrative.
 > - *Why no Work tab?* WorkItems belong to Teams and Projects. An Initiative is not an execution backlog; drilling into work occurs through the Projects tab.
-> - *Settings tab merged into progressive disclosure:* Archive, rename, and dissociation actions live in header action menus and Project tab rows, eliminating an empty settings tab.
+
+### 10.3 Initiative Management Surface (Progressive Disclosure)
+Configuration, authorization, and lifecycle management occur via a dedicated **Initiative Management Surface** invoked from the header's `More / Settings (...)` action. Its visual presentation (drawer, modal, or routed view) remains implementation-tunable.
+
+**Management Surface Responsibilities:**
+1. **Initiative Metadata Management:** Rename title, update strategic charter narrative, reassign ownership.
+2. **Access & Visibility Policy:** Manage access grants (`workspace-discoverable` vs `restricted` with explicit user/team member grants).
+3. **Horizon Configuration:** Detailed start/target horizon calibration.
+4. **Lifecycle & Danger Zone:**
+   - Mark Completed / Reopen.
+   - Archive Initiative / Restore Initiative.
 
 ---
 
@@ -344,7 +357,7 @@ The **Roadmap** is a **projection**, not a standalone domain entity. It synthesi
 $$\text{Roadmap} = \mathcal{P}(\text{Initiatives}, \text{Projects}, \text{Dependencies}, \text{Temporal Horizons}, \text{Viewer Permissions})$$
 
 ```text
-2026                       Q2 2026                    Q3 2026                    Q4 2026
+Timeline Horizon ──►               [Period 1]                 [Period 2]                 [Period 3]
 ---------------------------------------------------------------------------------------------------
 ▼ [INT-01] Enterprise Auth ═══════════════════════════════════════════════════════════════════►
   ├─ [PRJ-01] SAML 2.0 Engine      [====== M1 ====== M2 ======]
@@ -362,17 +375,20 @@ $$\text{Roadmap} = \mathcal{P}(\text{Initiatives}, \text{Projects}, \text{Depend
 - **Initiative Row (Parent):** Displays the Initiative horizon bar, overall health badge, and progress ratio. Clicking expands/collapses contributing Projects.
 - **Project Row (Child):** Displays the canonical Project timeline bar (`startDate` to `targetDate`), Project Lead Team badge, operational state, and Milestone markers.
 - **Milestone Markers:** Small milestone flags/dots positioned along the Project bar at their respective `targetDate`.
-- **Dependency Curves:** Visual connector lines between Projects indicating canonical `blocks` relationships (`Project A -> blocks -> Project B`).
+- **Canonical Project Dependencies Only:** Visual connector lines between Projects indicating canonical Project-level `blocks` relationships (`Project A -> blocks -> Project B`).
+  > **INVARIANT:** Roadmap dependency lines represent CANONICAL PROJECT DEPENDENCIES ONLY. There is no independent Initiative-level dependency state in CORE.
 - **Unaligned Projects Section:** An optional, collapsible bottom bucket for workspace projects not currently associated with any Initiative, facilitating drag-to-align planning.
 
 ### 11.3 Temporal Modes & Zoom Levels
-- **Quarter View (Default):** Shows 4 to 6 quarters (Months labeled within quarters).
-- **Month View:** Shows 6 to 12 months with bi-weekly grid lines.
-- **Year View:** High-level 2-to-3 year strategic horizon.
-- **Current Day Marker:** Prominent vertical indicator showing today's position across all timelines.
+- **Semantic Zoom Modes:** The roadmap supports discrete semantic planning views:
+  - `Month View`: Fine-grained schedule coordination.
+  - `Quarter View`: Standard multi-quarter executive roadmap.
+  - `Year View`: Multi-year strategic horizon.
+  *(The exact visible window, tick spacing, and column widths remain implementation-tunable).*
+- **Current Day / Period Marker:** Prominent vertical indicator showing today's position across all timelines.
 
 ### 11.4 Truthful Unscheduled Handling
-- **Unscheduled Initiative:** Appears in an expandable "Unscheduled Initiatives" drawer/section at the top or bottom of the roadmap with clear badge: `No horizon set`.
+- **Unscheduled Initiative:** Appears in an expandable "Unscheduled Initiatives" section at the top or bottom of the roadmap with clear badge: `No horizon set`.
 - **Unscheduled Project:** If an associated Project lacks start/target dates, it renders in an "Unscheduled Projects" tray under its parent Initiative:
   *"2 projects have no target dates [Schedule on Roadmap]"*.
 - **No Fabricated Timeline Placement:** Orynqo **NEVER** places unscheduled items at today's date or an arbitrary default date on the timeline.
@@ -395,15 +411,15 @@ Roadmap User Action
         │
         ├─ Associate Project to Init ──► Authoritative Project Mutation Boundary (set project.initiativeId)
         │
-        └─ Create Project Dependency ──► Authoritative Project Dependency Boundary (validate cycle & permissions)
+        └─ Create Project Dependency ──► Authoritative Project Dependency Mutation Boundary (validate cycle & permissions)
         │
         ▼
 Canonical State Updated & Re-projected to Roadmap View
 ```
 
 ### Invariants:
-1. **Delegated Project Mutation:** Dragging a Project bar's edge to change its target date directly calls `projectService.updateProject(projectId, { targetDate, version })`. If the user lacks `canEditProject`, the drag action is disabled.
-2. **Optimistic Concurrency & Rollback:** If a concurrent user modified the project remotely, the roadmap rejects the edit, reverts the visual bar to canonical position, and surfaces a conflict notification.
+1. **Delegated Project Mutation:** Dragging a Project bar's edge to change its target date directly invokes the Authoritative Project Mutation Boundary. If the user lacks `canEditProject`, the drag interaction is disabled.
+2. **Optimistic Concurrency & Rollback:** If a concurrent user modified the project remotely, the mutation boundary rejects the edit, the visual bar reverts to its canonical position, and a conflict notification is surfaced.
 3. **No Unintentional Cascades:** Rescheduling a Project does NOT automatically reschedule dependent projects; dependency violation badges are displayed instead, preserving intentional human scheduling.
 
 ---
@@ -421,15 +437,16 @@ Initiatives aggregate and surface objective risk signals derived from underlying
 │ 3. Target Mismatch       │ Associated Project targetDate > Initiative horizon end.     │
 │ 4. Blocked Projects      │ Project has unresolved incoming dependency ('isBlockedBy'). │
 │ 5. Overdue Deliverables  │ Project has active milestones with targetDate < today.      │
-│ 6. Stale Project Updates │ Associated Project has had no update published in >30 days. │
+│ 6. Stale Project Updates │ Associated Project update is stale per workspace freshness  │
+│                          │ policy (default policy threshold tunable).                  │
 └──────────────────────────┴─────────────────────────────────────────────────────────────┘
 ```
 
-These signals are displayed in the `Overview` tab and summarized in header risk indicators, empowering leads to address blockers proactively.
+These signals are displayed in the `Overview` tab and summarized in header risk indicators, empowering leads to address blockers proactively without overriding human health.
 
 ---
 
-## 14. Activity Integration
+## 14. Activity Integration vs Enterprise Audit
 
 Initiatives integrate natively with the canonical `ActivityEvent` stream:
 - `initiative.created`: Initiative initialized with title and horizon.
@@ -442,31 +459,46 @@ Initiatives integrate natively with the canonical `ActivityEvent` stream:
 - `initiative.update_published`: New strategic narrative update published.
 - `initiative.archived` / `initiative.restored`: Visibility state toggled.
 
-Activity events are query-projected inside `INT-002: Activity` and bubble up to global audit queries where authorized.
+> **CRITICAL SEMANTIC DISTINCTION:**
+> - **ActivityEvent = Product/Domain Activity History:** User-facing narrative of meaningful domain changes rendered in `INT-002: Activity` and personal feeds.
+> - **Enterprise Audit = Security & Governance Audit:** Low-level, immutable compliance log.
+> An Initiative ActivityEvent may participate in broader authorized product activity feeds, but does NOT substitute for enterprise audit evidence.
 
 ---
 
-## 15. Authorization & Zero-Leakage Invariants
+## 15. Authorization, Access Policy & Zero-Leakage Invariants
 
 Initiative security adheres to strict multi-tenant workspace authorization and pre-render filtering.
 
-### 15.1 Semantic Capabilities
+### 15.1 Access Policy Model
+Every Initiative defines an explicit `access policy`:
+- `workspace-discoverable / workspace-visible` (Default): All members of the Workspace can discover, view, and align projects to the initiative (subject to semantic capabilities).
+- `restricted`: Discoverable and accessible strictly to explicitly granted members or teams, plus workspace administrators.
+
+### 15.2 Semantic Capabilities
+Permissions are governed by semantic action capabilities rather than hardcoded role names:
 - `canViewInitiative`: Read access to initiative metadata, overview, updates, and roadmap.
 - `canCreateInitiative`: Permission to initialize a new initiative in the workspace.
 - `canEditInitiative`: Permission to update name, narrative, owner, horizon, and state.
 - `canManageInitiativeProjects`: Permission to link or unlink projects to/from this initiative.
 - `canPostInitiativeUpdate`: Permission to publish an authoritative Initiative Update.
+- `canManageInitiativeAccess`: Permission to modify access policy and grant/revoke access.
 - `canCompleteInitiative`: Permission to mark the initiative `completed` or `cancelled`.
 - `canArchiveInitiative`: Permission to archive or restore the initiative.
 
-### 15.2 Zero-Leakage Rules Across Projections
-1. **Restricted Projects Exclusion:** If a user lacks `canViewProject` for Project P:
+### 15.3 Zero-Leakage Rules & Visibility Independence
+1. **Initiative vs Project Visibility Independence:**
+   - Visibility of an Initiative does **NOT** grant visibility to its restricted Projects.
+   - Visibility of a Project does **NOT** grant visibility to a restricted Initiative.
+2. **Restricted Projects Exclusion:** If a viewing user lacks permission for Project P:
    - Project P is completely omitted from the Initiative's Projects tab.
    - Project P does not render on the Roadmap timeline.
    - Project P's WorkItems are omitted from the aggregate progress metric.
    - Project P's health is omitted from risk signal tallies.
    - Project P's participating teams are omitted from derived team rollups.
-2. **Restricted Initiative Exclusion:** If an Initiative is marked restricted, it is completely invisible in `INT-001` directory, global roadmaps, search results, and pickers for unauthorized workspace members.
+3. **Restricted Initiative Exclusion:** If an Initiative is `restricted` and the user lacks an authorized grant:
+   - It is completely invisible in `INT-001` directory, global roadmaps, search results, pickers, and Activity feeds.
+   - No metadata (title, reference, horizon) leaks through counts or filters.
 
 ---
 
@@ -496,7 +528,7 @@ Initiative security adheres to strict multi-tenant workspace authorization and p
 
 ### 17.1 Favorites Integration
 - Reuses the canonical `useFavorites` architecture (`FAV-001`).
-- Star button in `INT-002` header toggles favorite state for `entityType = 'initiative'`.
+- Star button in `INT-002` header toggles favorite state for `entityType = 'initiative'` via the Canonical Favorite Mutation Boundary.
 - Favorited initiatives appear in the global Sidebar under Favorites (`WHERE`).
 
 ### 17.2 Command Palette & Global Search (`CMD-001`)
@@ -505,83 +537,71 @@ Initiative security adheres to strict multi-tenant workspace authorization and p
   - `Initiatives: Open Roadmap` (Navigates to global Roadmap)
   - `Initiatives: Create Initiative` (Opens Quick Create modal)
   - `Initiatives: Post Update` (When viewing `INT-002`)
-- **Searchable Attributes:**
-  - Stable Reference (`INT-14`)
-  - Title & Description
-  - Owner name
+- **Searchable Attributes:** Stable Reference (`INT-14`), Title, Strategic Summary, and Owner.
 - Search queries execute pre-render permission filtering.
 
 ---
 
 ## 18. Responsive, Keyboard & Accessibility Semantics
 
-### 18.1 Responsive Viewport Adaptations
-- **Wide (>1280px):** Full dual-pane roadmap planning environment with sidebar and high-density timeline controls.
-- **Medium (768px - 1279px):** Overview switches to single-column card stack; roadmap enables horizontal scrolling with frozen initiative title column.
-- **Compact / Mobile (<768px):** Directory and Projects switch to mobile card list; Roadmap provides a simplified list-by-quarter view instead of an overflowing horizontal canvas.
+### 18.1 Responsive Semantic Modes
+- **Wide Mode:** Full dual-pane portfolio and interactive multi-quarter roadmap planning environment.
+- **Compact Mode:** Overview switches to single-column card stack; roadmap provides a horizontally scrollable timeline with frozen initiative identity header.
+- **Narrow Mode:** List-first Initiative navigation; roadmap transitions to an accessible, vertical quarter-by-quarter agenda list rather than an overflowing canvas.
+*(Exact viewport breakpoints in pixels remain implementation/design-system tunable).*
 
-### 18.2 Keyboard Interaction Model
-- `j` / `k` or `Up` / `Down`: Move selection through directory rows or roadmap bars.
-- `Enter`: Open focused Initiative or Project.
-- `c`: Trigger Quick Create (when in global or directory scope).
-- `[` / `]`: Collapse / Expand focused Initiative row on Roadmap.
-- `1` - `5`: Direct tab switching on `INT-002` (`1: Overview`, `2: Projects`, `3: Roadmap`, etc.).
-- Input Isolation: When typing inside inputs or search boxes, single-key navigation is strictly suppressed.
+### 18.2 Semantic Keyboard Interaction Model
+- `Move to next Initiative` / `Move to previous Initiative`
+- `Open focused resource`
+- `Create Initiative` (when in directory or global scope)
+- `Expand Initiative roadmap row` / `Collapse Initiative roadmap row`
+- `Switch Initiative resource tab` (1 through 5)
+- `Open Project`
+- `Open command palette`
+*(Physical keybindings are centralized and tunable under the global keyboard shortcut registry. Single-key shortcuts are strictly suppressed when focus is within editable controls).*
 
 ### 18.3 Accessibility & WCAG 2.2 AA Compliance
-- **Non-Color Indicators:** Health badges combine distinct shapes/icons with text labels (e.g., green check for on-track, amber triangle for at-risk, red octagon for off-track).
-- **Roadmap Screen-Reader Alternative:** The Roadmap table provides an accessible, hidden data table alternative detailing start dates, target quarters, and completion ratios.
-- **Focus Management:** Modal closes and drawer dismissals deterministically return focus to the invoking DOM trigger element.
+- **Non-Color Indicators:** Health badges combine distinct semantic icons and text labels (e.g. check for on-track, triangle for at-risk, octagon for off-track).
+- **Roadmap Screen-Reader Alternative:** The Roadmap surface provides an accessible, hidden structured data table alternative detailing start dates, target quarters, and completion ratios.
+- **Focus Management:** Dialog and drawer closures deterministically restore focus to the invoking DOM trigger element.
 
 ---
 
-## 19. Technology-Neutral Query Contracts
+## 19. Technology-Neutral Query Capabilities
 
-To ensure scalable backend integration, UI-08 defines seven technology-neutral query capabilities:
+The architecture defines seven technology-neutral query capabilities without freezing transport shapes or API envelopes:
 
-```text
-1. queryInitiatives(workspaceId, filters, sort, cursor, limit)
-   -> Returns paginated list of Initiatives with owner, state, health, horizon, and pre-computed project counts.
+1. **Initiatives Collection Query:** Returns paginated, workspace-scoped Initiatives matching state, health, owner, horizon, and search filters, with pre-computed accessible project counts.
+2. **Initiative Detail Query:** Returns canonical Initiative record with strategic charter narrative and user capability flags.
+3. **Initiative Projects Query:** Returns canonical Projects associated with the initiative (`project.initiativeId == initiative.id`), including lead teams and progress metrics.
+4. **Roadmap Projection Query:** Returns temporal intervals for Initiatives and Projects within a specified horizon range, along with canonical project dependency edges.
+5. **Initiative Updates Query:** Returns chronological feed of published InitiativeUpdates.
+6. **Initiative Activity Query:** Returns paginated ActivityEvents for the initiative.
+7. **Initiative Risk Signals Query:** Returns counts of at-risk, overdue, and blocked associated projects.
 
-2. getInitiativeDetail(initiativeId)
-   -> Returns canonical Initiative record with charter narrative and permission flags.
-
-3. queryInitiativeProjects(initiativeId, filters, sort)
-   -> Returns canonical Projects where project.initiativeId == initiativeId with lead team and progress.
-
-4. queryRoadmapProjection(workspaceId, horizonRange, filters)
-   -> Returns streaming/paginated Initiative and Project temporal intervals with dependency edges.
-
-5. queryInitiativeUpdates(initiativeId, limit)
-   -> Returns chronological list of published InitiativeUpdates.
-
-6. queryInitiativeActivity(initiativeId, cursor, limit)
-   -> Returns paginated ActivityEvents for the initiative.
-
-7. queryInitiativeRiskSignals(initiativeId)
-   -> Returns counts of at-risk, overdue, and blocked associated projects.
-```
+*All queries are workspace-scoped, authorization-aware, bounded, stable-sort compatible, and execute zero-leakage filtering prior to result projection.*
 
 ---
 
 ## 20. Mutation Ownership & Domain Delegation
 
-To prevent boundary corruption, mutation responsibilities are strictly partitioned:
+Mutation boundaries are strictly partitioned across domains:
 
 ```text
-┌───────────────────────────────────────────────┬────────────────────────────────────────────┐
-│ Mutation Operation                            │ Authoritative Owning Domain                │
-├───────────────────────────────────────────────┼────────────────────────────────────────────┤
-│ Create / Edit / Archive Initiative            │ Initiative Domain (`initiativeService`)    │
-│ Publish Initiative Update                     │ Initiative Domain (`initiativeService`)    │
-│ Set / Change Initiative Health                │ Initiative Domain (`initiativeService`)    │
-│ Set / Change Initiative Horizon               │ Initiative Domain (`initiativeService`)    │
-│ Associate / Dissociate Project to Initiative  │ Project Domain (`project.initiativeId`)    │
-│ Update Project Dates / Health / State         │ Project Domain (`projectService`)          │
-│ Create / Delete Project Dependency            │ Project Domain (`projectDependencyService`)│
-│ Mutate WorkItem Attributes                    │ WorkItem Domain (`workItemService`)        │
-│ Star / Favorite Initiative                    │ Favorite Domain (`favoriteService`)        │
-└───────────────────────────────────────────────┴────────────────────────────────────────────┘
+┌───────────────────────────────────────────────┬────────────────────────────────────────────────────────┐
+│ Mutation Operation                            │ Authoritative Owning Boundary                          │
+├───────────────────────────────────────────────┼────────────────────────────────────────────────────────┤
+│ Create / Edit / Archive Initiative            │ Authoritative Initiative Mutation Boundary             │
+│ Publish Initiative Update                     │ Authoritative Initiative Mutation Boundary             │
+│ Set / Change Initiative Health                │ Authoritative Initiative Mutation Boundary             │
+│ Set / Change Initiative Horizon               │ Authoritative Initiative Mutation Boundary             │
+│ Manage Initiative Access Policy               │ Authoritative Initiative Mutation Boundary             │
+│ Associate / Dissociate Project to Initiative  │ Authoritative Project Mutation Boundary                │
+│ Update Project Dates / Health / State         │ Authoritative Project Mutation Boundary                │
+│ Create / Delete Project Dependency            │ Authoritative Project Dependency Mutation Boundary     │
+│ Mutate WorkItem Attributes                    │ Authoritative WorkItem Mutation Boundary               │
+│ Star / Favorite Initiative                    │ Canonical Favorite Mutation Boundary                   │
+└───────────────────────────────────────────────┴────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -600,35 +620,27 @@ To prevent boundary corruption, mutation responsibilities are strictly partition
 
 ---
 
-## 22. Component Responsibilities (Conceptual)
+## 22. Conceptual Component Responsibilities
+
+Component responsibilities are defined conceptually without freezing file paths, extensions, or folder structures:
 
 ```text
-src/features/initiatives/
-├── components/
-│   ├── InitiativesDirectory.jsx     # INT-001 Portfolio table with filters & state facets
-│   ├── InitiativeWorkspace.jsx      # INT-002 Resource shell, header, tabs router
-│   ├── InitiativeOverviewTab.jsx    # Tab 1: Charter, health snapshot, risk signals, squad rollup
-│   ├── InitiativeProjectsTab.jsx    # Tab 2: High-density canonical project list & align action
-│   ├── InitiativeRoadmapTab.jsx     # Tab 3: Embedded multi-quarter roadmap projection
-│   ├── InitiativeUpdatesTab.jsx     # Tab 4: Historical narrative updates feed
-│   ├── InitiativeActivityTab.jsx    # Tab 5: Canonical ActivityEvent stream
-│   ├── InitiativeUpdateModal.jsx    # Modal for composing and publishing narrative updates
-│   ├── InitiativeHealthBadge.jsx    # Semantic accessible health badge
-│   ├── InitiativeProgressBar.jsx    # Transparent dual-metric progress component
-│   └── Roadmap/
-│       ├── RoadmapTimeline.jsx      # Multi-quarter virtualized canvas & header
-│       ├── RoadmapInitiativeRow.jsx # Expandable initiative bar
-│       ├── RoadmapProjectRow.jsx    # Nested project bar with milestones & lead team
-│       └── RoadmapDependencyLines.jsx # SVG connector curves for project blockers
-├── hooks/
-│   ├── useInitiative.js             # Single initiative query, draft preservation, optimistic lock
-│   ├── useInitiativesDirectoryQuery.js # Paginated, filtered directory query
-│   ├── useInitiativeProjectsQuery.js   # Associated projects query
-│   ├── useInitiativeUpdates.js      # Updates query and publish mutation
-│   └── useRoadmapQuery.js           # High-density temporal projection query
-└── model/
-    ├── initiativeModel.js           # Canonical invariants, state validation, progress rollups
-    └── initiativeUpdates.js         # Update snapshot normalization
+Initiatives Domain Conceptual Architecture
+├── Initiatives Directory (INT-001 discovery table, state/health facets, search, virtualization)
+├── Initiative Resource Shell (INT-002 container, header, stable reference, tab router)
+├── Initiative Overview (strategic cockpit, charter narrative, health, risk signals, squad rollup)
+├── Initiative Projects Projection (high-density list of canonical associated projects, align action)
+├── Initiative Roadmap Projection (multi-quarter visual timeline, expandable rows, current-day marker)
+├── Initiative Updates (chronological feed of historical narrative updates, author stamps)
+├── Initiative Activity (chronological stream of meaningful ActivityEvents)
+├── Initiative Management Surface (progressive disclosure for metadata, access policy, and lifecycle)
+├── Initiative Health Indicator (accessible non-color-only health badge)
+├── Initiative Progress Representation (dual empirical metrics: projects ratio + workitems ratio)
+├── Initiative Project Association Experience (search and align canonical projects with confirmation)
+├── Roadmap Temporal Header (scale markings: month, quarter, year, current date indicator)
+├── Roadmap Initiative Row (expandable initiative horizon bar and progress)
+├── Roadmap Project Row (nested canonical project timeline bar, milestones, lead team)
+└── Roadmap Dependency Projection (SVG connector curves for canonical project blocker edges)
 ```
 
 ---
@@ -637,7 +649,7 @@ src/features/initiatives/
 
 Enterprise workspaces contain hundreds of initiatives and thousands of projects spanning multiple years. The architecture guarantees high performance via:
 1. **Windowed / Virtualized Roadmap Rendering:** Only timeline rows and quarter intervals currently visible within the viewport are mounted into the DOM.
-2. **Bounded Temporal Queries:** Roadmap queries specify explicit time ranges (e.g. `2026-Q1` through `2027-Q2`), preventing queries from loading decades of historical data.
+2. **Bounded Temporal Queries:** Roadmap queries specify explicit time ranges, preventing queries from loading decades of historical data.
 3. **Pre-Render Authorization Pruning:** Inaccessible entities are excluded at the query/filter boundary, eliminating client-side DOM layout re-flows.
 4. **No Giant React Context:** Project execution updates do not trigger re-rendering of unrelated initiatives or roadmap rows.
 
@@ -660,7 +672,7 @@ Enterprise workspaces contain hundreds of initiatives and thousands of projects 
 │ High-Density Roadmap Projection (Expandable Rows, Zoom)     │ CORE (UI-08B)             │
 │ Interactive Roadmap Date Dragging (Delegated to Project)    │ CORE (UI-08B)             │
 │ Canonical Initiative Updates (Historical Snapshots)         │ CORE (UI-08B)             │
-│ Pre-Render Zero-Leakage Authorization                       │ CORE (UI-08B)             │
+│ Pre-Render Zero-Leakage Authorization & Access Policy       │ CORE (UI-08B)             │
 │ Non-Cascading Completion & Archive Lifecycle                │ CORE (UI-08B)             │
 │ Generic Favorites & Command Palette / Search Integration    │ CORE (UI-08B)             │
 │ ─────────────────────────────────────────────────────────── │ ───────────────────────── │
@@ -696,12 +708,15 @@ Enterprise workspaces contain hundreds of initiatives and thousands of projects 
 │ 7. Human-curated health with non-overriding objective risk signals.    │
 │ 8. Roadmap is a projection over canonical Initiatives and Projects.    │
 │ 9. Roadmap date adjustments delegate to Project mutation boundary.     │
-│ 10. Unscheduled items are never plotted at fabricated dates.           │
-│ 11. Canonical Initiative Updates are historical, immutable snapshots.  │
-│ 12. Pre-render zero-leakage security across all queries and views.     │
-│ 13. Completion and archive are strictly non-cascading.                 │
-│ 14. INT-001 and INT-002 (exactly 5 tabs) surface definitions.          │
-│ 15. Deferral of Goals, OKRs, AI, and Auto-Scheduling to FUTURE.        │
+│ 10. Roadmap dependency lines represent Project dependencies only.      │
+│ 11. Unscheduled items are never plotted at fabricated dates.           │
+│ 12. Canonical Initiative Updates preserve historical integrity.        │
+│ 13. Access policy supports workspace-visible vs restricted with grants.│
+│ 14. Pre-render zero-leakage security across all queries and views.     │
+│ 15. Completion and archive are strictly non-cascading.                 │
+│ 16. INT-001 and INT-002 (exactly 5 tabs) surface definitions.          │
+│ 17. Initiative Management Surface for progressive disclosure.          │
+│ 18. Deferral of Goals, OKRs, AI, and Auto-Scheduling to FUTURE.        │
 └────────────────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -717,6 +732,8 @@ Enterprise workspaces contain hundreds of initiatives and thousands of projects 
 │ 8. Client-side caching and state store implementations.                │
 │ 9. Exact SVG bezier curves for roadmap dependency connector lines.     │
 │ 10. Filenames, folder structure, and helper function naming.           │
+│ 11. Stale project update threshold policy duration (e.g. 30 days).     │
+│ 12. Management surface container type (drawer, modal, or routed view). │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -742,22 +759,38 @@ Enterprise workspaces contain hundreds of initiatives and thousands of projects 
 ## 27. Acceptance Criteria for UI-08B Implementation
 
 When UI-08B is authorized, implementation must strictly prove:
-1. **Canonical Association:** Associating a Project sets `project.initiativeId`; the Initiative accesses canonical project state without cloning records.
-2. **0..1 Invariant:** A Project cannot belong to multiple Initiatives; reassigning requires explicit confirmation.
-3. **Non-Mutating Association:** Adding or removing a Project leaves Project teams, milestones, work items, and documents 100% intact.
-4. **Derived Teams:** Initiative participating squads are derived dynamically as the unique union of participating teams across associated projects.
-5. **Human Health + Risk Signals:** Changing project risks updates supporting signal badges but does not silently mutate Initiative health.
-6. **Dual Progress Metrics:** Displays both Shipped Projects ratio and Aggregate WorkItem ratio with explicit numerators and denominators.
-7. **Zero-Leakage Security:** Inaccessible projects and work items are completely excluded from counts, progress denominators, roadmap rows, and risk tallies.
-8. **Roadmap Projection:** Renders hierarchical timeline of Initiatives and Projects with correct quarter intervals, current-day indicator, and dependency lines.
-9. **Delegated Roadmap Mutation:** Rescheduling a Project on the roadmap invokes the Project domain mutation boundary and handles optimistic concurrency conflicts cleanly.
-10. **Truthful Unscheduled States:** Unscheduled initiatives and projects render in dedicated trays, never placed at fabricated timeline dates.
-11. **Historical Updates:** Published Initiative Updates persist as immutable historical snapshots with author, timestamp, narrative, and health snapshot.
-12. **Non-Cascading Lifecycle:** Completing or archiving an Initiative preserves underlying Projects in their active states.
-13. **Generic Integration:** Favorites use `useFavorites`; activity events use `ActivityEvent`; global search finds initiatives by reference and title.
-14. **Test Suite Integrity:** All existing 299 tests across 14 test suites remain 100% green; comprehensive new tests cover INT-001, INT-002, and Roadmap invariants.
-15. **Scope Boundary:** POST-CORE capabilities (custom fields, budget, auto-scheduling) and FUTURE Goals (`INT-003`) remain completely absent.
+1. **Canonical Initiative Model:** Renders workspace-scoped Initiative with identity, title, charter narrative, owner, state, health, horizon, and access policy.
+2. **Canonical Project 0..1 Association:** Associating a Project sets `project.initiativeId`; the Initiative accesses canonical project state without cloning records.
+3. **No Duplicate Initiative-Side Project Collection:** Initiative query reprojects canonical Project-side relationship; Initiative maintains no duplicate mutable `projectIds[]` state.
+4. **Project Reassignment Confirmation:** Reassigning a Project from another Initiative requires explicit user confirmation.
+5. **Non-Mutating Association:** Adding or removing a Project leaves Project teams, milestones, work items, and documents 100% intact.
+6. **Derived Teams:** Initiative participating squads are derived dynamically as the unique union of participating teams across associated projects.
+7. **Human-Curated Initiative Health:** Curated health (`unset`, `on_track`, `at_risk`, `off_track`) is set by authorized users and persists in canonical state.
+8. **Supporting Risk Signals Non-Overriding:** Objective risk signals update dynamically based on project health/dates/blockers but never silently mutate Initiative health.
+9. **Dual Transparent Progress:** Displays both Shipped Projects ratio and Aggregate WorkItem ratio with explicit numerators and denominators.
+10. **Rendered Zero-Leakage Progress:** Inaccessible projects and work items are completely excluded from progress numerators, denominators, and badges.
+11. **Restricted Initiative Exclusion:** Restricted initiatives are completely omitted from directory listings, global roadmaps, search results, and pickers for unauthorized users.
+12. **Independently Restricted Project Exclusion:** An inaccessible project associated with a visible initiative is completely omitted from the initiative's projects list, roadmap, and risk tallies.
+13. **Initiative Access Management:** Access policy (`workspace-discoverable` vs `restricted`) is manageable via semantic capability `canManageInitiativeAccess` on the management surface.
+14. **Roadmap Canonical Temporal Projection:** Renders hierarchical timeline of Initiatives and Projects with correct semantic zoom modes (Month, Quarter, Year), current-period marker, and milestone gates.
+15. **Truthful Unscheduled States:** Unscheduled initiatives and projects render in dedicated trays, never placed at fabricated timeline dates.
+16. **Delegated Project Rescheduling:** Rescheduling a Project on the roadmap invokes the Authoritative Project Mutation Boundary and handles optimistic concurrency conflicts cleanly.
+17. **Delegated Project Association:** Aligning a Project on the roadmap or directory invokes the Authoritative Project Mutation Boundary.
+18. **Delegated Project Dependency Interaction:** Roadmap dependency curves reflect canonical Project dependencies; creating dependencies invokes the Authoritative Project Dependency Mutation Boundary.
+19. **No Initiative Dependency State:** No independent Initiative-level dependency model or storage is created in CORE.
+20. **Historical Initiative Update Integrity:** Published Initiative Updates persist as versioned historical snapshots; prior published content remains historically recoverable.
+21. **Explicit Update Health Semantics:** Publishing an update snapshots an explicit declared health assessment and synchronizes parent Initiative health.
+22. **Non-Cascading Completion:** Completing an Initiative transitions its state to `completed` with incomplete-projects confirmation, leaving underlying projects active.
+23. **Non-Cascading Archive/Restore:** Archiving an Initiative transitions its state to `archived`, leaving underlying projects active and accessible.
+24. **Generic Favorite Reuse:** Starring an Initiative invokes the Canonical Favorite Mutation Boundary (`useFavorites`) without creating initiative-specific favorite storage.
+25. **Canonical ActivityEvent Reuse:** Meaningful initiative domain events emit `ActivityEvent` items and render in the Activity tab without implying enterprise audit logging.
+26. **Stale Write Protection:** Optimistic concurrency validation on Initiative mutations rejects stale writes, preserves local drafts, and surfaces conflict states.
+27. **Responsive Semantic Modes:** Adapts cleanly across Wide, Compact, and Narrow semantic modes.
+28. **Centralized Keyboard Scope:** Semantic keyboard commands operate correctly and single-key navigation is isolated when typing inside editable controls.
+29. **Accessibility Compliance:** Non-color health indicators, screen-reader data alternatives for roadmap timelines, and deterministic focus restoration meet WCAG 2.2 AA.
+30. **Scope Boundary Enforcement:** POST-CORE capabilities (custom fields, budget, auto-scheduling) and FUTURE Goals (`INT-003`) remain completely absent.
+31. **Full Frozen-Suite Regression Stability:** All existing 299 tests across 14 test suites remain 100% green without modification.
 
 ---
 
-# HUMAN REVIEW — UI-08A INITIATIVES & ROADMAP CONTRACT
+# HUMAN REVIEW — UI-08A CONTRACT CORRECTION PASS 01A
