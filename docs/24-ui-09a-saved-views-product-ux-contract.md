@@ -1,8 +1,8 @@
 # UI-09A: Saved Views Product & UX Contract
 
-- **Document Version:** `1.0.0`
+- **Document Version:** `1.1.0`
 - **Surface Identifiers:** `VEW-001` (Saved Views Directory / Management Surface), `VEW-002` (Saved View Detail / Execution Surface)
-- **Status:** **FROZEN DESIGN SPECIFICATION — READY FOR HUMAN REVIEW**
+- **Status:** **CORRECTED — READY FOR HUMAN REVIEW**
 - **Base Git SHA:** `6e77269b8c5f3a7a8cd7349f70ffe0e8180d6194`
 - **Branch:** `design/ui-09a-saved-views-product-ux`
 - **Lineage:** `docs/06-complete-page-and-surface-registry.md` $\rightarrow$ `docs/10-ui-02a-application-shell-sidebar-contract.md` $\rightarrow$ `docs/12-ui-03a-my-work-product-ux-contract.md` $\rightarrow$ `docs/14-ui-04a-personal-inbox-product-ux-contract.md` $\rightarrow$ `docs/16-ui-05a-team-hub-product-ux-contract.md` $\rightarrow$ `docs/18-ui-06a-docs-knowledge-product-ux-contract.md` $\rightarrow$ `docs/20-ui-07a-projects-product-ux-contract.md` $\rightarrow$ `docs/22-ui-08a-initiatives-roadmap-product-ux-contract.md` $\rightarrow$ `docs/24-ui-09a-saved-views-product-ux-contract.md`
@@ -27,15 +27,15 @@ $$\text{Saved View} = \text{Stored Projection Definition over Canonical Domain S
 │       ▼                                                                │
 │  SECURITY & AUTHORIZATION BOUNDARY (Zero-Leakage Enforcement)          │
 │  - Workspace Tenancy Isolation                                         │
-│  - Restricted Resource Exclusion (Pre-Projection Filtering)            │
+│  - Restricted Resource Exclusion (Early Authoritative Filtering)       │
 │       │                                                                │
 │       ▼                                                                │
 │  SAVED VIEW ENGINE (Stored Projection Configuration)                   │
 │  - Compound Query Definition (AND / OR / NOT Algebra)                  │
 │  - Multi-Criteria Sorting Rules                                        │
 │  - Grouping Hierarchy Dimension                                        │
-│  - Visible Fields & Column Sizing Configuration                        │
-│  - Active Projection Lens (Grid | Board | Timeline)                    │
+│  - Shared Visible Fields & Presentation Defaults                       │
+│  - Active Projection Lens (Compatible with Target Resource)            │
 │       │                                                                │
 │       ▼                                                                │
 │  CANONICAL PROJECTION SURFACES (Reused, Unforked UI Layers)            │
@@ -43,15 +43,16 @@ $$\text{Saved View} = \text{Stored Projection Definition over Canonical Domain S
 │       │                                                                │
 │       ▼                                                                │
 │  CANONICAL INSPECTION & MUTATION                                       │
-│  [ WRK-005 Inspector ] ──(Delegates)──► Canonical Domain Boundaries    │
+│  - WorkItems: WRK-005 Inspector ──(Delegates)──► updateWorkItem        │
+│  - Projects/Initiatives: Canonical detail surfaces & mutation boundary │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 1.1 What a Saved View IS
 1. **A Stored Projection Definition:** A lightweight configuration record storing query expressions, sorting criteria, grouping definitions, column visibility, and projection types.
 2. **A Reusable Lens Across Contexts:** Can originate from Workspace, Team, Project, or Personal contexts to provide tailored operational visibility.
-3. **Strictly Permission-Safe:** Acts strictly after canonical authorization checks. Matches against inaccessible entities are excluded before calculation, rendering, grouping, or counting.
-4. **An Unforked Consumer of Existing Projections:** Directly drives the frozen execution core—`WRK-001` (High-Density Grid), `WRK-002` (Kanban Board), and `WRK-003` (Timeline)—without duplicating visual components or mutation logic.
+3. **Strictly Permission-Safe:** Acts strictly upon authorized data. Matches against inaccessible entities are excluded before calculation, rendering, grouping, or counting.
+4. **An Unforked Consumer of Existing Projections:** Directly drives the frozen execution core—`WRK-001` (High-Density Grid), `WRK-002` (Kanban Board), and `WRK-003` (Timeline)—where supported by resource semantics, without duplicating visual components or mutation logic.
 5. **Collaboratively Governed with Explicit Mutation Semantics:** Clearly distinguishes temporary ad-hoc filter exploration from persisted view updates via explicit Save, Revert, and Save As workflows.
 
 ### 1.2 What a Saved View IS NOT
@@ -59,7 +60,7 @@ $$\text{Saved View} = \text{Stored Projection Definition over Canonical Domain S
 2. **NOT a Project, Team, or Initiative:** It owns no lifecycle, has no members or delivery milestones, and cannot be assigned work items.
 3. **NOT a Data Cache or Historical Snapshot:** A Saved View always queries live canonical state; it is not a point-in-time database snapshot.
 4. **NOT an Authorization Bypass:** A user cannot view or discover restricted work items, projects, or initiatives simply because a shared view's query matches them.
-5. **NOT an Independent Mutation Boundary:** Editing a work item within a view delegates directly to the canonical WorkItem mutation boundary (`updateWorkItem`).
+5. **NOT an Independent Mutation Boundary:** Editing an entity within a view delegates directly to the canonical domain mutation boundary (`updateWorkItem`, `applyProjectUpdate`, etc.).
 
 ---
 
@@ -72,10 +73,10 @@ To establish a standard that matches and exceeds modern enterprise products, we 
 | **View Definition vs Entity Containment** | **Linear:** Views are pure search filters (`Custom Views`).<br>**Jira:** Filter queries (JQL) save views/boards.<br>**ClickUp/Monday:** Confusing mix where views sometimes act as folders containing tasks. | **Pure Stored Projection Definition:** Views store query parameters; entities are queried dynamically. | *Rejected: Containment model.* Treating views as item containers creates multi-homing bugs, circular hierarchies, and desynchronized records. |
 | **Filter Composition & Algebra** | **Linear:** Multi-filter bar with implicit AND and limited OR.<br>**Jira:** JQL provides complete boolean algebra (AND, OR, NOT, nested parentheses).<br>**Notion:** Compound filter groups (Any / All) with nested rules. | **Visual Compound Filter Algebra:** Recursive filter trees supporting `AND`, `OR`, and nested rule groups with field-specific operators. | *Rejected: Flat single-level filter bars.* Enterprise teams require compound logic (e.g., `(Team = Platform OR Team = Infra) AND Status = In Progress`). Text-only JQL rejected for standard UI as non-visual. |
 | **View Editing & Dirty State** | **Linear:** Automatically modifies view or prompts save banner.<br>**Asana:** Prompts "Save for everyone" button when view options change.<br>**Monday:** Auto-saves shared board views, leading to accidental team disruptions. | **Explicit Save / Revert / Save As with Visual Dirty Indicator:** Temporary adjustments remain local until explicitly saved or discarded. | *Rejected: Silent auto-save on shared views.* Auto-saving modifies shared organizational definitions without consent, breaking peer workflows. |
-| **Personal vs Shared Discovery** | **Linear:** Personal custom views vs Workspace custom views.<br>**Jira:** Filter ownership with private, project, or group sharing.<br>**Asana:** Public to team vs private to creator. | **Three Semantic Scopes:**<br>1. *Personal:* Visible only to owner.<br>2. *Team Context:* Discoverable by authorized team members.<br>3. *Shared Workspace:* Discoverable across workspace. | *Rejected: Binary private/public.* Complex multi-team organizations need squad-scoped views that do not clutter the global workspace directory. |
-| **Projection Coupling** | **ClickUp:** Each view type (List, Board, Gantt) is an independent tab with separate settings.<br>**Linear:** Switch view projection between List and Board seamlessly.<br>**Notion:** Switch layout while sharing the underlying database filter. | **Decoupled Projection Lens:** A Saved View stores a preferred projection (`grid`, `board`, `timeline`), but users can switch projection on-the-fly while retaining query state. | *Rejected: Siloed view engines per projection type.* Forces duplicate filter configuration across grid and board views. |
-| **Stale Reference Degradation** | **Jira:** JQL fails catastrophically or breaks silently if a custom field or project key is deleted.<br>**Linear:** Gracefully flags missing labels or removed assignees. | **Graceful Visual Degradation:** Deleted/inaccessible entities render as non-broadening `[Unavailable Reference]` tokens. | *Rejected: Silent broadening.* Never reinterpret `Project = Apollo` as `All Projects` when Apollo is deleted or restricted. |
-| **Access Control & Concurrency** | **Linear:** Workspace members can edit workspace views.<br>**Jira:** Granular edit permissions on shared filters.<br>**Monday:** Board owners vs board viewers. | **Capability-Driven Management + Optimistic Concurrency:** Versioned revisions (`N -> N+1`) block concurrent stale overwrites and preserve local drafts. | *Rejected: Last-write-wins.* Overwriting concurrent filter configurations destroys peer work silently. |
+| **Personal vs Shared Discovery** | **Linear:** Personal custom views vs Workspace custom views.<br>**Jira:** Filter ownership with private, project, or group sharing.<br>**Asana:** Public to team vs private to creator. | **Three Semantic Scopes:**<br>1. *Private:* Visible only to owner.<br>2. *Team Context:* Discoverable via canonical Team authorization.<br>3. *Shared Workspace:* Discoverable across workspace. | *Rejected: Binary private/public.* Complex multi-team organizations need squad-scoped views that do not clutter the global workspace directory. |
+| **Projection Coupling** | **ClickUp:** Each view type (List, Board, Gantt) is an independent tab with separate settings.<br>**Linear:** Switch view projection between List and Board seamlessly.<br>**Notion:** Switch layout while sharing the underlying database filter. | **Decoupled Projection Lens:** A Saved View stores a preferred projection, but users can switch projection on-the-fly while retaining query state. | *Rejected: Siloed view engines per projection type.* Forces duplicate filter configuration across grid and board views. |
+| **Stale Reference Degradation** | **Jira:** JQL fails catastrophically or breaks silently if a custom field or project key is deleted.<br>**Linear:** Gracefully flags missing labels or removed assignees. | **Fail-Closed Non-Broadening Degradation:** Invalid/unresolved predicates fail closed for the affected branch and never broaden query results. | *Rejected: Silent broadening.* Never drop an invalid condition or turn it into a no-op that broadens matches (e.g., `Status = Active AND [Deleted] = X` must not become `Status = Active`). |
+| **Access Control & Concurrency** | **Linear:** Workspace members can edit workspace views.<br>**Jira:** Granular edit permissions on shared filters.<br>**Monday:** Board owners vs board viewers. | **Capability-Driven Management + Optimistic Concurrency:** Versioned revisions (`N -> N+1`) block concurrent stale overwrites without blind force-writes. | *Rejected: Last-write-wins.* Overwriting concurrent filter configurations destroys peer work silently. |
 
 ---
 
@@ -92,19 +93,26 @@ QueriedResults := Render(SavedView, Authorize(CanonicalStore))
 ```
 
 ### 3.2 The Zero-Leakage Authorization Law
-A Saved View operates strictly downstream of the canonical authorization boundary. If a view contains a filter `Project = 'Alpha'` or `assigneeId = 'USR-99'`, and the current user lacks read permission to Project Alpha:
-1. Canonical resources belonging to Project Alpha are filtered out before reaching projection or aggregation algorithms.
+Only authorized resources may enter projection, aggregation, grouping, counting, or rendering:
+1. Authorization is enforced as early as practical within authoritative query/data boundaries, without requiring materialization of inaccessible records.
 2. Result count badges and group headers reflect strictly authorized totals (e.g., displaying `0 items` or hiding the group, never hinting at hidden entity counts).
-3. Filter selectors, autocomplete dropdowns, and group headers never leak restricted project or initiative names.
+3. Filter selectors, autocomplete dropdowns, and group headers never leak restricted project, team, or initiative names.
 
 ### 3.3 The Single Mutation Boundary Law
 Interactions inside a Saved View that mutate entity state (e.g., changing a WorkItem status from the Grid, dragging a card on a Board, rescheduling a Project) must delegate directly to the authoritative domain mutation boundary (`updateWorkItem`, `applyProjectUpdate`, etc.). Saved Views have no internal entity mutation logic.
 
 ### 3.4 The Non-Broadening Degradation Law
-If an entity referenced in a view's filter criteria becomes inaccessible, deleted, or archived:
-- The filter condition remains structurally present but evaluates as a closed/empty match.
-- The condition is visually marked as `[Unavailable Reference]`.
-- The query never silently drops the predicate, preventing accidental data exposure or misleading global rollups.
+If an entity or field referenced in a view's filter criteria becomes inaccessible, deleted, or invalid:
+```text
+predicate remains structurally present
+→ predicate enters invalid/unresolved state
+→ SavedView reports degraded configuration
+→ execution must fail closed for that predicate or for the affected query branch
+→ user receives repair action
+→ query must never silently broaden
+```
+- **Conjunction Rule (AND):** An invalid predicate in an `AND` group evaluates to `false` (no matches for that predicate), restricting the branch rather than dropping the requirement.
+- **Disjunction Rule (OR):** An invalid predicate in an `OR` group evaluates to `false`, ensuring invalid conditions cannot match entities or expand the set.
 
 ---
 
@@ -118,52 +126,53 @@ The Saved Views feature introduces exactly two canonical surfaces in CORE:
 ├────────────────────────────────────────────────────────────────────────┤
 │  VEW-001: SAVED VIEWS DIRECTORY                                        │
 │  - Workspace Discovery & Management Primary Page                       │
-│  - Facets: Favorites | My Views | Team Views | Workspace Views | All   │
+│  - Discovery Facets: Favorites | My Views | Team Views | Workspace |   │
+│    Archived                                                            │
 │  - High-Density Metadata Table (Name, Context, Projection, Owner)      │
 │  - Inline Actions: Open, Duplicate, Favorite, Share, Archive           │
 │                                                                        │
 │  VEW-002: SAVED VIEW DETAIL / EXECUTION SURFACE                        │
 │  - Header: View Identity, Context Badge, Owner, Dirty State Controls   │
 │  - Controls Bar: Filter Builder, Sort Selector, Grouping, Projection   │
-│  - Execution Area: WRK-001 (Grid) | WRK-002 (Board) | WRK-003 (Timeline)│
-│  - Slide-Over: WRK-005 WorkItem Inspector                              │
+│  - Execution Area: Reused canonical projection (Grid/Board/Timeline)   │
+│  - Detail/Inspection: WRK-005 for WorkItems; canonical detail for      │
+│    Projects/Initiatives                                                │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 5. Canonical SavedView Domain Model
+## 5. Canonical SavedView Domain Model & State Separation
 
-The `SavedView` entity is defined as a storage-neutral semantic model:
+To preserve enterprise stability, Saved View state is strictly separated into three layers:
+1. **Canonical Shared Definition:** Persisted shared truth.
+2. **User-Scoped Execution State & Preferences:** Local to the active user session/device.
+3. **Local Working Draft:** Ephemeral in-memory adjustments before save.
 
 ```typescript
+// 1. Canonical Shared Definition (Persisted)
 interface SavedView {
   // Identity & Tenancy
   id: string;                          // Unique canonical ID (e.g., 'VEW-001')
   workspaceId: string;                 // Tenancy isolation root
-  name: string;                        // Human-readable title (e.g., 'High Priority Bugs')
+  name: string;                        // Human-readable title
   description?: string;                // Optional operational summary or charter
-  ownerUserId: string;                 // Creator / current owner ID
+  ownerUserId: string;                 // Current owner ID
 
-  // Target Domain
-  resourceType: 'work_item' | 'project' | 'initiative'; // Target entity collection (CORE)
-
-  // Context & Discovery Scope
+  // Target Domain & Context
+  resourceType: 'work_item' | 'project' | 'initiative'; // Target entity collection
   context: {
     type: 'workspace' | 'team' | 'project' | 'personal';
     contextId?: string;                // Specific teamId or projectId if contextual
   };
 
-  // Projection Configuration
-  projectionType: 'grid' | 'board' | 'timeline'; // Default / active projection lens
+  // Persisted Projection Configuration
+  projectionType: 'grid' | 'board' | 'timeline'; // Shared default projection lens
   queryDefinition: CompoundQuery;       // Semantic boolean query tree
   sortDefinition: SortCriterion[];     // Ordered sort rules
-  groupDefinition?: GroupCriterion;    // Optional grouping dimension
-  displayConfiguration: {
+  groupDefinition?: GroupCriterion;    // Grouping dimension
+  sharedDisplayConfiguration: {
     visibleFields: string[];           // Field IDs displayed in columns/cards
-    columnWidths?: Record<string, number>; // Custom column width overrides
-    wrapText?: boolean;                // Text wrapping preference
-    density?: 'compact' | 'comfortable'; // Row density preference
     boardColumnsField?: string;        // Field used for Board lanes (defaults to status)
   };
 
@@ -176,65 +185,92 @@ interface SavedView {
   version: number;                     // Optimistic concurrency revision counter (N -> N+1)
   createdAt: string;                   // ISO 8601 creation timestamp
   updatedAt: string;                   // ISO 8601 last modified timestamp
-  lastExecutedAt?: string;             // Optional audit timestamp for recency tracking
+}
+
+// 2. User-Scoped Execution State & Personal Preferences (User-Owned)
+interface UserViewPreferences {
+  viewId: string;
+  userId: string;
+  lastExecutedAt?: string;             // Audit timestamp for recency tracking
+  personalDensity?: 'compact' | 'comfortable'; // User's density override
+  collapsedGroupIds?: string[];        // User's personal collapsed sections
+  userColumnWidths?: Record<string, number>; // Personal column widths
+  activeInspectorItemId?: string | null; // Currently open item in WRK-005
+}
+
+// 3. Local Working Draft (In-Memory Unsaved Adjustments)
+interface WorkingViewDraft {
+  isDirty: boolean;
+  baseVersion: number;
+  draftQuery?: CompoundQuery;
+  draftSort?: SortCriterion[];
+  draftGroup?: GroupCriterion;
+  draftProjectionType?: 'grid' | 'board' | 'timeline';
+  draftVisibleFields?: string[];
 }
 ```
 
 ---
 
-## 6. Context Model & Scope Semantics
+## 6. Context Model vs Access Policy
 
-Saved Views originate from different contexts across the platform, determining their discoverability and contextual defaults:
+The contract strictly separates **Where a view is cataloged (Context)** from **Who is authorized to access it (Access Policy)**:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│                        SAVED VIEW CONTEXT MODEL                        │
+│                     CONTEXT VS ACCESS POLICY MATRIX                    │
 ├─────────────────┬──────────────────┬───────────────────────────────────┤
-│ Context Type    │ Discoverability  │ Semantic Purpose                  │
+│ Concept         │ Property         │ Architectural Role                │
 ├─────────────────┼──────────────────┼───────────────────────────────────┤
-│ 1. Workspace    │ VEW-001 (Shared) │ Company-wide operational views    │
-│                 │ Global Search    │ (e.g., 'All P0 Incidents',        │
-│                 │ Command Palette  │ 'Q3 Strategic Roadmap')           │
+│ Context         │ context.type     │ Specifies where the view belongs, │
+│                 │ context.contextId│ its discovery home, and default   │
+│                 │                  │ query scoping presets.            │
 ├─────────────────┼──────────────────┼───────────────────────────────────┤
-│ 2. Team         │ VEW-001 (Team)   │ Squad-level tactical workflows    │
-│                 │ Team Hub Views   │ (e.g., 'Platform Backlog',        │
-│                 │ Command Palette  │ 'Design Review Queue')            │
-├─────────────────┼──────────────────┼───────────────────────────────────┤
-│ 3. Project      │ VEW-001 (Project)│ Deliverable-specific tracking     │
-│                 │ Project Views    │ (e.g., 'Apollo Launch Blocker',   │
-│                 │ Command Palette  │ 'Security Audit Items')           │
-├─────────────────┼──────────────────┼───────────────────────────────────┤
-│ 4. Personal     │ VEW-001 (Mine)   │ Individual customized views       │
-│                 │ My Work Nav      │ (e.g., 'My Overdue Review Items', │
-│                 │ Command Palette  │ 'Needs My Input')                 │
+│ Access Policy   │ accessPolicy     │ Specifies discoverability scope:  │
+│                 │ ('private' |     │ - private (Owner only)            │
+│                 │  'team' |        │ - team (Canonical Team Auth)      │
+│                 │  'workspace')    │ - workspace (Workspace-wide)      │
 └─────────────────┴──────────────────┴───────────────────────────────────┘
 ```
 
-**Critical Distinction:** The `context` specifies *where the view is cataloged and governed*; the `queryDefinition` specifies *which resources are matched*. A Team-context view may match items across multiple projects, or an entire Workspace view may filter for a specific squad.
+**Non-Inference Rule:** Context never confers access rights. A SavedView with `context.type = 'team'` and `context.contextId = 'team-platform'` is accessible **only if** the user satisfies:
+$$\text{Workspace Tenancy} + \text{Canonical Team Authorization} + \text{SavedView Access Policy}$$
+Likewise, setting `context.type = 'project'` does **not** grant access to restricted Project entities.
 
 ---
 
-## 7. Supported Resource Types in CORE
+## 7. Resource & Projection Compatibility Matrix
 
-In CORE (UI-09), `SavedView` supports three canonical resource types:
+Projections are not universally applicable to all resources. Orynqo enforces a strict **Compatibility Matrix**:
 
-1. **`work_item` (Primary):**
-   - Full support for `grid`, `board`, and `timeline` projections.
-   - Comprehensive filter field registry covering status, priority, assignee, squad, cycle, project, initiative, milestone, tags, dates, and types.
-2. **`project`:**
-   - Supported projections: `grid` (Directory-style high-density list) and `timeline` (Roadmap multi-project bar view).
-   - Filter registry covering status, health, lead team, target window/dates, initiative alignment, and progress.
-3. **`initiative`:**
-   - Supported projections: `grid` (Portfolio high-density table) and `timeline` (Multi-quarter roadmap projection).
-   - Filter registry covering operational state, curated health, horizon, and owner.
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│              RESOURCE & PROJECTION COMPATIBILITY MATRIX                │
+├───────────────┬─────────────────────────┬──────────────┬───────────────┤
+│ Resource Type │ Supported Projections   │ Inspector    │ Detail Action │
+├───────────────┼─────────────────────────┼──────────────┼───────────────┤
+│ `work_item`   │ Grid (WRK-001)          │ WRK-005      │ Opens WRK-005 │
+│               │ Board (WRK-002)         │ WorkItem     │ Inspector     │
+│               │ Timeline (WRK-003)      │ Inspector    │ in-place      │
+├───────────────┼─────────────────────────┼──────────────┼───────────────┤
+│ `project`     │ Grid (High-density list)│ NONE         │ Navigates to  │
+│               │ Timeline (Multi-project │              │ canonical     │
+│               │ roadmap bars)           │              │ Project page  │
+├───────────────┼─────────────────────────┼──────────────┼───────────────┤
+│ `initiative`  │ Grid (Portfolio table)  │ NONE         │ Navigates to  │
+│               │ Timeline (Multi-quarter │              │ canonical     │
+│               │ strategic roadmap)      │              │ Initiative    │
+└───────────────┴─────────────────────────┴──────────────┴───────────────┘
+```
 
-*Document Note:* Documents (`DOC-001`, `DOC-002`) remain managed via the Docs Hub search presets and collection tags. Unifying documents into the generic SavedView engine is evaluated as **POST-CORE** to maintain architectural simplicity.
+- **Rejection of Unsupported Projections:** `VEW-002` rejects unsupported combinations (e.g., Board projection for Initiatives, which has no canonical Kanban semantics).
+- **Inspector Scope:** `WRK-005` is exclusively the canonical **WorkItem Inspector**. Clicking a Project or Initiative in a view projection does not open a fabricated inspector; it triggers standard canonical resource navigation.
 
 ---
 
 ## 8. Compound Query Algebra & Filter Tree
 
-To satisfy enterprise requirements without cryptic text queries, Saved Views implement a visual, technology-neutral boolean filter tree:
+Saved Views implement a visual, technology-neutral boolean filter tree:
 
 ```typescript
 type LogicalOperator = 'AND' | 'OR';
@@ -244,6 +280,7 @@ interface FilterCondition {
   field: string;                       // Field ID from Registry (e.g., 'priority')
   operator: FilterOperator;            // Validated operator for field type
   value: any;                          // Value or array of values
+  isDegraded?: boolean;                // Flagged when reference is invalid
 }
 
 interface FilterGroup {
@@ -253,36 +290,6 @@ interface FilterGroup {
 }
 
 type CompoundQuery = FilterGroup;
-```
-
-### 8.1 Example Compound Query Structure
-```json
-{
-  "id": "root-group",
-  "conjunction": "AND",
-  "conditions": [
-    {
-      "id": "c1",
-      "field": "teamId",
-      "operator": "equals",
-      "value": "team-core-platform"
-    },
-    {
-      "id": "nested-group-1",
-      "conjunction": "OR",
-      "conditions": [
-        { "id": "c2", "field": "priority", "operator": "equals", "value": "urgent" },
-        { "id": "c3", "field": "priority", "operator": "equals", "value": "high" }
-      ]
-    },
-    {
-      "id": "c4",
-      "field": "status",
-      "operator": "not_in",
-      "value": ["completed", "canceled"]
-    }
-  ]
-}
 ```
 
 ---
@@ -298,7 +305,6 @@ interface FilterFieldDefinition {
   type: 'string' | 'enum' | 'user' | 'team' | 'project' | 'initiative' | 'cycle' | 'date' | 'number' | 'boolean';
   resourceTypes: Array<'work_item' | 'project' | 'initiative'>;
   allowedOperators: FilterOperator[];
-  optionsLoader?: (context: QueryContext) => Promise<Array<{ id: string; label: string }>>;
   supportsMultiple: boolean;
 }
 ```
@@ -327,7 +333,6 @@ interface SortCriterion {
 interface GroupCriterion {
   field: string;                       // Grouping field (status, priority, assignee, team, project)
   direction?: 'asc' | 'desc';
-  collapsedGroupIds?: string[];        // Persisted collapsed group states
 }
 ```
 
@@ -344,52 +349,23 @@ The security model of Saved Views is absolute:
 ┌────────────────────────────────────────────────────────────────────────┐
 │                   ZERO-LEAKAGE QUERY PIPELINE                          │
 ├────────────────────────────────────────────────────────────────────────┤
-│  1. Incoming Request: User executes SavedView (VEW-002)                │
-│  2. Workspace Tenancy Check: Verify view belongs to user's workspace   │
-│  3. View Access Check: Verify user has canViewSavedView capability     │
-│  4. Canonical Resource Query: Fetch live records matching criteria     │
-│  5. Pre-Projection Authorization Filter:                               │
-│     - Eliminate restricted Projects (and their WorkItems)              │
-│     - Eliminate restricted Initiatives                                 │
-│     - Eliminate WorkItems where user lacks team/project visibility     │
-│  6. Derive Aggregates & Groupings: Compute counts ONLY on auth set     │
-│  7. Project onto Viewport: Render Grid / Board / Timeline              │
+│  1. Request: User executes SavedView (VEW-002)                         │
+│  2. Tenancy & View Access: Verify workspace tenancy and canViewSavedView│
+│  3. Authoritative Query Filtering: Evaluate query directly against     │
+│     authorized canonical store; unauthorized records never materialize │
+│  4. Derive Aggregates & Groupings: Compute counts ONLY on auth set     │
+│  5. Project onto Viewport: Render Grid / Board / Timeline              │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Invariant Rules
-- **No Inferred Grants:** Having link or access to a Saved View **never** grants permission to read the underlying items.
-- **Zero-Leakage Counts:** Summary headers, group row badges, and tab counters report strictly the authorized count ($N_{\text{authorized}}$). If a restricted item matches the query, it is completely invisible and omitted from totals.
-- **Picker & Autocomplete Scrubbing:** When editing view filters, autocomplete candidate lists for Projects, Teams, or Assignees strictly exclude entities the user cannot see.
+- **No Inferred Grants:** Having a link to a Saved View **never** grants permission to read the underlying items.
+- **Zero-Leakage Counts:** Summary headers, group row badges, and tab counters report strictly the authorized count ($N_{\text{authorized}}$). If a restricted item matches the query, it is completely omitted from totals.
+- **Picker & Autocomplete Scrubbing:** When editing view filters, autocomplete candidate lists strictly exclude entities the user cannot see.
 
 ---
 
-## 12. Personal, Team & Shared Workspace Semantics
-
-```text
-┌────────────────────────────────────────────────────────────────────────┐
-│                     VIEW DISCOVERY & ACCESS SCOPES                     │
-├───────────────────┬────────────────────────────────────────────────────┤
-│ Policy            │ Discovery & Access Rules                           │
-├───────────────────┼────────────────────────────────────────────────────┤
-│ 1. Private        │ - Visible ONLY to the owner.                       │
-│    (Personal)     │ - Labeled with personal lock icon.                 │
-│                   │ - Never returned in peer search or directory.      │
-│                   │ - Default for user-created views.                  │
-├───────────────────┼────────────────────────────────────────────────────┤
-│ 2. Team           │ - Discoverable by members of the assigned team.    │
-│                   │ - Appears in Team Hub Views facet.                 │
-│                   │ - Non-team members cannot see or execute the view. │
-├───────────────────┼────────────────────────────────────────────────────┤
-│ 3. Workspace      │ - Discoverable by all members of the workspace.    │
-│    (Shared)       │ - Listed in VEW-001 Workspace tab.                 │
-│                   │ - Indexed in global search and Command Palette.    │
-└───────────────────┴────────────────────────────────────────────────────┘
-```
-
----
-
-## 13. Ownership, Governance & Semantic Capabilities
+## 12. Ownership, Governance & Semantic Capabilities
 
 Access and mutation privileges are governed by granular, semantic capabilities:
 
@@ -405,28 +381,39 @@ interface SavedViewCapabilities {
 }
 ```
 
-### Governance Rules
-1. **Owner Permissions:** The view creator is the initial owner and has full edit/share/archive capabilities.
-2. **Locked Views:** A shared view marked `isLocked = true` can only be modified by its owner or a workspace administrator, protecting critical organizational dashboards from accidental edits.
-3. **Owner Departure:** If an owner leaves the workspace, ownership defaults to the Workspace Admin without deleting or invalidating the view.
-4. **Non-Destructive Deletion:** Deletion in CORE is strictly non-destructive via `archiveState = 'archived'`. Archived views can be restored from the directory archive tab.
+### 12.1 Governance & Owner Departure Policy
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│                   OWNER DEPARTURE GOVERNANCE LAW                       │
+├────────────────────────────────────────────────────────────────────────┤
+│ Invariant: A shared SavedView must not become unmanaged when its owner │
+│ loses workspace membership.                                            │
+├────────────────────────────────────────────────────────────────────────┤
+│ 1. Shared / Team Views: When an owner leaves the workspace, ownership  │
+│    is reassigned via semantic governance capability                    │
+│    (canManageSavedViewAccess), preserving shared team workflows.       │
+│ 2. Private (Personal) Views: When a user leaves, their private views   │
+│    remain private and enter an archived/orphaned lifecycle; they are   │
+│    NEVER silently exposed or shared with other workspace users.        │
+└────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 14. View Editing Model & Dirty-State Management
+## 13. View Editing Model & Projection Override Semantics
 
-To avoid accidental mutation of shared team views while providing instantaneous ad-hoc exploration, Orynqo enforces a strict **Dual-State View Model**:
+To prevent accidental modification of shared team views while providing instantaneous ad-hoc exploration, Orynqo enforces a strict **Dual-State View Model**:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
 │                        VIEW DIRTY-STATE FLOW                           │
 ├────────────────────────────────────────────────────────────────────────┤
 │  PERSISTED SAVEDVIEW DEFINITION (Canonical)                            │
-│  [ Revision N | Filter: Priority = High ]                              │
+│  [ Revision N | Projection: Grid | Filter: Priority = High ]           │
 │       │                                                                │
-│       ▼ (User changes filter to Priority = Urgent)                     │
+│       ▼ (User changes filter or switches lens to Board)                │
 │  LOCAL WORKING STATE (Modified / Dirty)                                │
-│  - Active Projection reflects 'Priority = Urgent' immediately          │
+│  - Active Projection updates immediately in-memory                     │
 │  - Dirty Indicator displayed: "● Modified" badge in header             │
 │  - Action Controls revealed: [ Revert ]  [ Save ]  [ Save As... ]      │
 │       │                                                                │
@@ -435,291 +422,195 @@ To avoid accidental mutation of shared team views while providing instantaneous 
 │       ├──► [ Save ]: Persists changes to canonical view (Requires      │
 │       │              canEditSavedView and valid version N)             │
 │       │                                                                │
-│       └──► [ Save As... ]: Opens modal to save as new personal/shared   │
-│                            SavedView (Original view untouched)         │
+│       └──► [ Save As... ]: Creates new SavedView from WORKING DRAFT    │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Dirty State Indicators
-- **`Saved` (Clean):** Active projection matches persisted definition. Header displays standard view title.
-- **`Modified` (Dirty):** Active projection has uncommitted filter, sort, group, or column adjustments. Title displays `● Modified` indicator; `Revert`, `Save`, and `Save As` buttons become active.
-- **`Saving`:** Network commit in progress.
-- **`Conflict`:** Concurrent modification detected during save.
+### 13.1 Projection Switch Semantics
+- Switching lenses (e.g., `Grid` $\rightarrow$ `Board`) creates **local working state**.
+- If `projectionType` is part of the canonical definition, the view is marked `● Modified`.
+- An explicit `Save` is required to alter the shared default projection lens. Users without `canEditSavedView` can freely explore alternative projections locally without persisting changes.
 
 ---
 
-## 15. Optimistic Concurrency & Conflict Recovery
+## 14. Hardened Optimistic Concurrency & Safe Conflict Recovery
 
-Saved Views utilize version-checked optimistic concurrency control (`version: N`):
+Saved Views utilize version-checked optimistic concurrency control (`version: N`). Blind last-write-wins overwrites that bypass concurrency checks are strictly forbidden:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│                   OPTIMISTIC CONCURRENCY SCENARIO                      │
+│                   SAFE CONFLICT RECOVERY WORKFLOW                      │
 ├────────────────────────────────────────────────────────────────────────┤
-│  1. User A and User B open Shared View 'Bugs' at Revision 4.           │
+│  1. User A and User B open Shared View at Revision 4.                  │
 │  2. User B updates filter and clicks Save -> Succeeded (Revision 5).  │
-│  3. User A adjusts columns and clicks Save with expectedVersion = 4.   │
-│  4. Authoritative Boundary detects conflict (Current 5 != Expected 4). │
+│  3. User A adjusts filters and clicks Save with expectedVersion = 4.   │
+│  4. Boundary detects conflict (Current 5 != Expected 4).               │
 │  5. System Action:                                                     │
 │     - Save rejected with CONFLICT error.                               │
 │     - User A's working adjustments are PRESERVED locally in memory.    │
-│     - UI surfaces Conflict Banner:                                     │
-│       "View was updated by another user. Choose an action:"            │
-│       [ Overwrite (Rev 6) ]  [ Discard & Load Rev 5 ]  [ Save As New ] │
+│     - UI surfaces Conflict Dialog with three safe recovery choices:    │
+│                                                                        │
+│       [ Reload Canonical ]                                             │
+│       Discard local draft and load latest Revision 5.                  │
+│                                                                        │
+│       [ Save As New ]                                                  │
+│       Preserve local working adjustments as an independent SavedView.  │
+│                                                                        │
+│       [ Reapply Against Latest ]                                       │
+│       Rebase working changes against Revision 5 and commit with        │
+│       expectedVersion = 5.                                             │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 16. Surface Specification: VEW-001 (Saved Views Directory)
+## 15. Reference Degradation: Archived vs Deleted vs Inaccessible
 
-`VEW-001` provides workspace-level discovery and administration of saved projections:
-
-```text
-┌────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ VIEWS DIRECTORY                                                        [ 🔍 Search views... ] [+ New]│
-├────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ [ Favorites (3) ]  [ My Views (5) ]  [ Team Views (8) ]  [ Workspace (12) ]  [ Archived (2) ]       │
-├────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ Star │ Name                       │ Context   │ Projection │ Target      │ Owner     │ Updated     │
-├──────┼────────────────────────────┼───────────┼────────────┼─────────────┼───────────┼─────────────┤
-│  ★   │ High Priority Bugs         │ Workspace │ Grid       │ WorkItems   │ @younas   │ 2 hours ago │
-│  ★   │ Platform Q3 Roadmap        │ Team-Core │ Timeline   │ Projects    │ @sarah    │ Yesterday   │
-│  ☆   │ Security Triage Queue      │ Workspace │ Board      │ WorkItems   │ @alex     │ 3 days ago  │
-│  ☆   │ My Open Review Items       │ Personal  │ Grid       │ WorkItems   │ You       │ Just now    │
-│  ☆   │ Mobile Sprint Backlog      │ Team-Mob  │ Board      │ WorkItems   │ @elena    │ Sep 24      │
-├──────┴────────────────────────────┴───────────┴────────────┴─────────────┴───────────┴─────────────┤
-│ Inline Hover Actions: [ Open ↗ ]  [ Duplicate ⎘ ]  [ Share ⇗ ]  [ Archive 🗄 ]                       │
-└────────────────────────────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Layout & Information Hierarchy
-- **Header:** Title, search input with instant debounced filtering, and primary `[ + New View ]` button.
-- **Facet Navigation:** Clean pill tabs (`Favorites`, `My Views`, `Team Views`, `Workspace`, `Archived`).
-- **High-Density Table:** Standard Orynqo grid rows with favorite star, title, context badge, default projection icon, resource type, owner avatar, and relative timestamp.
-- **Inline Actions:** Hovering over a row exposes quick actions (`Open`, `Duplicate`, `Share`, `Archive`).
-
----
-
-## 17. Surface Specification: VEW-002 (Saved View Detail / Execution Surface)
-
-`VEW-002` is the active execution surface rendering live canonical data through the stored projection lens:
-
-```text
-┌────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ [★] High Priority Bugs   [ Workspace ]  [ ● Modified ]               [ Revert ] [ Save ] [ Save As ]│
-│ Stored lens for urgent production issues across all teams                 [ Edit Info ] [ Share ]  │
-├────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ [ ⊞ Filter (3) ] [ ⇅ Sort: Priority (desc) ] [ ☷ Group: Status ]   │   [ Grid | Board | Timeline ] │
-├────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                                    │
-│  CANONICAL PROJECTION SURFACE (WRK-001 / WRK-002 / WRK-003)                                        │
-│  - Renders live canonical items matching query                                                     │
-│  - Fully interactive: inline editing, selection, reordering                                        │
-│  - Clicking any item opens WRK-005 WorkItem Inspector without navigation                           │
-│                                                                                                    │
-└────────────────────────────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Controls & Header Architecture
-- **Identity Bar:** Title, favorite toggle, visibility badge (`Personal`, `Team`, `Workspace`), description, and dirty-state status indicator (`Saved` / `Modified`).
-- **Control Bar:**
-  - **Filter Builder Trigger:** Displays count of active rules (e.g., `Filter (3)`); opens visual Compound Filter Popover.
-  - **Sort Trigger:** Configures multi-column sort criteria.
-  - **Group Trigger:** Selects grouping field (Status, Priority, Assignee, Team, Project).
-  - **Projection Switcher:** Seamlessly toggles view between `Grid`, `Board`, and `Timeline`.
-  - **Dirty State Actions:** Visible when modified (`Revert`, `Save`, `Save As`).
-
----
-
-## 18. Sidebar & Global Application Integration
-
-Saved Views integrate natively into the frozen application shell:
-
-```text
-ORYNQO SHELL
-├── Organization / Workspace Switcher
-├── [ 🔍 Search & Commands... ⌘K ]
-│
-├── PERSONAL
-│   ├── Inbox
-│   └── My Work
-│
-├── FAVORITES (Collapsible)
-│   ├── High Priority Bugs           # Pinned SavedView shortcut
-│   └── Platform Q3 Roadmap          # Pinned SavedView shortcut
-│
-├── WORKSPACE (Strategic & Shared)
-│   ├── Initiatives
-│   ├── Docs
-│   └── Views                        # Routes directly to VEW-001 Views Directory
-│
-└── TEAMS ...
-```
-
-### Sidebar Rules
-1. **`Views` Route:** Clicking `Views` under `WORKSPACE` navigates directly to `VEW-001` (Views Directory).
-2. **No Navigation Flooding:** Individual Saved Views are **not** listed in the sidebar by default.
-3. **Generic Favorites Integration:** Starring a Saved View in `VEW-001` or `VEW-002` dynamically surfaces it in the user's `FAVORITES` section via the canonical `useFavorites` hook (`targetType = 'saved_view'`, `targetId = view.id`).
-
----
-
-## 19. Duplication & Lifecycle Workflows
-
-### 19.1 Duplication Contract
-Invoking **Duplicate View** creates a clone of the view definition:
-- **Cloned:** Name (`Copy of ...`), description, queryDefinition, sortDefinition, groupDefinition, displayConfiguration, projectionType.
-- **Reset:** `id` (new unique ID), `version = 1`, `createdAt = now`, `updatedAt = now`.
-- **Default Ownership:** Assigned to the current actor (`ownerUserId = currentUserId`).
-- **Default Access Policy:** Set to `private` (Personal), ensuring duplicated shared views start safely in the user's private workspace.
-- **Zero Entity Duplication:** Does **not** clone or duplicate any underlying work items or projects.
-
-### 19.2 Non-Destructive Archive & Restore
-- **Archive:** Transitions `archiveState = 'archived'`. The view is hidden from standard directory tabs, global search, and Command Palette.
-- **Restore:** Reverts `archiveState = 'active'`. Available to authorized users from the `Archived` tab in `VEW-001`.
-
----
-
-## 20. Stale & Inaccessible Reference Degradation
-
-When an entity referenced in a view filter becomes deleted, archived, or inaccessible to a viewing user:
+The degradation of stale or restricted references follows explicit, non-broadening rules:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│                    STALE REFERENCE DEGRADATION TABLE                   │
+│                    REFERENCE DEGRADATION MATRIX                        │
 ├──────────────────────┬─────────────────────────────────────────────────┤
 │ Condition            │ Evaluated Behavior                              │
 ├──────────────────────┼─────────────────────────────────────────────────┤
-│ 1. Project Archived  │ - Filter condition remains `projectId = 'PRJ'`. │
-│    or Deleted        │ - Token renders as `[Archived Project]`.        │
-│                      │ - Evaluates to matches strictly if items exist. │
+│ 1. Archived Entity   │ - Canonical reference still exists.             │
+│    (Accessible)      │ - Filter continues to match per archive rules.  │
+│                      │ - UI flags token as `[Archived <Entity>]`.      │
 ├──────────────────────┼─────────────────────────────────────────────────┤
-│ 2. Project or Team   │ - Filter condition preserved in definition.     │
-│    Restricted (RBAC) │ - Token renders as `[Unavailable Reference]`.   │
-│                      │ - Evaluates to empty set (0 matches).           │
-│                      │ - Name of restricted entity is NEVER displayed. │
+│ 2. Deleted / Removed │ - Reference is unresolvable.                    │
+│    Entity/Field      │ - Predicate enters degraded state.              │
+│                      │ - Fails closed (evaluates to false).            │
+│                      │ - User receives explicit repair action.         │
+│                      │ - Query NEVER silently drops predicate.         │
 ├──────────────────────┼─────────────────────────────────────────────────┤
-│ 3. User Removed /    │ - Token renders as `[Former Member]`.           │
-│    Deactivated       │ - Matches historical items assigned to user.    │
+│ 3. Inaccessible      │ - Entity exists but viewer lacks RBAC access.   │
+│    Entity (RBAC)     │ - Token renders safely as `[Unavailable]`.      │
+│                      │ - Name of restricted entity is NEVER revealed.  │
+│                      │ - Fails closed for that reference.              │
 ├──────────────────────┼─────────────────────────────────────────────────┤
-│ 4. Custom Field or   │ - Condition marked with visual warning icon.    │
-│    Enum Removed      │ - Evaluated as inactive/no-op rule.             │
-│                      │ - User prompted to repair filter.               │
+│ 4. Renamed Entity    │ - Canonical ID matches continuously.            │
+│                      │ - Renders updated authorized name automatically.│
+│                      │ - Requires no view definition modification.     │
 └──────────────────────┴─────────────────────────────────────────────────┘
 ```
 
-**Golden Rule:** Under no circumstances does a query silently discard an invalid condition and broaden its scope to all records.
-
 ---
 
-## 21. Centralized Keyboard Architecture Integration
-
-Saved Views register semantic commands within the centralized keyboard manager:
+## 16. Save As vs Duplicate Semantics
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│                    SEMANTIC KEYBOARD COMMANDS                          │
-├──────────────────────┬──────────────────────────┬──────────────────────┤
-│ Command ID           │ Semantic Purpose         │ Context / Scope      │
-├──────────────────────┼──────────────────────────┼──────────────────────┤
-│ views.open_directory │ Route to VEW-001         │ Global (g v)         │
-│ views.create_new     │ Open Create View Modal   │ Directory / Detail   │
-│ views.save_changes   │ Commit dirty state       │ VEW-002 (Mod+S)      │
-│ views.revert_changes │ Revert dirty state       │ VEW-002 (Escape)     │
-│ views.save_as_new    │ Fork active projection   │ VEW-002 (Mod+Shift+S)│
-│ views.toggle_filter  │ Focus Filter Builder     │ VEW-002 (f)          │
-│ views.switch_grid    │ Switch to Grid Lens      │ VEW-002 (v 1)        │
-│ views.switch_board   │ Switch to Board Lens     │ VEW-002 (v 2)        │
-│ views.switch_timeline│ Switch to Timeline Lens  │ VEW-002 (v 3)        │
-│ views.toggle_favorite│ Star/Unstar active view  │ VEW-001 / VEW-002 (m)│
-└──────────────────────┴──────────────────────────┴──────────────────────┘
+│                       SAVE AS VS DUPLICATE MATRIX                      │
+├─────────────────┬─────────────────────────┬────────────────────────────┤
+│ Dimension       │ Save As                 │ Duplicate                  │
+├─────────────────┼─────────────────────────┼────────────────────────────┤
+│ Source Payload  │ Current WORKING DRAFT   │ Current PERSISTED          │
+│                 │ (includes unsaved edits)│ CANONICAL DEFINITION       │
+├─────────────────┼─────────────────────────┼────────────────────────────┤
+│ New Identity    │ Unique ID generated     │ Unique ID generated        │
+├─────────────────┼─────────────────────────┼────────────────────────────┤
+│ Default Owner   │ Current actor           │ Current actor              │
+├─────────────────┼─────────────────────────┼────────────────────────────┤
+│ Default Scope   │ Private (Personal)      │ Private (Personal)         │
+├─────────────────┼─────────────────────────┼────────────────────────────┤
+│ Permissions/Favs│ Grants NOT copied;      │ Grants NOT copied;         │
+│                 │ Favorite NOT copied     │ Favorite NOT copied        │
+├─────────────────┼─────────────────────────┼────────────────────────────┤
+│ Underlying Data │ ZERO items duplicated   │ ZERO items duplicated      │
+└─────────────────┴─────────────────────────┴────────────────────────────┘
 ```
 
+---
+
+## 17. ActivityEvent Contract
+
+Durable SavedView mutations generate canonical `ActivityEvent` records for team audit transparency:
+- **Events Emitted:**
+  - `saved_view.created`
+  - `saved_view.updated` (persisted definition change)
+  - `saved_view.access_changed` (scope or lock altered)
+  - `saved_view.archived` / `saved_view.restored`
+- **Events Excluded (Non-Events):** Temporary filter exploration, personal projection switching, collapsing group rows, personal execution, or opening inspectors never emit ActivityEvents.
+- **Enterprise Law:** $\text{ActivityEvent} \neq \text{Enterprise Audit}$. Enterprise audit remains an independent compliance infrastructure concern.
+
+---
+
+## 18. Centralized Keyboard & Command Model
+
+Physical key combinations are centralized; Saved Views define strictly semantic commands:
+```text
+views.open_directory      -> Route to VEW-001
+views.create_new          -> Open Create View modal
+views.save_changes        -> Persist dirty working state
+views.revert_changes      -> Discard dirty working state
+views.save_as_new         -> Fork working state into new view
+views.toggle_filter       -> Focus visual filter builder
+views.switch_projection   -> Cycle or select compatible projection
+views.toggle_favorite     -> Star/unstar active view
+```
 *Typing Isolation:* All single-key commands are strictly disabled when focus is inside text inputs, filter fields, or editable cells.
 
 ---
 
-## 22. URL & Deep-Linking Contract
+## 19. Quick Create Decision
 
-Saved Views maintain clean, stable URL representations:
-
-```text
-/workspace/views                    -> VEW-001 Views Directory
-/workspace/views/:viewId            -> VEW-002 Saved View Detail (Default lens)
-/workspace/views/:viewId?lens=board -> VEW-002 Saved View with Board lens override
-/workspace/views/:viewId?item=W-12  -> VEW-002 with WRK-005 Inspector open on item
-```
-
-- **Clean Identity:** URL references the canonical `viewId`. Sensitive query expressions are **not** encoded in query strings for saved views.
-- **Transient Exploration:** Temporary filter overrides may optionally serialize to ephemeral URL query parameters (`?filter=...`) to allow sharing draft exploration links without saving.
+**CMD-002 Quick Create Decision for Saved Views:**
+- **Decision:** **EXCLUDED FROM CORE QUICK CREATE.**
+- **Rationale:** CMD-002 is designed for high-frequency operational capture (WorkItems, Documents, Issues). A Saved View is an analytical and architectural configuration entity requiring naming, query construction, and scope declaration. Creating views is anchored in `VEW-001` (`[ + New View ]`) and `VEW-002` (`[ Save As ]`). Integrating a view builder into the minimalist Quick Create modal introduces unnecessary interface bloat.
 
 ---
 
-## 23. Scalability, Virtualization & Server Query Compatibility
+## 20. Scalability & Backend Query Compatibility
 
-To guarantee performance on enterprise repositories with $100,000+$ items, the Saved View contract requires:
-
-1. **Server-Side Query Translation:** `CompoundQuery`, `SortCriterion[]`, and `GroupCriterion` compile directly into SQL/NoSQL indexing structures.
-2. **Cursor-Based Pagination:** Projection surfaces consume paginated cursors, never requiring full client-side array hydration.
-3. **Windowed Virtualization:** Reuses the high-density virtualized row engine established in `UI-01B` (`WRK-001`) and lane virtualization in `UI-01D` (`WRK-002`).
-4. **Bounded Aggregate Computation:** Server returns computed group totals and count badges without sending unrendered item payloads.
+Saved Views require enterprise scalability without arbitrary item caps:
+1. **Authoritative Query Translation:** `CompoundQuery`, `SortCriterion[]`, and `GroupCriterion` translate into authoritative backend query capabilities.
+2. **Cursor Pagination & Stable Ordering:** Projection surfaces consume paginated cursors, ensuring performant memory utilization.
+3. **Windowed Virtualization:** Reuses existing row virtualization in `WRK-001` and lane virtualization in `WRK-002`.
+4. **Bounded Aggregation:** Summary counts and group totals are computed by the query engine without full client-side array hydration.
 
 ---
 
-## 24. Component Architecture & Responsibility Separation
+## 21. Component Architecture & Responsibility Separation
+
+Responsibility boundaries follow the global architectural hierarchy:
+$$\text{Design System} \rightarrow \text{Global Components} \rightarrow \text{Domain Features} \rightarrow \text{Page Components} \rightarrow \text{Routes}$$
 
 ```text
-src/features/views/
-├── components/
-│   ├── ViewsDirectory.jsx             # VEW-001 Directory root component
-│   ├── ViewsDirectoryTable.jsx        # VEW-001 High-density table
-│   ├── SavedViewDetail.jsx            # VEW-002 Execution surface container
-│   ├── SavedViewHeader.jsx            # VEW-002 Identity, badges, dirty controls
-│   ├── SavedViewControlsBar.jsx       # Filter/Sort/Group/Lens triggers
-│   ├── FilterBuilder/                 # Compound visual filter builder
-│   │   ├── FilterBuilderPopover.jsx   # Root filter popover
-│   │   ├── FilterGroupNode.jsx        # Recursive AND/OR group container
-│   │   ├── FilterConditionRow.jsx     # Field + Operator + Value row
-│   │   └── FilterFieldPicker.jsx      # Autocomplete field picker
-│   ├── SortBuilderPopover.jsx         # Multi-criteria sort configuration
-│   ├── GroupBuilderPopover.jsx        # Group dimension selector
-│   ├── SaveViewModal.jsx              # Create / Save As configuration modal
-│   └── ViewConflictModal.jsx          # Concurrency conflict resolution dialog
-├── hooks/
-│   ├── useSavedViews.js               # Reactive hook querying views collection
-│   ├── useSavedViewDetail.js          # Working vs canonical state & dirty tracking
-│   ├── useSavedViewMutations.js       # Create, update, duplicate, archive operations
-│   └── useViewQueryExecution.js       # Live canonical resource query runner
-└── model/
-    ├── savedViewModel.js              # Canonical SavedView schema & validation
-    ├── queryAlgebra.js                # Query tree evaluator & compiler
-    ├── filterRegistry.js              # Supported fields, types, and operators
-    └── savedViewAccess.js             # RBAC capabilities evaluator
+Conceptual Responsibilities (Implementation agnostic):
+- SavedView Model & Validation: Pure schema definitions, validation, and serialization.
+- Query Algebra Engine: Compound query tree evaluation, normalization, and fail-closed degradation.
+- Filter Field Registry: Field metadata, type definitions, and operator compatibility.
+- Access Evaluator: Capability derivation based on workspace tenancy, policy, and canonical team auth.
+- Saved View Directory (VEW-001): Discovery, facet filtering, search, and management table.
+- Saved View Execution Surface (VEW-002): Header, controls bar, projection container, and dirty-state manager.
+- Filter Builder: Popover and recursive tree component for visual rule configuration.
+- Concurrency Manager: Version checks, conflict interception, and recovery dialogs.
 ```
 
 ---
 
-## 25. Scope Boundaries: CORE vs POST-CORE / FUTURE
+## 22. Scope Boundaries: CORE vs POST-CORE / FUTURE
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
 │                        SCOPE BOUNDARY TAXONOMY                         │
 ├────────────────────────────────────────────────────────────────────────┤
 │  CORE (UI-09B Scope)                                                   │
-│  - VEW-001 Saved Views Directory with high-density table and search   │
-│  - VEW-002 Saved View Detail surface driving WRK-001, WRK-002, WRK-003 │
-│  - Canonical SavedView model with optimistic concurrency (version)     │
-│  - Compound Query Tree (AND / OR, nested groups, typed operators)      │
+│  - VEW-001 Saved Views Directory with discovery facets & search        │
+│  - VEW-002 Detail surface driving compatible WRK-001, WRK-002, WRK-003 │
+│  - Canonical SavedView model with versioned concurrency                │
+│  - Compound Query Tree with fail-closed non-broadening degradation     │
 │  - Filter Field Registry for WorkItems, Projects, and Initiatives      │
 │  - Multi-criteria sorting and grouping dimensions                      │
 │  - Dual-State View Editing (Saved vs Modified, Revert, Save, Save As)  │
-│  - Personal, Team, and Workspace access scopes                         │
-│  - Zero-leakage pre-projection authorization enforcement               │
-│  - View duplication with safe personal defaults                        │
+│  - Private, Team, and Workspace access scopes                          │
+│  - Early zero-leakage authorization filtering                          │
+│  - Save As (working draft) vs Duplicate (persisted definition)         │
 │  - Non-destructive archive and restore                                 │
 │  - Generic Favorites integration (useFavorites)                        │
 │  - Command Palette discovery and navigation                            │
-│  - Reusable WRK-005 Inspector slide-over                               │
+│  - WorkItem Inspector (WRK-005) reuse for WorkItem views               │
 │                                                                        │
 │  POST-CORE (Deferred Beyond UI-09B)                                    │
 │  - Public / external share links with guest token access               │
@@ -739,7 +630,7 @@ src/features/views/
 
 ---
 
-## 26. Frozen vs Tunable Specifications
+## 23. Frozen vs Tunable Specifications
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -749,15 +640,18 @@ src/features/views/
 │ 2. Canonical domain state ownership is strictly preserved; views have   │
 │    no internal entity mutation writers.                                │
 │ 3. Pre-projection authorization filtering is mandatory (Zero-Leakage). │
-│ 4. Inaccessible and deleted filter references degrade safely without   │
-│    silent query broadening.                                            │
-│ 5. Temporary view changes do not auto-save to shared views; explicit   │
-│    Save, Revert, and Save As workflows are enforced.                   │
-│ 6. Optimistic concurrency with version N -> N+1 rejects stale writes.  │
-│ 7. Generic Favorites architecture (useFavorites) is reused without      │
-│    view-specific favorites tables.                                     │
-│ 8. Existing projection engines (WRK-001, WRK-002, WRK-003) and        │
-│    WRK-005 Inspector are reused unforked.                              │
+│ 4. Invalid, deleted, or inaccessible references fail closed and NEVER   │
+│    silently broaden query results.                                     │
+│ 5. Context and access policy are distinct; context never infers access.│
+│ 6. Team-context access delegates to canonical Team authorization.      │
+│ 7. Resource & projection compatibility is strictly enforced; WRK-005 is│
+│    exclusively for WorkItems.                                          │
+│ 8. Shared definition, user preferences, and local draft are separated. │
+│ 9. Temporary view changes do not auto-save to shared views.            │
+│ 10. Optimistic concurrency with version N -> N+1 rejects stale writes;  │
+│     blind overwrites are forbidden.                                    │
+│ 11. Save As uses working draft; Duplicate uses persisted definition.   │
+│ 12. Generic Favorites architecture (useFavorites) is reused unforked.  │
 └────────────────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -766,58 +660,67 @@ src/features/views/
 │ 1. Exact CSS styling, layout spacing tokens, and color values.         │
 │ 2. Exact pixel viewport breakpoints for responsive layouts.            │
 │ 3. Physical keyboard shortcut bindings in Command Palette.             │
-│ 4. Backend database schema, indexing, and SQL serialization shapes.    │
-│ 5. API transport mechanisms (REST, GraphQL, WebSocket subscriptions).  │
-│ 6. Exact debounce delay for directory search (e.g., 150ms vs 300ms).   │
-│ 7. Number of items per cursor page batch.                              │
-│ 8. Client-side caching engine and memory store implementation.         │
-│ 9. Popover placement and animation timing curves.                      │
+│ 4. Exact URL route syntax and parameter serialization.                 │
+│ 5. Specific file names, folder layout, and component factoring.        │
+│ 6. Directory facet presentation (tabs, pills, dropdowns, sections).    │
+│ 7. Query transport protocol and backend serialization formats.         │
+│ 8. Virtualization row heights, lane widths, and buffer thresholds.     │
+│ 9. Client-side caching and state store implementation.                 │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 27. Numbered Acceptance Criteria for UI-09B Implementation
+## 24. Numbered Acceptance Criteria for UI-09B Implementation
 
 When UI-09B is authorized, implementation must strictly prove:
 
 1. **Canonical SavedView Model:** Instantiates workspace-scoped `SavedView` entity with ID, name, description, owner, target resource, context, query definition, sort/group criteria, display configuration, and access policy.
 2. **Zero Resource Duplication:** Storing or executing a SavedView does not clone, cache, or duplicate canonical WorkItems, Projects, or Initiatives.
 3. **VEW-001 Directory Surface:** Renders workspace-level Views Directory with high-density table, debounced search, context badges, and metadata columns.
-4. **VEW-001 Facet Filtering:** Correctly filters directory rows across `Favorites`, `My Views`, `Team Views`, `Workspace`, and `Archived`.
+4. **Discovery Facet Filtering:** Correctly filters directory items across `Favorites`, `My Views`, `Team Views`, `Workspace`, and `Archived`.
 5. **VEW-002 Execution Surface:** Renders view header, controls bar, and canonical execution surface for the selected SavedView.
-6. **Reused Execution Core (WRK-001):** Renders matching canonical items inside the unforked High-Density Grid with inline property pickers.
-7. **Reused Kanban Board (WRK-002):** Renders matching canonical items inside the unforked Kanban Board with group-by-status/assignee lanes.
-8. **Reused Timeline (WRK-003):** Renders matching canonical items/projects on the multi-quarter timeline with temporal milestones.
-9. **Reused Inspector (WRK-005):** Clicking an item in any view projection opens the canonical slide-over Inspector without navigation or state loss.
-10. **Canonical Domain Mutation Delegation:** Editing an entity property inside a view projection delegates directly to the canonical domain mutation boundary (`updateWorkItem`, etc.).
-11. **Compound Query Tree Evaluation:** Evaluates boolean queries with `AND`, `OR`, and nested rule groups accurately against test datasets.
-12. **Typed Field Operators:** Enforces field-appropriate operators (`equals`, `contains`, `in`, `before`, `is_empty`, etc.) per the Filter Field Registry.
-13. **Deterministic Multi-Sort:** Applies ordered multi-criteria sorting rules stably across rendered rows.
-14. **Dynamic Grouping:** Groups projection rows/cards by chosen dimension (`status`, `priority`, `assignee`, `team`, `project`).
-15. **Pre-Projection Authorization (Zero-Leakage):** Completely excludes restricted items from view results before rendering.
-16. **Zero-Leakage Count Verification:** Result counts, group badges, and summary statistics reflect strictly authorized item totals.
-17. **Zero-Leakage Autocomplete:** Filter candidate pickers strictly omit restricted project, team, and user names.
-18. **Personal View Privacy:** A `private` SavedView is discoverable and executable strictly by its owner; completely invisible to peers.
-19. **Team View Tenancy:** A `team` SavedView is discoverable by members of that team; hidden from non-members.
-20. **Workspace View Discovery:** A `workspace` SavedView is discoverable across the workspace and indexed in search.
-21. **Capability Enforcement:** Semantic capabilities (`canViewSavedView`, `canEditSavedView`, etc.) strictly guard edit, share, and archive controls.
-22. **Dual-State View Model:** Modifying a filter in `VEW-002` immediately updates the active projection locally without auto-saving to the shared view.
-23. **Visual Dirty Indicator:** Displays `● Modified` status and activates `Revert`, `Save`, and `Save As` buttons when local state diverges from persisted definition.
-24. **Explicit Revert Workflow:** Clicking `Revert` discards all local working adjustments and cleanly restores the persisted view definition.
-25. **Explicit Save Workflow:** Clicking `Save` commits working changes to canonical storage and bumps version $N \rightarrow N+1$.
-26. **Explicit Save As Workflow:** Clicking `Save As` opens creation dialog pre-filled with current working projection, creating an independent view.
-27. **Optimistic Concurrency Protection:** Rejects stale-write saves when expectedVersion does not match current canonical version.
-28. **Conflict Recovery Surface:** Surfaces conflict dialog preserving local changes and offering Overwrite, Discard, or Save As New choices.
-29. **Non-Mutating View Duplication:** Duplicating a view clones its complete projection definition with new ID and personal ownership without duplicating items.
-30. **Non-Destructive Archive & Restore:** Archiving hides the view from directory and search; restoring returns it to active state.
-31. **Generic Favorites Integration:** Starring a view integrates with canonical `useFavorites` hook and surfaces view under `FAVORITES` sidebar section.
-32. **Command Palette Integration:** Authorized views are searchable and executable from `CMD-001` Command Palette without restricted view leakage.
-33. **Stale Reference Degradation:** Deleted or inaccessible entity references render as `[Unavailable Reference]` tokens without silently dropping filter conditions.
-34. **URL & Deep-Link Navigation:** Navigating to `/views/:viewId` loads the canonical SavedView and restores its default projection cleanly.
-35. **Scope Boundary Enforcement:** POST-CORE capabilities (public links, automated digests, AI queries) and FUTURE extensions remain completely absent.
-36. **Frozen Regression Stability:** Full test suite (346 tests across 15 suites) remains 100% green without regression.
+6. **Resource Compatibility Matrix:** Enforces valid resource/projection pairings; rejects unsupported combinations.
+7. **Reused Execution Core (WRK-001):** Renders matching canonical items inside the unforked High-Density Grid with inline property pickers.
+8. **Reused Kanban Board (WRK-002):** Renders matching canonical items inside the unforked Kanban Board with group-by-status/assignee lanes.
+9. **Reused Timeline (WRK-003):** Renders matching canonical items/projects on the multi-quarter timeline with temporal milestones.
+10. **Reused Inspector (WRK-005):** Clicking a WorkItem in any view projection opens the canonical slide-over Inspector without navigation or state loss.
+11. **Non-WorkItem Detail Navigation:** Clicking a Project or Initiative in a view projection navigates to its canonical resource surface rather than opening WRK-005.
+12. **Canonical Domain Mutation Delegation:** Editing an entity property inside a view projection delegates directly to the canonical domain mutation boundary (`updateWorkItem`, `applyProjectUpdate`, etc.).
+13. **Compound Query Tree Evaluation:** Evaluates boolean queries with `AND`, `OR`, and nested rule groups accurately against live data.
+14. **Fail-Closed Non-Broadening Degradation:** Invalid, deleted, or unresolvable filter predicates fail closed and never broaden query results.
+15. **Inaccessible Reference Zero-Leakage:** Restricted entities referenced in filters render as `[Unavailable]` tokens without leaking names or metadata.
+16. **Archived Reference Preservation:** Accessible archived entities referenced in filters remain structurally active and visually flagged.
+17. **Typed Field Operators:** Enforces field-appropriate operators per the Filter Field Registry.
+18. **Deterministic Multi-Sort:** Applies ordered multi-criteria sorting rules stably across rendered rows.
+19. **Dynamic Grouping:** Groups projection rows/cards by chosen dimension (`status`, `priority`, `assignee`, `team`, `project`).
+20. **Early Authorization Filtering (Zero-Leakage):** Unauthorized records are filtered out at the authoritative query boundary before projection or counting.
+21. **Zero-Leakage Count Verification:** Result counts, group badges, and summary statistics reflect strictly authorized item totals.
+22. **Zero-Leakage Autocomplete:** Filter candidate pickers strictly omit restricted project, team, and user names.
+23. **Private View Isolation:** A `private` SavedView is discoverable and executable strictly by its owner; completely invisible to peers.
+24. **Team View Tenancy & Auth:** A `team` SavedView is discoverable strictly by users satisfying canonical Team authorization.
+25. **Context Independence:** Verifies that view context does not confer access to unauthorized underlying resources.
+26. **Capability Enforcement:** Semantic capabilities (`canViewSavedView`, `canEditSavedView`, etc.) strictly guard edit, share, and archive controls.
+27. **Dual-State View Model:** Modifying a filter in `VEW-002` immediately updates the active projection locally without auto-saving to the shared view.
+28. **Visual Dirty Indicator:** Displays `● Modified` status and activates `Revert`, `Save`, and `Save As` buttons when local state diverges from persisted definition.
+29. **Projection Switch Working State:** Switching projection lenses marks the view modified locally, requiring explicit Save to update shared default.
+30. **Explicit Revert Workflow:** Clicking `Revert` discards all local working adjustments and cleanly restores the persisted view definition.
+31. **Explicit Save Workflow:** Clicking `Save` commits working changes to canonical storage and bumps version $N \rightarrow N+1$.
+32. **Save As Uses Working Draft:** Clicking `Save As` creates a new SavedView incorporating active unsaved filter/sort adjustments.
+33. **Duplicate Uses Persisted Definition:** Invoking Duplicate clones the persisted canonical definition, ignoring unsaved working edits.
+34. **Safe Duplicate Isolation:** Duplicated views default to private ownership with current actor and copy no access grants or favorite states.
+35. **Optimistic Concurrency Protection:** Rejects stale-write saves when expectedVersion does not match current canonical version.
+36. **Safe Conflict Recovery:** Surfaces conflict recovery options (Reload Canonical, Save As New, Reapply Against Latest) without blind overwriting.
+37. **Owner Departure Governance:** Shared views remain manageable when an owner departs via governance capability reassignment.
+38. **Non-Destructive Archive & Restore:** Archiving hides the view from directory and search; restoring returns it to active state.
+39. **Generic Favorites Integration:** Starring a view integrates with canonical `useFavorites` hook and surfaces view under `FAVORITES` sidebar section.
+40. **Command Palette Integration:** Authorized views are searchable and executable from `CMD-001` Command Palette without restricted view leakage.
+41. **Durable ActivityEvents:** Canonical `ActivityEvent` records are emitted for view creation, shared updates, and archiving, but excluded for transient actions.
+42. **Centralized Keyboard Scope:** Semantic keyboard commands operate correctly and single-key navigation is isolated when typing inside editable controls.
+43. **Scalable Query Compatibility:** View query execution is compatible with cursor pagination and windowing without arbitrary item caps.
+44. **Scope Boundary Enforcement:** POST-CORE capabilities (public links, automated digests, AI queries) and Quick Create creation remain completely absent.
+45. **Frozen Regression Stability:** All previously frozen regression suites remain 100% green without modification.
 
 ---
 
-# HUMAN REVIEW — UI-09A SAVED VIEWS PRODUCT & UX CONTRACT
+# HUMAN REVIEW — UI-09A SAVED VIEWS CONTRACT CORRECTION PASS 01A
