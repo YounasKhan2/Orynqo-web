@@ -17,6 +17,8 @@ import { InitiativeManagementModal } from './InitiativeManagementModal';
 import { InitiativeUpdateModal } from './InitiativeUpdateModal';
 import { AlignProjectModal } from './AlignProjectModal';
 
+import { getInitiativeCapabilities } from '../model/initiativeModel';
+
 /**
  * InitiativeWorkspace (INT-002)
  *
@@ -40,6 +42,7 @@ export function InitiativeWorkspace({
   activityEvents = [],
   teams = [],
   users = [],
+  currentUser = null,
   activeTab = 'overview',
   onTabChange,
   onUpdateInitiative,
@@ -50,6 +53,7 @@ export function InitiativeWorkspace({
   onAlignProject,
   onDissociateProject,
   onRescheduleProject,
+  onAddProjectDependency,
   onNavigateToProject,
   isFavorite = false,
   onToggleFavorite,
@@ -94,6 +98,14 @@ export function InitiativeWorkspace({
     { id: 'activity', label: 'Activity', icon: History }
   ];
 
+  const caps = currentUser ? getInitiativeCapabilities(initiative, currentUser) : null;
+  const effectiveCanManage = caps ? caps.canEditInitiative : canManage;
+  const effectiveCanManageProjects = caps ? caps.canManageInitiativeProjects : canManage;
+  const effectiveCanManageAccess = caps ? caps.canManageInitiativeAccess : canManageAccess;
+  const effectiveCanArchive = caps ? caps.canArchiveInitiative : canManage;
+  const effectiveCanComplete = caps ? caps.canCompleteInitiative : canManage;
+  const effectiveCanPostUpdate = caps ? caps.canPostInitiativeUpdate : canManage;
+
   const accessibleProjects = (projects || []).filter(
     (p) => p.initiativeId === initiative.id && isAccessible(p, 'project') && p.archiveState !== 'archived'
   );
@@ -119,10 +131,10 @@ export function InitiativeWorkspace({
         isFavorite={isFavorite}
         onToggleFavorite={onToggleFavorite}
         onUpdateInitiative={(updates) => onUpdateInitiative?.(initiative.id, updates)}
-        onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
-        onOpenAlignProjectModal={() => setIsAlignProjectModalOpen(true)}
+        onOpenUpdateModal={effectiveCanPostUpdate ? () => setIsUpdateModalOpen(true) : null}
+        onOpenAlignProjectModal={effectiveCanManageProjects ? () => setIsAlignProjectModalOpen(true) : null}
         onOpenManagementSurface={() => setIsManagementModalOpen(true)}
-        canManage={canManage}
+        canManage={effectiveCanManage}
       />
 
       {/* Resource Tab Navigation (Exactly Five Canonical Tabs) */}
@@ -199,7 +211,7 @@ export function InitiativeWorkspace({
             onNavigateToProject={onNavigateToProject}
             onOpenAlignProjectModal={() => setIsAlignProjectModalOpen(true)}
             onDissociateProject={(projId) => onDissociateProject?.(projId)}
-            canManage={canManage}
+            canManage={effectiveCanManageProjects}
             isAccessible={isAccessible}
           />
         )}
@@ -213,8 +225,9 @@ export function InitiativeWorkspace({
             dependencies={dependencies}
             teams={teams}
             onRescheduleProject={onRescheduleProject}
+            onAddProjectDependency={onAddProjectDependency}
             onNavigateToProject={onNavigateToProject}
-            canManage={canManage}
+            canManage={effectiveCanManageProjects}
             isAccessible={isAccessible}
           />
         )}
@@ -224,8 +237,8 @@ export function InitiativeWorkspace({
             initiative={initiative}
             updates={updates}
             users={users}
-            onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
-            canManage={canManage}
+            onOpenUpdateModal={effectiveCanPostUpdate ? () => setIsUpdateModalOpen(true) : null}
+            canManage={effectiveCanPostUpdate}
           />
         )}
 
@@ -248,9 +261,9 @@ export function InitiativeWorkspace({
         onArchiveInitiative={onArchiveInitiative}
         onRestoreInitiative={onRestoreInitiative}
         onCompleteInitiative={onCompleteInitiative}
-        canManageAccess={canManageAccess}
-        canArchive={canManage}
-        canComplete={canManage}
+        canManageAccess={effectiveCanManageAccess}
+        canArchive={effectiveCanArchive}
+        canComplete={effectiveCanComplete}
       />
 
       {/* Authoritative Initiative Update Composer Modal */}

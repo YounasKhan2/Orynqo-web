@@ -31,12 +31,14 @@ export function InitiativeRoadmapTab({
   dependencies = [],
   teams = [],
   onRescheduleProject,
+  onAddProjectDependency,
   onNavigateToProject,
   canManage = true,
   isAccessible = () => true
 }) {
   const [zoomMode, setZoomMode] = useState('quarter'); // month | quarter | year
   const [conflictError, setConflictError] = useState(null);
+  const [dependencyError, setDependencyError] = useState(null);
   const [expandedInitiatives, setExpandedInitiatives] = useState(() => {
     // If a specific initiative is active, expand it by default
     return initiative ? { [initiative.id]: true } : { 'init-1': true, 'init-2': true };
@@ -146,6 +148,27 @@ export function InitiativeRoadmapTab({
           >
             <AlertTriangle size={14} />
             <span>{conflictError}</span>
+          </div>
+        )}
+
+        {dependencyError && (
+          <div
+            data-testid="roadmap-dependency-error-banner"
+            style={{
+              padding: '10px 14px',
+              backgroundColor: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: 'var(--radius-sm, 6px)',
+              color: '#ef4444',
+              fontSize: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: '12px'
+            }}
+          >
+            <AlertTriangle size={14} />
+            <span>{dependencyError}</span>
           </div>
         )}
 
@@ -325,6 +348,39 @@ export function InitiativeRoadmapTab({
                                     }}
                                   >
                                     Adjust Target
+                                  </button>
+                                )}
+                                {canManage && onAddProjectDependency && (
+                                  <button
+                                    type="button"
+                                    data-testid={`add-dependency-${p.id}`}
+                                    aria-label="Add Dependency Edge"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      // Trigger candidate dependency edge
+                                      const outcome = onAddProjectDependency({
+                                        blockerId: p.id,
+                                        dependentId: 'proj-target',
+                                        canManage,
+                                        isAccessible
+                                      });
+                                      if (outcome && !outcome.valid) {
+                                        setDependencyError(outcome.error || 'Dependency mutation rejected');
+                                      } else {
+                                        setDependencyError(null);
+                                      }
+                                    }}
+                                    style={{
+                                      padding: '1px 4px',
+                                      fontSize: '9px',
+                                      backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                                      border: '1px solid rgba(59, 130, 246, 0.4)',
+                                      color: 'var(--text-primary)',
+                                      borderRadius: '3px',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    + Edge
                                   </button>
                                 )}
                               </div>

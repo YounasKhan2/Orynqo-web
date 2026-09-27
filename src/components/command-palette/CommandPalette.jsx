@@ -8,6 +8,7 @@ import {
   Moon,
   Sun,
   Layers,
+  Compass,
   ArrowRight
 } from 'lucide-react';
 import { Kbd } from '../../design-system';
@@ -21,14 +22,17 @@ export function CommandPalette({
   isOpen,
   onClose,
   items = [],
+  initiatives = [],
   onSelectItem,
+  onSelectInitiative,
   onOpenCreateModal,
   onSelectView,
   onNavigate,
   onToggleSidebar,
   onOpenWorkspaceSwitcher,
   onToggleTheme,
-  theme
+  theme,
+  isAccessible = () => true
 }) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -186,11 +190,39 @@ export function CommandPalette({
     run: () => { onClose?.(); onSelectItem?.(item); }
   }));
 
+  const filteredInitiatives = (initiatives || [])
+    .filter((init) => isAccessible(init, 'initiative') && init.archiveState !== 'archived')
+    .filter(
+      (init) =>
+        (init.identifier || '').toLowerCase().includes(query.toLowerCase()) ||
+        (init.name || '').toLowerCase().includes(query.toLowerCase()) ||
+        (init.summary || '').toLowerCase().includes(query.toLowerCase())
+    )
+    .map((init) => ({
+      id: init.id,
+      type: 'initiative',
+      identifier: init.identifier,
+      title: init.name,
+      category: 'Initiatives',
+      health: init.health,
+      icon: Compass,
+      run: () => {
+        onClose?.();
+        if (onSelectInitiative) {
+          onSelectInitiative(init);
+        } else if (onNavigate) {
+          onNavigate({ scope: 'initiatives', initiativeId: init.id, tab: 'overview' });
+        }
+      }
+    }));
+
   const filteredActions = staticActions.filter((act) =>
     act.title.toLowerCase().includes(query.toLowerCase())
   );
 
-  const allResults = [...filteredActions, ...filteredWorkItems].slice(0, 10);
+  const allResults = query.trim()
+    ? [...filteredInitiatives, ...filteredWorkItems, ...filteredActions].slice(0, 12)
+    : [...filteredInitiatives, ...filteredActions, ...filteredWorkItems].slice(0, 12);
 
   useEffect(() => {
     if (!isOpen) return;

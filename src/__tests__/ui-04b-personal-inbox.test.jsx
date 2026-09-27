@@ -64,7 +64,7 @@ describe('UI-04B: Personal Triage Inbox implementation', () => {
 
     expect(result.rawEvents.length).toBe(1);
     expect(result.rawEvents[0].id).toBe('notif-108');
-    expect(result.rawEvents[0].snoozedUntil).toBe('2026-09-27T09:00:00Z');
+    expect(result.rawEvents[0].snoozedUntil).toBe('2026-12-31T09:00:00Z');
   });
 
   // 4. Query / IA: Archive contains archived notifications

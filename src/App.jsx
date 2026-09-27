@@ -38,7 +38,7 @@ import { createProjectUpdateModel } from './features/projects/model/projectUpdat
 import { TeamHub } from './features/teams';
 import { DocsHub, DocumentCanvas } from './features/documents';
 import { ProjectWorkspace, ProjectsDirectory } from './features/projects';
-import { InitiativeWorkspace, InitiativesDirectory } from './features/initiatives';
+import { InitiativeWorkspace, InitiativesDirectory, evaluateInitiativeAccess, getInitiativeCapabilities, useInitiativeMutations } from './features/initiatives';
 import {
   Kanban,
   Table,
@@ -384,11 +384,13 @@ function MainView({
           onRescheduleProject={(projectId, dates, expectedVersion) =>
             onUpdateProject(projectId, dates, expectedVersion)
           }
+          onAddProjectDependency={onAddProjectDependency}
           onNavigateToProject={(id) =>
             onNavigate?.({ scope: 'projects', projectId: id, tab: 'overview' })
           }
           isFavorite={isInitiativeFavorite(activeInitiativeId)}
           onToggleFavorite={() => onToggleInitiativeFavorite?.(activeInitiativeId)}
+          currentUser={CURRENT_USER}
           isAccessible={isAccessible}
         />
       );
@@ -1691,6 +1693,15 @@ function OrynqoWorkspace({
             isOpen={isCommandPaletteOpen}
             onClose={() => setIsCommandPaletteOpen(false)}
             items={items}
+            initiatives={initiatives}
+            projects={projects}
+            isAccessible={(entity, type) => {
+              if (!entity) return false;
+              if (type === 'initiative') return evaluateInitiativeAccess(entity, CURRENT_USER);
+              if (entity.isRestricted || entity.restricted) return false;
+              if (entity.isAccessible === false) return false;
+              return true;
+            }}
             onSelectItem={(item) => {
               selectItem(item.id);
               setIsInspectorOpen(true);
@@ -1787,6 +1798,7 @@ function OrynqoWorkspace({
         onToggleInitiativeFavorite={handleToggleInitiativeFavorite}
         isAccessible={(entity, type) => {
           if (!entity) return false;
+          if (type === 'initiative') return evaluateInitiativeAccess(entity, CURRENT_USER);
           if (entity.isRestricted || entity.restricted) return false;
           if (entity.isAccessible === false) return false;
           return true;

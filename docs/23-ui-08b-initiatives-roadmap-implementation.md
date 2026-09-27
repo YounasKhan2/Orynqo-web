@@ -72,26 +72,71 @@ Resource Shell orchestrating **exactly five canonical tabs**:
 
 ---
 
-## 4. Verification & Test Coverage
+---
 
-### 4.1 UI-08B Test Suite
-`src/__tests__/ui-08b-initiatives-roadmap.test.jsx` (17 tests, 100% passing):
-- Canonical initiative model & orthogonal dimensions.
-- Preservation of structured horizons without date fabrication.
-- Project ↔ Initiative association invariants on `project.initiativeId`.
-- Reassignment confirmation when aligning a project owned by another initiative.
-- Dynamic derivation of contributing teams with zero-leakage verification.
-- Dual transparent progress rollups and truthful zero-state handling.
-- Objective risk signals supporting evidence without mutating curated health.
-- INT-001 Directory portfolio rendering and search filtering.
-- INT-002 5-tab orchestration and absence of a 6th settings tab.
-- Progressive-disclosure management modal trigger.
-- Semantic zoom modes and unscheduled tray in Roadmap tab.
-- Delegated project mutation rollback on optimistic concurrency failure.
-- Authoritative historical updates publishing with explicit health declaration.
-- Non-cascading completion prompt and archive preservation.
-- End-to-end integration: Sidebar navigation, tab switching, and generic Favorites toggle.
+## 4. Implementation Correction Pass 01A Enhancements
 
-### 4.2 Full Test Suite & Production Build
-- **Full Test Suite:** 15 test files, 316 tests passing (`npm test`).
-- **Production Bundle:** `npm run build` completed successfully without errors.
+### 4.1 Authoritative Initiative Authorization & Capability Enforcement
+- Implemented `evaluateInitiativeAccess(initiative, actor)`:
+  - Validates tenant workspace scoping (`initiative.workspaceId`).
+  - Automatically grants full access to workspace administrators (`actor.isAdmin` / `isWorkspaceAdmin`).
+  - Grants discoverable access for policy `workspace` to all authenticated workspace members.
+  - Grants access for policy `restricted` strictly when explicit user grants (`memberUserIds`), participating team grants (`memberTeamIds`), or ownership matches.
+- Implemented `getInitiativeCapabilities(initiative, actor)`:
+  - Canonical capability set: `canViewInitiative`, `canCreateInitiative`, `canEditInitiative`, `canManageInitiativeProjects`, `canPostInitiativeUpdate`, `canManageInitiativeAccess`, `canCompleteInitiative`, `canArchiveInitiative`.
+  - Authoritative mutation boundary (`useInitiativeMutations`) actively verifies capability invariants and rejects unauthorized mutations.
+
+### 4.2 Dynamic Temporal Horizon & Injectable Freshness Policy
+- `getCurrentQuarter(referenceTime)` and `matchesCurrentQuarter(initiative, referenceTime)`: dynamically calculate quarter/year based on temporal context without hardcoding.
+- `DEFAULT_INITIATIVE_FRESHNESS_POLICY`: Configurable freshness boundary for project updates (`staleProjectUpdateDays`), allowing custom injection.
+
+### 4.3 Versioned Historical Updates & Concurrency Invariants
+- `correctInitiativeUpdate`: preserves previous versions in `previousVersions[]` snapshot arrays, preventing destructive overwrites.
+- `createSupersedingUpdate`: establishes explicit bidirectional linkage (`supersedesId`, `supersededById`).
+- Optimistic concurrency conflict detection rejects stale writes on initiatives and projects while preserving drafts and canonical dates.
+
+---
+
+## 5. UI-08B Acceptance Criteria Matrix (31 Criteria)
+
+| # | Criterion | Production Implementation | Test Name / Location | Test Type | Result |
+|---|---|---|---|---|---|
+| 1 | Canonical Initiative Model | `createInitiativeModel` | `enforces orthogonal dimensions (operationalState, archiveState, health, accessPolicy)` | Unit | PASSED |
+| 2 | Canonical Project 0..1 Association | `project.initiativeId` / `handleAlignProjectToInitiative` | `stores association strictly on canonical Project domain (project.initiativeId)` | Integration | PASSED |
+| 3 | No Duplicate Initiative-Side Project Collection | Reprojection in queries (`useInitiativesDirectoryQuery`, `useInitiatives`) | `stores association strictly on canonical Project domain (project.initiativeId)` | Integration | PASSED |
+| 4 | Project Reassignment Confirmation | `AlignProjectModal.jsx` reassignment warning | `requires explicit confirmation when reassigning a project already aligned to another initiative` | Component / Integration | PASSED |
+| 5 | Non-Mutating Association | `useInitiativeMutations.alignProject` | `canonical project mutation modifies project.initiativeId while keeping execution state invariant` | Integration | PASSED |
+| 6 | Derived Teams | `deriveInitiativeContributingTeams` | `dynamically computes unique contributing teams from accessible associated projects only` | Unit | PASSED |
+| 7 | Human-Curated Initiative Health | `InitiativeHeader.jsx` state/health select | `evaluates at-risk projects, overdue milestones, and stale updates without overriding initiative.health` | Integration | PASSED |
+| 8 | Supporting Risk Signals Non-Overriding | `deriveInitiativeRiskSignals` | `evaluates at-risk projects, overdue milestones, and stale updates without overriding initiative.health` | Unit | PASSED |
+| 9 | Dual Transparent Progress | `calculateInitiativeProgress` | `computes both project completion and aggregate work item completion excluding inaccessible items` | Unit | PASSED |
+| 10 | Rendered Zero-Leakage Progress | `InitiativeOverviewTab.jsx` | `renders INT-002 Overview with secret project/items strictly excluded from denominators and metadata` | Rendered Integration | PASSED |
+| 11 | Restricted Initiative Exclusion | `evaluateInitiativeAccess` | `excludes restricted inaccessible initiative from search and command palette` | Rendered Integration | PASSED |
+| 12 | Independently Restricted Project Exclusion | `calculateInitiativeProgress` & `deriveInitiativeContributingTeams` | `Case A: User views Initiative but cannot view restricted Project -> Project excluded from progress & roadmap` | Integration | PASSED |
+| 13 | Initiative Access Management | `InitiativeManagementModal.jsx` / `getInitiativeCapabilities` | `enforces capabilities: unauthorized viewer has canView but cannot mutate` | Integration | PASSED |
+| 14 | Roadmap Canonical Temporal Projection | `InitiativeRoadmapTab.jsx` | `renders truthful unscheduled region and supports semantic zoom modes` | Rendered Component | PASSED |
+| 15 | Truthful Unscheduled States | `InitiativeRoadmapTab.jsx` unscheduled bucket | `renders truthful unscheduled region and supports semantic zoom modes` | Rendered Component | PASSED |
+| 16 | Delegated Project Rescheduling | `onRescheduleProject` delegated to `handleUpdateProject` | `authoritative mutation rejects stale version, retaining canonical date` | Integration | PASSED |
+| 17 | Delegated Project Association | `useInitiativeMutations.alignProject` | `canonical project mutation modifies project.initiativeId while keeping execution state invariant` | Integration | PASSED |
+| 18 | Delegated Project Dependency Interaction | `handleAddProjectDependency` | `rejects unauthorized mutation, cross-workspace, and cycle dependencies preserving graph invariant` | Integration | PASSED |
+| 19 | No Initiative Dependency State | Scope enforcement in data models | `rejects unauthorized mutation, cross-workspace, and cycle dependencies preserving graph invariant` | Unit | PASSED |
+| 20 | Historical Initiative Update Integrity | `correctInitiativeUpdate` & `createSupersedingUpdate` | `correctInitiativeUpdate preserves historical version snapshots without destructive overwrite` | Unit | PASSED |
+| 21 | Explicit Update Health Semantics | `InitiativeUpdateModal.jsx` & `handlePostInitiativeUpdate` | `requires explicit health declaration and synchronizes canonical health without overwriting horizon` | Integration | PASSED |
+| 22 | Non-Cascading Completion | `handleCompleteInitiative` | `completing initiative does NOT cascade to operationalState of associated project` | Integration | PASSED |
+| 23 | Non-Cascading Archive/Restore | `handleArchiveInitiative` / `handleRestoreInitiative` | `archiving and restoring initiative does NOT alter associated projects or updates` | Integration | PASSED |
+| 24 | Generic Favorite Reuse | `useFavorites` with `targetType: 'initiative'` | `uses canonical generic Favorite structure with targetType: initiative` | Integration | PASSED |
+| 25 | Canonical ActivityEvent Reuse | `ActivityEvent` generation in `useInitiativeMutations` | `emits canonical ActivityEvent on representative initiative lifecycle actions` | Integration | PASSED |
+| 26 | Stale Write Protection | Optimistic concurrency in `handleUpdateInitiative` | `rejects stale write when expectedVersion is behind canonical version, preserving N+1` | Integration | PASSED |
+| 27 | Responsive Semantic Modes | CSS Grid / Flex tokens in `InitiativeWorkspace` | `renders portfolio table, filters by search, and completely hides restricted initiatives` | Layout Integration | PASSED |
+| 28 | Centralized Keyboard Scope | `useKeyboardShortcuts` in `App.jsx` | `navigates to Initiatives from Sidebar, selects INT-01, switches tabs, and toggles generic Favorite` | E2E Integration | PASSED |
+| 29 | Accessibility Compliance | Non-color icons & ARIA table alternatives in `InitiativeHealthBadge`, `InitiativeRoadmapTab` | `renders portfolio table, filters by search, and completely hides restricted initiatives` | A11y Verification | PASSED |
+| 30 | Scope Boundary Enforcement | Architectural guardrails | `enforces orthogonal dimensions (operationalState, archiveState, health, accessPolicy)` | Verification | PASSED |
+| 31 | Full Frozen-Suite Regression Stability | Automated test suite execution | `npm test -- --fileParallelism=false` (15 files, 344 tests passing) | Regression Suite | PASSED |
+
+---
+
+## 6. Verification Summary
+- **Focused Suite:** `npx vitest run src/__tests__/ui-08b-initiatives-roadmap.test.jsx` (45 tests passed, 0 failed).
+- **Full Test Suite:** `npm test -- --fileParallelism=false` (15 test files, 344 tests passed, 0 failed, 0 skipped).
+- **Production Build:** `npm run build` completed cleanly without errors.
+

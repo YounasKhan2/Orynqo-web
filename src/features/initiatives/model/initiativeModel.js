@@ -280,7 +280,8 @@ export function deriveInitiativeRiskSignals(arg1, arg2, arg3, arg4, arg5, arg6) 
     milestones = arg1.milestones || [];
     projectUpdates = arg1.projectUpdates || arg1.updates || [];
     isAccessible = typeof arg1.isAccessible === 'function' ? arg1.isAccessible : () => true;
-    staleDaysThreshold = arg1.staleDaysThreshold || 30;
+    staleDaysThreshold =
+      arg1.freshnessPolicy?.staleProjectUpdateDays ?? arg1.staleDaysThreshold ?? DEFAULT_INITIATIVE_FRESHNESS_POLICY.staleProjectUpdateDays;
   } else {
     // Positional or init object passed as arg1
     initiativeId = typeof arg1 === 'string' ? arg1 : arg1?.id;
@@ -317,7 +318,7 @@ export function deriveInitiativeRiskSignals(arg1, arg2, arg3, arg4, arg5, arg6) 
     return Object.assign(signalList, defaultCounts);
   }
 
-  const now = new Date();
+  const now = arg1?.referenceClock ? new Date(arg1.referenceClock) : arg1?.referenceTime ? new Date(arg1.referenceTime) : new Date();
   const initiativeProjectIds = new Set(initiativeProjects.map((p) => p.id));
 
   let atRiskCount = 0;
@@ -417,4 +418,198 @@ export function deriveInitiativeRiskSignals(arg1, arg2, arg3, arg4, arg5, arg6) 
     targetMismatchCount: 0,
     totalRisksCount: totalRisks
   });
+}
+
+/**
+ * Default Freshness Policy for Initiative Risk Signals.
+ */
+export const DEFAULT_INITIATIVE_FRESHNESS_POLICY = {
+  staleProjectUpdateDays: 30
+};
+
+/**
+ * Derives current quarter and year dynamically from a reference clock / time context.
+ *
+ * @param {Date|string|number} [referenceTime=new Date()] - Reference date/timestamp
+ * @returns {{ quarter: string, year: number, label: string }} e.g. { quarter: 'Q3', year: 2026, label: 'Q3 2026' }
+ */
+export function getCurrentQuarter(referenceTime = new Date()) {
+  const d = new Date(referenceTime);
+  const month = d.getMonth(); // 0-indexed: 0-2 = Q1, 3-5 = Q2, 6-8 = Q3, 9-11 = Q4
+  const qNum = Math.floor(month / 3) + 1;
+  const quarter = `Q${qNum}`;
+  const year = d.getFullYear();
+  return {
+    quarter,
+    year,
+    label: `${quarter} ${year}`
+  };
+}
+
+/**
+ * Checks whether an initiative matches the current quarter dynamically based on reference clock.
+ *
+ * @param {Object} initiative - Canonical initiative
+ * @param {Date|string|number} [referenceTime=new Date()] - Reference date
+ * @returns {boolean}
+ */
+export function matchesCurrentQuarter(initiative, referenceTime = new Date()) {
+  if (!initiative?.horizon) return false;
+  const current = getCurrentQuarter(referenceTime);
+  const horizon = initiative.horizon;
+
+  if (horizon.type === 'quarter' || horizon.quarter) {
+    const initQ = horizon.quarter?.toString().toUpperCase();
+    const targetQ = current.quarter.toUpperCase();
+    const initYear = horizon.year ? Number(horizon.year) : null;
+    if (initYear) {
+      return initQ === targetQ && initYear === current.year;
+    }
+    return initQ === targetQ;
+  }
+
+  if (horizon.targetDate) {
+    const targetDate = new Date(horizon.targetDate);
+    const targetQ = getCurrentQuarter(targetDate);
+    return targetQ.quarter === current.quarter && targetQ.year === current.year;
+  }
+
+  if (horizon.label) {
+    return horizon.label.includes(current.label);
+  }
+
+  return false;
+}
+
+/**
+ * Evaluates whether an actor has access to view an initiative according to the frozen access policy.
+ *
+ * Evaluates:
+ * - initiative.workspaceId matching actor's active workspace
+ * - initiative.accessPolicy === 'workspace' (workspace-discoverable): visible to any workspace member
+ * - initiative.accessPolicy === 'restricted': requires explicit grant via memberUserIds, memberTeamIds,
+ *   or administrative capability.
+ *
+ * @param {Object} initiative - Canonical Initiative
+ * @param {Object} actor - Current user context
+ * @param {string} [actor.id] - User ID
+ * @param {Array<string>} [actor.teamIds] - User's team IDs
+ * @param {string} [actor.workspaceId] - Active workspace ID
+ * @param {boolean} [actor.isAdmin] - Workspace admin capability
+ * @returns {boolean} True if accessible
+ */
+export function evaluateInitiativeAccess(initiative, actor = {}) {
+  if (!initiative) return false;
+
+  // Workspace tenancy check
+  const initiativeWorkspaceId = initiative.workspaceId || 'wks-core';
+  const actorWorkspaceId = actor.workspaceId || actor.currentWorkspaceId || 'wks-core';
+  if (initiativeWorkspaceId !== actorWorkspaceId) {
+    return false;
+  }
+
+  // Workspace admin always has access
+  if (actor.isAdmin || actor.isWorkspaceAdmin || actor.role === 'admin') {
+    return true;
+  }
+
+  const policy = initiative.accessPolicy || initiative.access?.visibility || INITIATIVE_ACCESS_POLICY.WORKSPACE_DISCOVERABLE;
+
+  // Workspace-discoverable policy: visible to all members of this workspace
+  if (policy === INITIATIVE_ACCESS_POLICY.WORKSPACE_DISCOVERABLE || policy === 'workspace') {
+    return true;
+  }
+
+  // Restricted policy: requires explicit user or team membership grant
+  if (policy === INITIATIVE_ACCESS_POLICY.RESTRICTED || policy === 'restricted') {
+    const memberUserIds = initiative.access?.memberUserIds || [];
+    const memberTeamIds = initiative.access?.memberTeamIds || [];
+
+    // Owner always has access
+    if (actor.id && initiative.ownerUserId === actor.id) {
+      return true;
+    }
+
+    // Explicit user grant
+    if (actor.id && memberUserIds.includes(actor.id)) {
+      return true;
+    }
+
+    // Explicit team grant
+    const actorTeams = actor.teamIds || actor.participatingTeamIds || [];
+    if (actorTeams.some((tId) => memberTeamIds.includes(tId))) {
+      return true;
+    }
+
+    return false;
+  }
+
+  return false;
+}
+
+/**
+ * Resolves full semantic action capabilities for an actor on a specific Initiative.
+ *
+ * Canonical Capabilities:
+ * - canViewInitiative
+ * - canCreateInitiative
+ * - canEditInitiative
+ * - canManageInitiativeProjects
+ * - canPostInitiativeUpdate
+ * - canManageInitiativeAccess
+ * - canCompleteInitiative
+ * - canArchiveInitiative
+ *
+ * @param {Object} initiative - Canonical Initiative
+ * @param {Object} actor - Current user context
+ * @returns {Object} Map of capability flags
+ */
+export function getInitiativeCapabilities(initiative, actor = {}) {
+  const canView = evaluateInitiativeAccess(initiative, actor);
+
+  if (!canView || !initiative) {
+    return {
+      canViewInitiative: false,
+      canCreateInitiative: false,
+      canEditInitiative: false,
+      canManageInitiativeProjects: false,
+      canPostInitiativeUpdate: false,
+      canManageInitiativeAccess: false,
+      canCompleteInitiative: false,
+      canArchiveInitiative: false
+    };
+  }
+
+  // If actor has explicit capability grants passed in:
+  if (actor.capabilities) {
+    return {
+      canViewInitiative: true,
+      canCreateInitiative: actor.capabilities.canCreateInitiative !== false,
+      canEditInitiative: Boolean(actor.capabilities.canEditInitiative),
+      canManageInitiativeProjects: Boolean(actor.capabilities.canManageInitiativeProjects),
+      canPostInitiativeUpdate: Boolean(actor.capabilities.canPostInitiativeUpdate),
+      canManageInitiativeAccess: Boolean(actor.capabilities.canManageInitiativeAccess),
+      canCompleteInitiative: Boolean(actor.capabilities.canCompleteInitiative),
+      canArchiveInitiative: Boolean(actor.capabilities.canArchiveInitiative)
+    };
+  }
+
+  const isAdmin = Boolean(actor.isAdmin || actor.isWorkspaceAdmin || actor.role === 'admin');
+  const isOwner = Boolean(actor.id && initiative.ownerUserId === actor.id);
+  const isArchived = initiative.archiveState === 'archived';
+  const isRestricted = initiative.accessPolicy === 'restricted' || initiative.isRestricted;
+
+  // On restricted initiatives, only admins, owners, or explicit editors can mutate
+  const hasBaseMutateAccess = !isArchived && (isAdmin || isOwner || !isRestricted);
+
+  return {
+    canViewInitiative: true,
+    canCreateInitiative: true,
+    canEditInitiative: hasBaseMutateAccess,
+    canManageInitiativeProjects: hasBaseMutateAccess,
+    canPostInitiativeUpdate: hasBaseMutateAccess,
+    canManageInitiativeAccess: isAdmin || isOwner,
+    canCompleteInitiative: !isArchived && (isAdmin || isOwner),
+    canArchiveInitiative: isAdmin || isOwner
+  };
 }

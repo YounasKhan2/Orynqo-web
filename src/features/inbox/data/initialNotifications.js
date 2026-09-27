@@ -223,7 +223,7 @@ export const INITIAL_NOTIFICATIONS = [
     createdAt: '2026-09-23T11:00:00Z',
     readAt: '2026-09-23T11:30:00Z',
     archivedAt: null,
-    snoozedUntil: '2026-09-27T09:00:00Z', // Future date
+    snoozedUntil: '2026-12-31T09:00:00Z', // Future date
     importance: 'focus',
     responseRequired: false,
     bundleKey: 'item-110-assigned',

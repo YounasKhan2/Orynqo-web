@@ -14,7 +14,8 @@ import {
   INITIATIVE_OPERATIONAL_STATE,
   INITIATIVE_HEALTH,
   deriveInitiativeContributingTeams,
-  calculateInitiativeProgress
+  calculateInitiativeProgress,
+  matchesCurrentQuarter
 } from '../model/initiativeModel';
 import { InitiativeHealthBadge } from './InitiativeHealthBadge';
 import { InitiativeProgressBar } from './InitiativeProgressBar';
@@ -33,10 +34,12 @@ export function InitiativesDirectory({
   users = [],
   onNavigateToInitiative,
   onOpenCreateInitiative,
+  referenceClock = new Date(),
   isAccessible = () => true
 }) {
   const [stateFilter, setStateFilter] = useState('all');
   const [healthFilter, setHealthFilter] = useState('all');
+  const [horizonFilter, setHorizonFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortKey, setSortKey] = useState('horizon');
   const [sortDirection, setSortDirection] = useState('asc');
@@ -47,6 +50,14 @@ export function InitiativesDirectory({
   const filteredInitiatives = accessibleInitiatives.filter((init) => {
     if (stateFilter !== 'all' && init.operationalState !== stateFilter) return false;
     if (healthFilter !== 'all' && init.health !== healthFilter) return false;
+
+    if (horizonFilter !== 'all') {
+      if (horizonFilter === 'unscheduled') {
+        if (init.horizon !== null && (init.horizon?.targetDate || init.horizon?.quarter)) return false;
+      } else if (horizonFilter === 'current_quarter') {
+        if (!matchesCurrentQuarter(init, referenceClock)) return false;
+      }
+    }
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
@@ -243,6 +254,26 @@ export function InitiativesDirectory({
             <option value="at_risk">At Risk</option>
             <option value="off_track">Off Track</option>
             <option value="unset">Unset</option>
+          </select>
+
+          {/* Horizon Facet */}
+          <select
+            data-testid="initiative-horizon-filter"
+            value={horizonFilter}
+            onChange={(e) => setHorizonFilter(e.target.value)}
+            style={{
+              padding: '4px 8px',
+              borderRadius: 'var(--radius-xs, 4px)',
+              backgroundColor: 'var(--bg-canvas, #0f172a)',
+              color: 'var(--text-primary, #f8fafc)',
+              border: '1px solid var(--border-default, #334155)',
+              fontSize: '12px',
+              outline: 'none'
+            }}
+          >
+            <option value="all">All Horizons</option>
+            <option value="current_quarter">Current Quarter</option>
+            <option value="unscheduled">Unscheduled</option>
           </select>
         </div>
 
