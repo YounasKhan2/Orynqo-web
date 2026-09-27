@@ -275,7 +275,8 @@ export function useInitiativeMutations({
   initiatives = [],
   setInitiatives,
   projects = [],
-  setProjects,
+  onUpdateProject,
+  setProjects, // Kept only for optional fallback compatibility if caller supplies it
   updates = [],
   setUpdates,
   activityEvents = [],
@@ -457,7 +458,7 @@ export function useInitiativeMutations({
   );
 
   const alignProject = useCallback(
-    (projectId, targetInitiativeId) => {
+    (projectId, targetInitiativeId, expectedVersion = null) => {
       const targetInit = (initiatives || []).find((i) => i.id === targetInitiativeId);
       if (!targetInit) return { success: false, error: 'Target Initiative not found' };
 
@@ -466,21 +467,32 @@ export function useInitiativeMutations({
         return { success: false, error: 'Unauthorized: actor lacks canManageInitiativeProjects capability' };
       }
 
-      let updatedProject = null;
-      setProjects?.((prev) => {
-        const proj = prev.find((p) => p.id === projectId);
-        if (!proj) return prev;
+      // Delegate canonically to Authoritative Project Mutation Boundary (UI-07)
+      if (typeof onUpdateProject === 'function') {
+        const mutationResult = onUpdateProject(projectId, { initiativeId: targetInitiativeId }, expectedVersion);
+        const succeeded = mutationResult === true || (mutationResult && mutationResult.success !== false);
+        if (!succeeded) {
+          return { success: false, error: 'Project mutation rejected by authoritative boundary' };
+        }
+      } else if (setProjects) {
+        // Fallback for callers supplying setProjects
+        setProjects((prev) =>
+          prev.map((p) =>
+            p.id === projectId
+              ? {
+                  ...p,
+                  initiativeId: targetInitiativeId,
+                  version: (p.version || 1) + 1,
+                  updatedAt: new Date().toISOString()
+                }
+              : p
+          )
+        );
+      } else {
+        return { success: false, error: 'No authoritative project mutation boundary provided' };
+      }
 
-        updatedProject = {
-          ...proj,
-          initiativeId: targetInitiativeId,
-          version: (proj.version || 1) + 1,
-          updatedAt: new Date().toISOString()
-        };
-
-        return prev.map((p) => (p.id === projectId ? updatedProject : p));
-      });
-
+      // Emit canonical ActivityEvent ONLY upon authoritative success
       setActivityEvents?.((prev) => [
         {
           id: `act-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -494,13 +506,13 @@ export function useInitiativeMutations({
         ...prev
       ]);
 
-      return { success: true, updatedProject };
+      return { success: true };
     },
-    [initiatives, setProjects, setActivityEvents, actor]
+    [initiatives, onUpdateProject, setProjects, setActivityEvents, actor]
   );
 
   const dissociateProject = useCallback(
-    (projectId, sourceInitiativeId) => {
+    (projectId, sourceInitiativeId = null, expectedVersion = null) => {
       if (sourceInitiativeId) {
         const sourceInit = (initiatives || []).find((i) => i.id === sourceInitiativeId);
         if (sourceInit) {
@@ -511,20 +523,29 @@ export function useInitiativeMutations({
         }
       }
 
-      let updatedProject = null;
-      setProjects?.((prev) => {
-        const proj = prev.find((p) => p.id === projectId);
-        if (!proj) return prev;
-
-        updatedProject = {
-          ...proj,
-          initiativeId: null,
-          version: (proj.version || 1) + 1,
-          updatedAt: new Date().toISOString()
-        };
-
-        return prev.map((p) => (p.id === projectId ? updatedProject : p));
-      });
+      // Delegate canonically to Authoritative Project Mutation Boundary (UI-07)
+      if (typeof onUpdateProject === 'function') {
+        const mutationResult = onUpdateProject(projectId, { initiativeId: null }, expectedVersion);
+        const succeeded = mutationResult === true || (mutationResult && mutationResult.success !== false);
+        if (!succeeded) {
+          return { success: false, error: 'Project mutation rejected by authoritative boundary' };
+        }
+      } else if (setProjects) {
+        setProjects((prev) =>
+          prev.map((p) =>
+            p.id === projectId
+              ? {
+                  ...p,
+                  initiativeId: null,
+                  version: (p.version || 1) + 1,
+                  updatedAt: new Date().toISOString()
+                }
+              : p
+          )
+        );
+      } else {
+        return { success: false, error: 'No authoritative project mutation boundary provided' };
+      }
 
       if (sourceInitiativeId) {
         setActivityEvents?.((prev) => [
@@ -541,9 +562,9 @@ export function useInitiativeMutations({
         ]);
       }
 
-      return { success: true, updatedProject };
+      return { success: true };
     },
-    [initiatives, setProjects, setActivityEvents, actor]
+    [initiatives, onUpdateProject, setProjects, setActivityEvents, actor]
   );
 
   const postUpdate = useCallback(
