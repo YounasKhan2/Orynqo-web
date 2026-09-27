@@ -226,6 +226,8 @@ export function Sidebar({
                   handleNavigate({ scope: 'teams', teamId: fav.targetId, tab: 'work' });
                 } else if (fav.targetType === 'project') {
                   handleNavigate({ scope: 'projects', projectId: fav.targetId, tab: 'work' });
+                } else if (fav.targetType === 'initiative') {
+                  handleNavigate({ scope: 'initiatives', initiativeId: fav.targetId, tab: 'overview' });
                 } else {
                   handleNavigate(fav.targetType);
                 }
@@ -245,7 +247,7 @@ export function Sidebar({
             <SidebarItem
               icon={Compass}
               label="Initiatives"
-              isActive={effectiveScope === 'initiatives'}
+              isActive={effectiveScope === 'initiatives' || effectiveScope === 'initiatives-directory'}
               isCollapsed={isCollapsed}
               onClick={() => handleNavigate('initiatives')}
             />

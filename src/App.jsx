@@ -27,12 +27,18 @@ import {
   INITIAL_PROJECT_MILESTONES,
   INITIAL_PROJECT_DEPENDENCIES
 } from './data/projectsMockData';
+import {
+  INITIAL_CANONICAL_INITIATIVES,
+  INITIAL_INITIATIVE_UPDATES
+} from './data/initiativesMockData';
+import { createInitiativeUpdateModel } from './features/initiatives/model/initiativeUpdates';
 import { validateProjectDependency } from './features/projects/model/projectDependencies';
 import { createMilestoneModel } from './features/projects/model/projectMilestones';
 import { createProjectUpdateModel } from './features/projects/model/projectUpdates';
 import { TeamHub } from './features/teams';
 import { DocsHub, DocumentCanvas } from './features/documents';
 import { ProjectWorkspace, ProjectsDirectory } from './features/projects';
+import { InitiativeWorkspace, InitiativesDirectory } from './features/initiatives';
 import {
   Kanban,
   Table,
@@ -97,6 +103,19 @@ function MainView({
   onPostProjectUpdate,
   isProjectFavorite = () => false,
   onToggleProjectFavorite,
+  canonicalInitiatives = [],
+  activeInitiativeId,
+  initiativeUpdates = [],
+  onUpdateInitiative,
+  onArchiveInitiative,
+  onRestoreInitiative,
+  onCompleteInitiative,
+  onCreateInitiative,
+  onPostInitiativeUpdate,
+  onAlignProjectToInitiative,
+  onDissociateProjectFromInitiative,
+  isInitiativeFavorite = () => false,
+  onToggleInitiativeFavorite,
   isAccessible = () => true
 }) {
   const {
@@ -323,16 +342,71 @@ function MainView({
     );
   }
 
-  if (activeScope === 'initiatives') {
+  if (activeScope === 'initiatives-directory') {
     return (
-      <div role="region" aria-label="Initiatives" style={{ padding: 'var(--space-6)', width: '100%' }}>
-        <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)' }}>
-          Workspace Initiatives
-        </h2>
-        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', marginTop: '4px' }}>
-          Strategic long-horizon roadmap and quarterly outcome tracking.
-        </p>
-      </div>
+      <InitiativesDirectory
+        initiatives={canonicalInitiatives}
+        projects={canonicalProjects}
+        workItems={canonicalWorkItems}
+        teams={TEAMS}
+        users={USERS}
+        onNavigateToInitiative={(id) =>
+          onNavigate?.({ scope: 'initiatives', initiativeId: id, tab: 'overview' })
+        }
+        onOpenCreateInitiative={() => onCreateInitiative?.()}
+        isAccessible={isAccessible}
+      />
+    );
+  }
+
+  if (activeScope === 'initiatives') {
+    if (activeInitiativeId) {
+      return (
+        <InitiativeWorkspace
+          initiativeId={activeInitiativeId}
+          initiatives={canonicalInitiatives}
+          projects={canonicalProjects}
+          workItems={canonicalWorkItems}
+          milestones={projectMilestones}
+          updates={initiativeUpdates}
+          dependencies={projectDependencies}
+          teams={TEAMS}
+          users={USERS}
+          activeTab={activeTab || 'overview'}
+          onTabChange={onTabChange}
+          onUpdateInitiative={onUpdateInitiative}
+          onArchiveInitiative={onArchiveInitiative}
+          onRestoreInitiative={onRestoreInitiative}
+          onCompleteInitiative={onCompleteInitiative}
+          onPostInitiativeUpdate={onPostInitiativeUpdate}
+          onAlignProject={onAlignProjectToInitiative}
+          onDissociateProject={onDissociateProjectFromInitiative}
+          onRescheduleProject={(projectId, dates, expectedVersion) =>
+            onUpdateProject(projectId, dates, expectedVersion)
+          }
+          onNavigateToProject={(id) =>
+            onNavigate?.({ scope: 'projects', projectId: id, tab: 'overview' })
+          }
+          isFavorite={isInitiativeFavorite(activeInitiativeId)}
+          onToggleFavorite={() => onToggleInitiativeFavorite?.(activeInitiativeId)}
+          isAccessible={isAccessible}
+        />
+      );
+    }
+
+    return (
+      <InitiativesDirectory
+        initiatives={canonicalInitiatives}
+        projects={canonicalProjects}
+        workItems={canonicalWorkItems}
+        teams={TEAMS}
+        users={USERS}
+        onNavigateToInitiative={(id) =>
+          onNavigate?.({ scope: 'initiatives', initiativeId: id, tab: 'overview' })
+        }
+        onOpenCreateInitiative={() => onCreateInitiative?.()}
+        isAccessible={isAccessible}
+      />
     );
   }
 
@@ -521,7 +595,11 @@ function MainView({
  * Production Shell Orchestrator
  * Connects Domain Context, Presentation Preferences, Navigation Coordinates, and Overlays
  */
-function OrynqoWorkspace({ initialProjects = null }) {
+function OrynqoWorkspace({
+  initialProjects = null,
+  initialInitiatives = null,
+  initialInitiativeUpdates = null
+}) {
   const {
     items,
     activeTeamId: workspaceTeamId,
@@ -602,6 +680,8 @@ function OrynqoWorkspace({ initialProjects = null }) {
     activeTeam,
     activeProjectId,
     setActiveProjectId,
+    activeInitiativeId,
+    setActiveInitiativeId,
     activeCycleId,
     setActiveCycleId,
     activeDocId,
@@ -1060,6 +1140,152 @@ function OrynqoWorkspace({ initialProjects = null }) {
     return newProject;
   }, [currentWorkspace, activeScope, activeTeamId, navigate]);
 
+  // Canonical Initiatives State (INT-001 - INT-002)
+  const [initiatives, setInitiatives] = useState(() => initialInitiatives || INITIAL_CANONICAL_INITIATIVES);
+  const [initiativeUpdates, setInitiativeUpdates] = useState(() => initialInitiativeUpdates || INITIAL_INITIATIVE_UPDATES);
+
+  // Generic Favorite architecture for Initiatives
+  const isInitiativeFavorite = useCallback(
+    (initiativeId) => {
+      return favorites.some((f) => f.targetType === 'initiative' && f.targetId === initiativeId);
+    },
+    [favorites]
+  );
+
+  const handleToggleInitiativeFavorite = useCallback(
+    (initiativeId) => {
+      if (isInitiativeFavorite(initiativeId)) {
+        removeFavorite(initiativeId);
+      } else {
+        const init = initiatives.find((i) => i.id === initiativeId);
+        addFavorite({
+          targetType: 'initiative',
+          targetId: initiativeId,
+          title: init?.name || 'Initiative',
+          icon: 'Compass'
+        });
+      }
+    },
+    [isInitiativeFavorite, initiatives, removeFavorite, addFavorite]
+  );
+
+  // Authoritative Initiative Mutations (with optimistic concurrency check)
+  const handleUpdateInitiative = useCallback((initiativeId, updates, expectedVersion = null) => {
+    let succeeded = false;
+    setInitiatives((prev) => {
+      const current = prev.find((i) => i.id === initiativeId);
+      if (!current) return prev;
+
+      if (expectedVersion !== null && current.version > expectedVersion) {
+        succeeded = false;
+        return prev;
+      }
+
+      succeeded = true;
+      return prev.map((i) =>
+        i.id === initiativeId
+          ? {
+              ...i,
+              ...updates,
+              version: (current.version || 1) + 1,
+              updatedAt: new Date().toISOString()
+            }
+          : i
+      );
+    });
+    return succeeded;
+  }, []);
+
+  const handleArchiveInitiative = useCallback((initiativeId) => {
+    setInitiatives((prev) =>
+      prev.map((i) =>
+        i.id === initiativeId
+          ? { ...i, archiveState: 'archived', updatedAt: new Date().toISOString() }
+          : i
+      )
+    );
+  }, []);
+
+  const handleRestoreInitiative = useCallback((initiativeId) => {
+    setInitiatives((prev) =>
+      prev.map((i) =>
+        i.id === initiativeId
+          ? { ...i, archiveState: 'active', updatedAt: new Date().toISOString() }
+          : i
+      )
+    );
+  }, []);
+
+  const handleCompleteInitiative = useCallback((initiativeId) => {
+    setInitiatives((prev) =>
+      prev.map((i) =>
+        i.id === initiativeId
+          ? { ...i, operationalState: 'completed', updatedAt: new Date().toISOString() }
+          : i
+      )
+    );
+  }, []);
+
+  const handleCreateInitiative = useCallback((input = {}) => {
+    const newInitiative = {
+      id: `init-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      identifier: input.identifier || `INT-${Math.floor(10 + Math.random() * 90)}`,
+      workspaceId: currentWorkspace?.id || 'wks-core',
+      name: input.name || 'Untitled Initiative',
+      narrative: input.narrative || '',
+      operationalState: 'active',
+      archiveState: 'active',
+      health: 'unset',
+      ownerUserId: input.ownerUserId || CURRENT_USER.id,
+      horizon: input.horizon || {
+        type: 'quarter',
+        targetDate: null,
+        quarter: 'Q4',
+        year: 2026,
+        confidence: 'committed'
+      },
+      accessPolicy: input.accessPolicy || 'workspace',
+      version: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    setInitiatives((prev) => [...prev, newInitiative]);
+    navigate({ scope: 'initiatives', initiativeId: newInitiative.id, tab: 'overview' });
+    return newInitiative;
+  }, [currentWorkspace, navigate]);
+
+  // Authoritative Initiative Updates: Publishing updates synchronizes canonical initiative health
+  const handlePostInitiativeUpdate = useCallback(
+    ({ initiativeId, narrative, health, horizonSnapshot = null, highlights = [], blockers = [] }) => {
+      const newUpdate = createInitiativeUpdateModel({
+        initiativeId,
+        authorId: CURRENT_USER.id,
+        narrative,
+        health,
+        horizonSnapshot,
+        highlights,
+        blockers
+      });
+
+      setInitiativeUpdates((prev) => [newUpdate, ...prev]);
+
+      // Health synchronization invariant: updates canonical initiative health to declared snapshot
+      handleUpdateInitiative(initiativeId, { health });
+      return newUpdate;
+    },
+    [handleUpdateInitiative]
+  );
+
+  // Authoritative Project ↔ Initiative Association Mutations
+  // Modifies canonical project.initiativeId without mutating initiative arrays or project execution state
+  const handleAlignProjectToInitiative = useCallback((projectId, initiativeId) => {
+    return handleUpdateProject(projectId, { initiativeId });
+  }, [handleUpdateProject]);
+
+  const handleDissociateProjectFromInitiative = useCallback((projectId) => {
+    return handleUpdateProject(projectId, { initiativeId: null });
+  }, [handleUpdateProject]);
+
   // Inbox State & Hooks
   const [inboxNotifications, setInboxNotifications] = useState(INITIAL_NOTIFICATIONS);
   const inboxPreferences = useInboxPreferences();
@@ -1242,8 +1468,19 @@ function OrynqoWorkspace({ initialProjects = null }) {
     } else if (activeScope === 'my-work') {
       list.push({ id: 'my-work', label: 'My Work' });
       list.push({ id: myWorkScope, label: myWorkScope.charAt(0).toUpperCase() + myWorkScope.slice(1) });
-    } else if (activeScope === 'initiatives') {
-      list.push({ id: 'initiatives', label: 'Initiatives' });
+    } else if (activeScope === 'initiatives' || activeScope === 'initiatives-directory') {
+      list.push({
+        id: 'initiatives',
+        label: 'Initiatives',
+        onClick: () => navigate({ scope: 'initiatives-directory' })
+      });
+      if (activeInitiativeId) {
+        const init = initiatives.find((i) => i.id === activeInitiativeId);
+        list.push({ id: activeInitiativeId, label: init?.name || 'Initiative' });
+        if (activeTab && activeTab !== 'overview') {
+          list.push({ id: activeTab, label: activeTab.charAt(0).toUpperCase() + activeTab.slice(1) });
+        }
+      }
     } else if (activeScope === 'docs') {
       list.push({ id: 'docs', label: 'Docs', onClick: () => navigate({ scope: 'docs', docId: null }) });
       if (activeDocId) {
@@ -1535,8 +1772,19 @@ function OrynqoWorkspace({ initialProjects = null }) {
         onArchiveProjectMilestone={handleArchiveProjectMilestone}
         onCompleteProjectMilestone={handleCompleteProjectMilestone}
         onPostProjectUpdate={handlePostProjectUpdate}
-        isProjectFavorite={isProjectFavorite}
-        onToggleProjectFavorite={handleToggleProjectFavorite}
+        canonicalInitiatives={initiatives}
+        activeInitiativeId={activeInitiativeId}
+        initiativeUpdates={initiativeUpdates}
+        onUpdateInitiative={handleUpdateInitiative}
+        onArchiveInitiative={handleArchiveInitiative}
+        onRestoreInitiative={handleRestoreInitiative}
+        onCompleteInitiative={handleCompleteInitiative}
+        onCreateInitiative={handleCreateInitiative}
+        onPostInitiativeUpdate={handlePostInitiativeUpdate}
+        onAlignProjectToInitiative={handleAlignProjectToInitiative}
+        onDissociateProjectFromInitiative={handleDissociateProjectFromInitiative}
+        isInitiativeFavorite={isInitiativeFavorite}
+        onToggleInitiativeFavorite={handleToggleInitiativeFavorite}
         isAccessible={(entity, type) => {
           if (!entity) return false;
           if (entity.isRestricted || entity.restricted) return false;
@@ -1552,11 +1800,20 @@ function OrynqoWorkspace({ initialProjects = null }) {
  * Root Application Bootstrap
  * Provides context boundaries without logic bloat
  */
-export function App({ initialItems, initialProjects = null }) {
+export function App({
+  initialItems,
+  initialProjects = null,
+  initialInitiatives = null,
+  initialInitiativeUpdates = null
+}) {
   return (
     <UIProvider>
       <WorkspaceProvider initialItems={initialItems}>
-        <OrynqoWorkspace initialProjects={initialProjects} />
+        <OrynqoWorkspace
+          initialProjects={initialProjects}
+          initialInitiatives={initialInitiatives}
+          initialInitiativeUpdates={initialInitiativeUpdates}
+        />
       </WorkspaceProvider>
     </UIProvider>
   );

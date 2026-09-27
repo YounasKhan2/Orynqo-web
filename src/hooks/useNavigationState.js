@@ -25,6 +25,7 @@ export function useNavigationState({
   const [activeScope, setActiveScope] = useState(initialScope);
   const [activeTeamId, setActiveTeamId] = useState(initialTeamId);
   const [activeProjectId, setActiveProjectId] = useState(null);
+  const [activeInitiativeId, setActiveInitiativeId] = useState(null);
   const [activeCycleId, setActiveCycleId] = useState(null);
   const [activeDocId, setActiveDocId] = useState(null);
   const [activeViewId, setActiveViewId] = useState(null);
@@ -178,8 +179,9 @@ export function useNavigationState({
         setActiveScope('my-work');
         setActiveTab('assigned');
       } else if (dest === 'initiatives' || dest === '/initiatives') {
-        setActiveScope('initiatives');
-        setActiveTab('overview');
+        setActiveScope('initiatives-directory');
+        setActiveTab('directory');
+        setActiveInitiativeId(null);
       } else if (dest === 'docs' || dest === '/docs') {
         setActiveScope('docs');
         setActiveTab('all');
@@ -193,11 +195,13 @@ export function useNavigationState({
       } else if (dest === 'projects' || dest === '/projects') {
         setActiveScope('projects-directory');
         setActiveTab('directory');
+        setActiveProjectId(null);
       }
     } else {
       if (dest.scope) setActiveScope(dest.scope);
       if (dest.teamId !== undefined) setActiveTeamId(dest.teamId);
       if (dest.projectId !== undefined) setActiveProjectId(dest.projectId);
+      if (dest.initiativeId !== undefined) setActiveInitiativeId(dest.initiativeId);
       if (dest.cycleId !== undefined) setActiveCycleId(dest.cycleId);
       if (dest.docId !== undefined) setActiveDocId(dest.docId);
       if (dest.viewId !== undefined) setActiveViewId(dest.viewId);
@@ -220,6 +224,8 @@ export function useNavigationState({
     activeTeam,
     activeProjectId,
     setActiveProjectId,
+    activeInitiativeId,
+    setActiveInitiativeId,
     activeCycleId,
     setActiveCycleId,
     activeDocId,
