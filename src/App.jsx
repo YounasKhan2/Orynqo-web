@@ -32,7 +32,8 @@ import {
   INITIAL_INITIATIVE_UPDATES
 } from './data/initiativesMockData';
 import { createInitiativeUpdateModel } from './features/initiatives/model/initiativeUpdates';
-import { validateProjectDependency } from './features/projects/model/projectDependencies';
+import { validateProjectDependency, applyProjectDependency } from './features/projects/model/projectDependencies';
+import { applyProjectUpdate } from './features/projects/model/projectModel';
 import { createMilestoneModel } from './features/projects/model/projectMilestones';
 import { createProjectUpdateModel } from './features/projects/model/projectUpdates';
 import { TeamHub } from './features/teams';
@@ -932,64 +933,20 @@ function OrynqoWorkspace({
   // Authoritative Project Dependency Mutations (enforcing workspace tenancy, zero-leakage access, permissions, and graph invariants)
   const handleAddProjectDependency = useCallback(
     ({ blockerId, dependentId, canManage = true, isAccessible = () => true }) => {
-      // 1. Permission check
-      if (!canManage) {
-        return {
-          valid: false,
-          error: 'Unauthorized: actor does not have permission to mutate dependency relationships.'
-        };
-      }
-
-      // 2. Existence check
-      const blocker = projects.find((p) => p.id === blockerId);
-      const dependent = projects.find((p) => p.id === dependentId);
-      if (!blocker || !dependent) {
-        return {
-          valid: false,
-          error: 'Project does not exist or access is restricted.'
-        };
-      }
-
-      // 3. Workspace tenancy check (Cross-workspace rejection)
-      const currentWkId = currentWorkspace?.id || 'wks-core';
-      const blockerWkId = blocker.workspaceId || 'wks-core';
-      const dependentWkId = dependent.workspaceId || 'wks-core';
-      if (blockerWkId !== currentWkId || dependentWkId !== currentWkId) {
-        return {
-          valid: false,
-          error: 'Cross-workspace dependencies are prohibited.'
-        };
-      }
-
-      // 4. Accessibility check (Zero-leakage: do not leak target details if restricted)
-      const blockerAccessible = !blocker.isRestricted && blocker.isAccessible !== false && isAccessible(blocker, 'project');
-      const dependentAccessible = !dependent.isRestricted && dependent.isAccessible !== false && isAccessible(dependent, 'project');
-      if (!blockerAccessible || !dependentAccessible) {
-        return {
-          valid: false,
-          error: 'Project does not exist or access is restricted.'
-        };
-      }
-
-      // 5. Graph invariant (self, duplicate, cycle)
-      let result = { valid: false, error: 'Validation failed' };
+      let outcome = { valid: false, error: 'Validation failed' };
       setProjectDependencies((prev) => {
-        const validation = validateProjectDependency(blockerId, dependentId, prev);
-        if (!validation.valid) {
-          result = validation;
-          return prev;
-        }
-
-        const newEdge = {
-          id: `dep-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+        outcome = applyProjectDependency({
           blockerId,
           dependentId,
-          createdAt: new Date().toISOString()
-        };
-        result = { valid: true, edge: newEdge };
-        return [...prev, newEdge];
+          projects,
+          dependencies: prev,
+          currentWorkspaceId: currentWorkspace?.id || 'wks-core',
+          canManage,
+          isAccessible
+        });
+        return outcome.valid ? outcome.dependencies : prev;
       });
-      return result;
+      return outcome;
     },
     [projects, currentWorkspace]
   );
@@ -1043,26 +1000,9 @@ function OrynqoWorkspace({
   const handleUpdateProject = useCallback((projectId, updates, expectedVersion = null) => {
     let succeeded = false;
     setProjects((prev) => {
-      const current = prev.find((p) => p.id === projectId);
-      if (!current) return prev;
-
-      // Authoritative concurrency check: reject if expectedVersion is provided and stale
-      if (expectedVersion !== null && current.version > expectedVersion) {
-        succeeded = false;
-        return prev;
-      }
-
-      succeeded = true;
-      return prev.map((p) =>
-        p.id === projectId
-          ? {
-              ...p,
-              ...updates,
-              version: (current.version || 1) + 1,
-              updatedAt: new Date().toISOString()
-            }
-          : p
-      );
+      const outcome = applyProjectUpdate(prev, projectId, updates, expectedVersion);
+      succeeded = outcome.success;
+      return outcome.success ? outcome.projects : prev;
     });
     return succeeded;
   }, []);

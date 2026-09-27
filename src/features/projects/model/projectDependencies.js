@@ -120,3 +120,98 @@ export function resolveProjectDependencies(
 
   return { blockedBy, blocks };
 }
+
+/**
+ * Authoritative Project Dependency Mutation Operation
+ *
+ * Validates and creates a new dependency edge between two projects, enforcing:
+ * 1. Actor permission (canManage)
+ * 2. Blocker and dependent project existence
+ * 3. Workspace tenancy (prohibiting cross-workspace edges)
+ * 4. Zero-leakage accessibility (no existence/detail leakage for restricted projects)
+ * 5. Directional graph invariants (self-dependency, duplicate edge, cycle prevention)
+ *
+ * @param {Object} options
+ * @param {string} options.blockerId - Project acting as blocker
+ * @param {string} options.dependentId - Project depending on blocker
+ * @param {Array<Object>} options.projects - Canonical projects collection
+ * @param {Array<Object>} options.dependencies - Canonical dependency edges
+ * @param {string} [options.currentWorkspaceId='wks-core'] - Current active workspace ID
+ * @param {boolean} [options.canManage=true] - Actor management permission
+ * @param {Function} [options.isAccessible=()=>true] - Authorization resolver
+ * @returns {{ valid: boolean, error?: string, edge?: Object, dependencies: Array<Object> }}
+ */
+export function applyProjectDependency({
+  blockerId,
+  dependentId,
+  projects = [],
+  dependencies = [],
+  currentWorkspaceId = 'wks-core',
+  canManage = true,
+  isAccessible = () => true
+} = {}) {
+  // 1. Permission check
+  if (!canManage) {
+    return {
+      valid: false,
+      error: 'Unauthorized: actor does not have permission to mutate dependency relationships.',
+      dependencies
+    };
+  }
+
+  // 2. Existence check
+  const blocker = (projects || []).find((p) => p.id === blockerId);
+  const dependent = (projects || []).find((p) => p.id === dependentId);
+  if (!blocker || !dependent) {
+    return {
+      valid: false,
+      error: 'Project does not exist or access is restricted.',
+      dependencies
+    };
+  }
+
+  // 3. Workspace tenancy check (Cross-workspace rejection)
+  const currentWkId = currentWorkspaceId || 'wks-core';
+  const blockerWkId = blocker.workspaceId || 'wks-core';
+  const dependentWkId = dependent.workspaceId || 'wks-core';
+  if (blockerWkId !== currentWkId || dependentWkId !== currentWkId) {
+    return {
+      valid: false,
+      error: 'Cross-workspace dependencies are prohibited.',
+      dependencies
+    };
+  }
+
+  // 4. Accessibility check (Zero-leakage: do not leak target details if restricted)
+  const blockerAccessible = !blocker.isRestricted && blocker.isAccessible !== false && isAccessible(blocker, 'project');
+  const dependentAccessible = !dependent.isRestricted && dependent.isAccessible !== false && isAccessible(dependent, 'project');
+  if (!blockerAccessible || !dependentAccessible) {
+    return {
+      valid: false,
+      error: 'Project does not exist or access is restricted.',
+      dependencies
+    };
+  }
+
+  // 5. Graph invariant (self, duplicate, cycle)
+  const validation = validateProjectDependency(blockerId, dependentId, dependencies);
+  if (!validation.valid) {
+    return {
+      ...validation,
+      dependencies
+    };
+  }
+
+  const newEdge = {
+    id: `dep-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+    blockerId,
+    dependentId,
+    createdAt: new Date().toISOString()
+  };
+
+  return {
+    valid: true,
+    edge: newEdge,
+    dependencies: [...dependencies, newEdge]
+  };
+}

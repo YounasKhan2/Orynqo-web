@@ -20,8 +20,8 @@ import {
   createSupersedingUpdate
 } from '../features/initiatives/model';
 import { useInitiativeMutations } from '../features/initiatives/hooks/useInitiatives';
-import { createProjectModel } from '../features/projects/model/projectModel';
-import { validateProjectDependency } from '../features/projects/model/projectDependencies';
+import { createProjectModel, applyProjectUpdate } from '../features/projects/model/projectModel';
+import { validateProjectDependency, applyProjectDependency } from '../features/projects/model/projectDependencies';
 import { useFavorites } from '../hooks/useFavorites';
 import { CommandPalette } from '../components/command-palette/CommandPalette';
 import {
@@ -936,33 +936,30 @@ describe('UI-08B: Initiatives & Roadmap Implementation Suite', () => {
   // -------------------------------------------------------------
   describe('16. Real Project Association & Reassignment Integrity', () => {
     it('canonical project mutation modifies project.initiativeId and increments version while keeping execution state invariant', () => {
-      let canonicalProject = {
-        ...createProjectModel({
-          id: 'proj-canonical-test',
-          name: 'Database Re-architecture',
-          initiativeId: null,
-          leadTeamId: 'team-backend',
-          participatingTeamIds: ['team-backend', 'team-data'],
-          operationalState: 'active',
-          archiveState: 'active',
-          version: 1
-        }),
-        milestones: [{ id: 'mls-1', name: 'Phase 1' }],
-        documents: ['doc-1']
-      };
-
-      // Production Authoritative Project Mutation Boundary (from UI-07 / App.jsx)
-      const onUpdateProject = vi.fn((projectId, updates, expectedVersion = null) => {
-        if (expectedVersion !== null && canonicalProject.version > expectedVersion) {
-          return false;
+      let canonicalProjects = [
+        {
+          ...createProjectModel({
+            id: 'proj-canonical-test',
+            name: 'Database Re-architecture',
+            initiativeId: null,
+            leadTeamId: 'team-backend',
+            participatingTeamIds: ['team-backend', 'team-data'],
+            operationalState: 'active',
+            archiveState: 'active',
+            version: 1
+          }),
+          milestones: [{ id: 'mls-1', name: 'Phase 1' }],
+          documents: ['doc-1']
         }
-        canonicalProject = {
-          ...canonicalProject,
-          ...updates,
-          version: (canonicalProject.version || 1) + 1,
-          updatedAt: new Date().toISOString()
-        };
-        return true;
+      ];
+
+      // Production Authoritative Project Mutation Boundary delegating to canonical applyProjectUpdate
+      const onUpdateProject = vi.fn((projectId, updates, expectedVersion = null) => {
+        const outcome = applyProjectUpdate(canonicalProjects, projectId, updates, expectedVersion);
+        if (outcome.success) {
+          canonicalProjects = outcome.projects;
+        }
+        return outcome.success;
       });
 
       const initiatives = [
@@ -985,7 +982,7 @@ describe('UI-08B: Initiatives & Roadmap Implementation Suite', () => {
       const { result } = renderHook(() =>
         useInitiativeMutations({
           initiatives,
-          projects: [canonicalProject],
+          projects: canonicalProjects,
           onUpdateProject,
           setActivityEvents,
           actor: { id: 'usr-sarah', workspaceId: 'wks-core' }
@@ -993,8 +990,8 @@ describe('UI-08B: Initiatives & Roadmap Implementation Suite', () => {
       );
 
       // Verify before state
-      expect(canonicalProject.initiativeId).toBeNull();
-      expect(canonicalProject.version).toBe(1);
+      expect(canonicalProjects[0].initiativeId).toBeNull();
+      expect(canonicalProjects[0].version).toBe(1);
 
       // Align through Initiative flow
       let outcome;
@@ -1006,16 +1003,17 @@ describe('UI-08B: Initiatives & Roadmap Implementation Suite', () => {
       expect(onUpdateProject).toHaveBeenCalledWith('proj-canonical-test', { initiativeId: 'init-delta' }, 1);
 
       // Verify after state: initiativeId = target, version = N + 1
-      expect(canonicalProject.initiativeId).toBe('init-delta');
-      expect(canonicalProject.version).toBe(2);
+      const updatedProject = canonicalProjects[0];
+      expect(updatedProject.initiativeId).toBe('init-delta');
+      expect(updatedProject.version).toBe(2);
 
       // Invariant assertion: project attributes remain unchanged
-      expect(canonicalProject.leadTeamId).toBe('team-backend');
-      expect(canonicalProject.participatingTeamIds).toEqual(['team-backend', 'team-data']);
-      expect(canonicalProject.operationalState).toBe('active');
-      expect(canonicalProject.archiveState).toBe('active');
-      expect(canonicalProject.milestones).toEqual([{ id: 'mls-1', name: 'Phase 1' }]);
-      expect(canonicalProject.documents).toEqual(['doc-1']);
+      expect(updatedProject.leadTeamId).toBe('team-backend');
+      expect(updatedProject.participatingTeamIds).toEqual(['team-backend', 'team-data']);
+      expect(updatedProject.operationalState).toBe('active');
+      expect(updatedProject.archiveState).toBe('active');
+      expect(updatedProject.milestones).toEqual([{ id: 'mls-1', name: 'Phase 1' }]);
+      expect(updatedProject.documents).toEqual(['doc-1']);
 
       // ActivityEvent emitted on authoritative success
       expect(activityEvents.length).toBe(1);
@@ -1055,25 +1053,23 @@ describe('UI-08B: Initiatives & Roadmap Implementation Suite', () => {
       expect(project.initiativeId).toBe('init-alpha');
     });
 
-    it('production-path rejection: stale Project version or failure produces no mutation and no false ActivityEvent', () => {
-      let canonicalProject = createProjectModel({
-        id: 'proj-stale-test',
-        name: 'Stale Project Test',
-        initiativeId: null,
-        version: 2
-      });
+    it('production-path rejection: stale Project version via applyProjectUpdate produces no mutation and no false ActivityEvent', () => {
+      let canonicalProjects = [
+        createProjectModel({
+          id: 'proj-stale-test',
+          name: 'Stale Project Test',
+          initiativeId: null,
+          version: 2
+        })
+      ];
 
-      // Production Authoritative Project Mutation Boundary rejecting stale write
+      // Production Authoritative Project Mutation Boundary delegating to canonical applyProjectUpdate
       const onUpdateProject = vi.fn((projectId, updates, expectedVersion = null) => {
-        if (expectedVersion !== null && canonicalProject.version > expectedVersion) {
-          return false; // Stale write rejected!
+        const outcome = applyProjectUpdate(canonicalProjects, projectId, updates, expectedVersion);
+        if (outcome.success) {
+          canonicalProjects = outcome.projects;
         }
-        canonicalProject = {
-          ...canonicalProject,
-          ...updates,
-          version: canonicalProject.version + 1
-        };
-        return true;
+        return outcome.success;
       });
 
       const initiatives = [
@@ -1095,7 +1091,7 @@ describe('UI-08B: Initiatives & Roadmap Implementation Suite', () => {
       const { result } = renderHook(() =>
         useInitiativeMutations({
           initiatives,
-          projects: [canonicalProject],
+          projects: canonicalProjects,
           onUpdateProject,
           setActivityEvents,
           actor: { id: 'usr-sarah', workspaceId: 'wks-core' }
@@ -1112,27 +1108,29 @@ describe('UI-08B: Initiatives & Roadmap Implementation Suite', () => {
       expect(outcome.error).toMatch(/rejected/i);
 
       // Invariants: Project unchanged, version unchanged, no false ActivityEvent
-      expect(canonicalProject.initiativeId).toBeNull();
-      expect(canonicalProject.version).toBe(2);
+      expect(canonicalProjects[0].initiativeId).toBeNull();
+      expect(canonicalProjects[0].version).toBe(2);
       expect(activityEvents.length).toBe(0);
       expect(setActivityEvents).not.toHaveBeenCalled();
     });
 
     it('production-path dissociation: delegates to Authoritative Project Mutation Boundary and emits ActivityEvent on success', () => {
-      let canonicalProject = createProjectModel({
-        id: 'proj-dissoc-test',
-        name: 'Dissociate Test',
-        initiativeId: 'init-source',
-        version: 3
-      });
+      let canonicalProjects = [
+        createProjectModel({
+          id: 'proj-dissoc-test',
+          name: 'Dissociate Test',
+          initiativeId: 'init-source',
+          version: 3
+        })
+      ];
 
+      // Production Authoritative Project Mutation Boundary delegating to canonical applyProjectUpdate
       const onUpdateProject = vi.fn((projectId, updates, expectedVersion = null) => {
-        canonicalProject = {
-          ...canonicalProject,
-          ...updates,
-          version: canonicalProject.version + 1
-        };
-        return true;
+        const outcome = applyProjectUpdate(canonicalProjects, projectId, updates, expectedVersion);
+        if (outcome.success) {
+          canonicalProjects = outcome.projects;
+        }
+        return outcome.success;
       });
 
       const initiatives = [
@@ -1154,7 +1152,7 @@ describe('UI-08B: Initiatives & Roadmap Implementation Suite', () => {
       const { result } = renderHook(() =>
         useInitiativeMutations({
           initiatives,
-          projects: [canonicalProject],
+          projects: canonicalProjects,
           onUpdateProject,
           setActivityEvents,
           actor: { id: 'usr-sarah', workspaceId: 'wks-core' }
@@ -1168,8 +1166,8 @@ describe('UI-08B: Initiatives & Roadmap Implementation Suite', () => {
 
       expect(outcome.success).toBe(true);
       expect(onUpdateProject).toHaveBeenCalledWith('proj-dissoc-test', { initiativeId: null }, 3);
-      expect(canonicalProject.initiativeId).toBeNull();
-      expect(canonicalProject.version).toBe(4);
+      expect(canonicalProjects[0].initiativeId).toBeNull();
+      expect(canonicalProjects[0].version).toBe(4);
       expect(activityEvents.length).toBe(1);
       expect(activityEvents[0].type).toBe('initiative.project_dissociated');
       expect(activityEvents[0].entityId).toBe('init-source');
@@ -1182,30 +1180,28 @@ describe('UI-08B: Initiatives & Roadmap Implementation Suite', () => {
   describe('17. Roadmap Concurrency Rollback & Canonical Date Check', () => {
     it('authoritative mutation rejects stale version, retaining canonical date and rendering conflict feedback in RoadmapTab', async () => {
       // Canonical Project in upstream database at version 2 with date 2026-12-15
-      let canonicalProject = createProjectModel({
-        id: 'proj-1',
-        name: 'Distributed Tracing',
-        targetDate: '2026-12-15',
-        version: 2,
-        initiativeId: 'init-roadmap'
-      });
+      let canonicalProjects = [
+        createProjectModel({
+          id: 'proj-1',
+          name: 'Distributed Tracing',
+          targetDate: '2026-12-15',
+          version: 2,
+          initiativeId: 'init-roadmap'
+        })
+      ];
 
-      // Authoritative boundary (same production function as App.jsx handleUpdateProject)
+      // Authoritative boundary invoking production applyProjectUpdate
       const onRescheduleProject = vi.fn((id, updates, expectedVersion = null) => {
-        if (expectedVersion !== null && canonicalProject.version > expectedVersion) {
-          return false; // Stale write rejected!
+        const outcome = applyProjectUpdate(canonicalProjects, id, updates, expectedVersion);
+        if (outcome.success) {
+          canonicalProjects = outcome.projects;
         }
-        canonicalProject = {
-          ...canonicalProject,
-          ...updates,
-          version: canonicalProject.version + 1
-        };
-        return true;
+        return outcome.success;
       });
 
       // Roadmap tab loaded when project was version 1
       const staleProject = {
-        ...canonicalProject,
+        ...canonicalProjects[0],
         version: 1
       };
 
@@ -1233,8 +1229,8 @@ describe('UI-08B: Initiatives & Roadmap Implementation Suite', () => {
       expect(onRescheduleProject).toHaveBeenCalledWith('proj-1', { targetDate: '2026-11-30' }, 1);
 
       // Stale write rejected: Canonical date and version remain at N+1 value
-      expect(canonicalProject.targetDate).toBe('2026-12-15');
-      expect(canonicalProject.version).toBe(2);
+      expect(canonicalProjects[0].targetDate).toBe('2026-12-15');
+      expect(canonicalProjects[0].version).toBe(2);
 
       // Conflict feedback renders in Roadmap UI
       await waitFor(() => {
@@ -1248,7 +1244,7 @@ describe('UI-08B: Initiatives & Roadmap Implementation Suite', () => {
   // 18. ROADMAP PROJECT DEPENDENCY MUTATION & REJECTIONS
   // -------------------------------------------------------------
   describe('18. Roadmap Project Dependency Mutation & Rejections', () => {
-    it('production dependency boundary rejects unauthorized mutation, inaccessible project, cross-workspace, and cycles', () => {
+    it('production applyProjectDependency rejects unauthorized mutation, inaccessible project, cross-workspace, self, duplicate, and cycles', () => {
       const projects = [
         createProjectModel({ id: 'proj-a', name: 'Service A', workspaceId: 'wks-core' }),
         createProjectModel({ id: 'proj-b', name: 'Service B', workspaceId: 'wks-core' }),
@@ -1257,66 +1253,73 @@ describe('UI-08B: Initiatives & Roadmap Implementation Suite', () => {
 
       let dependencies = [{ id: 'dep-1', blockerId: 'proj-a', dependentId: 'proj-b' }];
 
-      // Production dependency mutation boundary as implemented in App.jsx handleAddProjectDependency
-      const addProjectDependencyBoundary = ({ blockerId, dependentId, canManage = true, isAccessible = () => true, currentWkId = 'wks-core' }) => {
-        if (!canManage) {
-          return { valid: false, error: 'Unauthorized: actor lacks permission' };
-        }
-        const blocker = projects.find((p) => p.id === blockerId);
-        const dependent = projects.find((p) => p.id === dependentId);
-        if (!blocker || !dependent) {
-          return { valid: false, error: 'Project does not exist or access is restricted.' };
-        }
-        const blockerWkId = blocker.workspaceId || 'wks-core';
-        const dependentWkId = dependent.workspaceId || 'wks-core';
-        if (blockerWkId !== currentWkId || dependentWkId !== currentWkId) {
-          return { valid: false, error: 'Cross-workspace dependencies are prohibited.' };
-        }
-        if (!isAccessible(blocker, 'project') || !isAccessible(dependent, 'project')) {
-          return { valid: false, error: 'Project does not exist or access is restricted.' };
-        }
-        const validation = validateProjectDependency(blockerId, dependentId, dependencies);
-        if (!validation.valid) {
-          return validation;
-        }
-        const newEdge = { id: `dep-${Date.now()}`, blockerId, dependentId };
-        dependencies = [...dependencies, newEdge];
-        return { valid: true, edge: newEdge };
-      };
-
       // 1. Unauthorized mutation
-      const unauthOutcome = addProjectDependencyBoundary({
+      const unauthOutcome = applyProjectDependency({
         blockerId: 'proj-b',
         dependentId: 'proj-a',
+        projects,
+        dependencies,
         canManage: false
       });
       expect(unauthOutcome.valid).toBe(false);
+      expect(unauthOutcome.error).toMatch(/unauthorized/i);
       expect(dependencies.length).toBe(1);
 
       // 2. Inaccessible / non-existent Project
-      const inaccessibleOutcome = addProjectDependencyBoundary({
+      const inaccessibleOutcome = applyProjectDependency({
         blockerId: 'proj-a',
         dependentId: 'proj-b',
+        projects,
+        dependencies,
         canManage: true,
         isAccessible: (p) => p.id !== 'proj-b'
       });
       expect(inaccessibleOutcome.valid).toBe(false);
+      expect(inaccessibleOutcome.error).toMatch(/restricted/i);
       expect(dependencies.length).toBe(1);
 
       // 3. Cross-workspace Project
-      const foreignOutcome = addProjectDependencyBoundary({
+      const foreignOutcome = applyProjectDependency({
         blockerId: 'proj-a',
         dependentId: 'proj-foreign',
+        projects,
+        dependencies,
         canManage: true
       });
       expect(foreignOutcome.valid).toBe(false);
       expect(foreignOutcome.error).toMatch(/cross-workspace/i);
       expect(dependencies.length).toBe(1);
 
-      // 4. Cycle producing edge (proj-b -> proj-a when proj-a -> proj-b already exists) using production validateProjectDependency
-      const cycleOutcome = addProjectDependencyBoundary({
+      // 4. Self dependency (A blocks A)
+      const selfOutcome = applyProjectDependency({
+        blockerId: 'proj-a',
+        dependentId: 'proj-a',
+        projects,
+        dependencies,
+        canManage: true
+      });
+      expect(selfOutcome.valid).toBe(false);
+      expect(selfOutcome.error).toMatch(/cannot block itself/i);
+      expect(dependencies.length).toBe(1);
+
+      // 5. Duplicate edge (A -> B already exists)
+      const duplicateOutcome = applyProjectDependency({
+        blockerId: 'proj-a',
+        dependentId: 'proj-b',
+        projects,
+        dependencies,
+        canManage: true
+      });
+      expect(duplicateOutcome.valid).toBe(false);
+      expect(duplicateOutcome.error).toMatch(/already exists/i);
+      expect(dependencies.length).toBe(1);
+
+      // 6. Cycle producing edge (proj-b -> proj-a when proj-a -> proj-b already exists)
+      const cycleOutcome = applyProjectDependency({
         blockerId: 'proj-b',
         dependentId: 'proj-a',
+        projects,
+        dependencies,
         canManage: true
       });
       expect(cycleOutcome.valid).toBe(false);
@@ -1326,6 +1329,21 @@ describe('UI-08B: Initiatives & Roadmap Implementation Suite', () => {
       expect(dependencies.length).toBe(1);
       expect(dependencies[0].blockerId).toBe('proj-a');
       expect(dependencies[0].dependentId).toBe('proj-b');
+
+      // 7. Successful valid dependency edge
+      const validProjectC = createProjectModel({ id: 'proj-c', name: 'Service C', workspaceId: 'wks-core' });
+      const validOutcome = applyProjectDependency({
+        blockerId: 'proj-b',
+        dependentId: 'proj-c',
+        projects: [...projects, validProjectC],
+        dependencies,
+        canManage: true
+      });
+      expect(validOutcome.valid).toBe(true);
+      expect(validOutcome.edge).toBeDefined();
+      expect(validOutcome.edge.blockerId).toBe('proj-b');
+      expect(validOutcome.edge.dependentId).toBe('proj-c');
+      expect(validOutcome.dependencies.length).toBe(2);
     });
   });
 

@@ -264,3 +264,54 @@ export function calculateProjectProgress(projectOrItems, itemsOrAccessor = [], m
     label: `${completed} / ${total}`
   };
 }
+
+/**
+ * Authoritative Project Mutation Operation
+ *
+ * Applies canonical updates to a target project within a projects collection,
+ * enforcing project existence, optimistic concurrency validation against expectedVersion,
+ * canonical version increment (N -> N+1), and timestamp update.
+ *
+ * @param {Array<Object>} projects - Canonical projects collection
+ * @param {string} projectId - Project identifier to update
+ * @param {Object} updates - Attribute patch to apply
+ * @param {number|null} [expectedVersion=null] - Expected project version for optimistic concurrency
+ * @returns {{ success: boolean, conflict?: boolean, error?: string, projects: Array<Object>, updatedProject: Object|null }}
+ */
+export function applyProjectUpdate(projects, projectId, updates = {}, expectedVersion = null) {
+  const current = (projects || []).find((p) => p.id === projectId);
+  if (!current) {
+    return {
+      success: false,
+      error: `Project "${projectId}" not found`,
+      projects: projects || [],
+      updatedProject: null
+    };
+  }
+
+  // Concurrency check: reject if expectedVersion is provided and current version is ahead
+  if (expectedVersion !== null && current.version > expectedVersion) {
+    return {
+      success: false,
+      conflict: true,
+      error: `Concurrency Conflict: Project version ${current.version} exceeds expected version ${expectedVersion}`,
+      projects: projects || [],
+      updatedProject: null
+    };
+  }
+
+  const updatedProject = {
+    ...current,
+    ...updates,
+    version: (current.version || 1) + 1,
+    updatedAt: new Date().toISOString()
+  };
+
+  const nextProjects = (projects || []).map((p) => (p.id === projectId ? updatedProject : p));
+
+  return {
+    success: true,
+    projects: nextProjects,
+    updatedProject
+  };
+}
